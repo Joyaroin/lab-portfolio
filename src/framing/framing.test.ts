@@ -60,7 +60,7 @@ describe("the framing's stops", () => {
 });
 
 describe("cameraAt over a flight", () => {
-  const f = framingFor(win(1280, 800)), [a, b, c] = [f.stops[0], f.stops[3], f.stops[5]];
+  const f = framingFor(win(1280, 800)), [a, b, c] = [f.stops[0], f.stops[3], f.stops[2]];
   it("gives the overview's own field of view at stop 0 and the stations' at a station", () => {
     expect(f.cameraAt({ kind: "at", stop: 0 }).fov).toBe(OVERVIEW.fov);
     expect(f.cameraAt({ kind: "at", stop: 3 }).fov).toBe(CAMERA_FOV);
@@ -73,14 +73,14 @@ describe("cameraAt over a flight", () => {
     expect(mid).toBeGreaterThan(CAMERA_FOV);
   });
   it("starts a re-target from the launch pose, however many flights deep, so it never jumps", () => {
-    const launch: Launch = { kind: "flying", from: { kind: "flying", from: { kind: "at", stop: 0 }, to: 3, f: 0.5 }, to: 5, f: 0.3 };
+    const launch: Launch = { kind: "flying", from: { kind: "flying", from: { kind: "at", stop: 0 }, to: 3, f: 0.5 }, to: 2, f: 0.3 };
     const first = flightPose(a, b, 0.5), second = flightPose(first, c, 0.3);
-    expect(f.cameraAt({ kind: "flying", from: 5, to: 1, f: 0 }, launch)).toEqual(flightPose(second, f.stops[1], 0));
-    const start = f.cameraAt({ kind: "flying", from: 5, to: 1, f: 0 }, launch);
+    expect(f.cameraAt({ kind: "flying", from: 2, to: 1, f: 0 }, launch)).toEqual(flightPose(second, f.stops[1], 0));
+    const start = f.cameraAt({ kind: "flying", from: 2, to: 1, f: 0 }, launch);
     expect(start.camera).toEqual(second.camera);
     expect(start.look).toEqual(second.look);
     expect(start.fov).toBe(second.fov);
-    const later = f.cameraAt({ kind: "flying", from: 5, to: 1, f: 0.5 }, launch);
+    const later = f.cameraAt({ kind: "flying", from: 2, to: 1, f: 0.5 }, launch);
     expect(later).toEqual(flightPose(second, f.stops[1], 0.5));
   });
 });
@@ -110,8 +110,8 @@ describe("portrait framing", () => {
       expect(t.look).toEqual(stop.look);
     }
   });
-  it("pulls back every station but the home lab, whose phone view is approved, and those with a phone stop", () => {
-    for (const c of crts) expect(c.portrait > 1, c.id).toBe(c.id !== "home-lab" && !c.phone);
+  it("pulls back every station that has no phone stop of its own", () => {
+    for (const c of crts) expect(c.portrait > 1, c.id).toBe(!c.phone);
   });
   it("stands further back on a portrait window along the layout's own stop, looking at the same point", () => {
     const f = framingFor(win(390, 780));
@@ -126,10 +126,10 @@ describe("portrait framing", () => {
   });
 });
 
-// --- phone stops: MediaSafe and Software factory are reframed on phones so lit parts of the room show (ticket 36) ---
+// --- phone stops: Work (the CRT that was MediaSafe's) is reframed on phones so lit parts of the room show (ticket 36) ---
 describe("phone stops", () => {
-  const reframed = ["mediasafe", "software-factory"];
-  it("reframe MediaSafe and Software factory, and only those", () => {
+  const reframed = ["work"];
+  it("reframe Work, and only Work: the spare CRTs have none, since they are no stop", () => {
     expect(crts.filter((c) => c.phone).map((c) => c.id)).toEqual(reframed);
   });
   it("are used on a portrait window, camera and look point both", () => {

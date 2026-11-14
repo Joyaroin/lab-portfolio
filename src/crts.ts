@@ -1,6 +1,7 @@
 // The one list of CRTs in the baked room, shared by the tour and the screen panels. For each
 // station: where its CRT screen is, which way it faces, and the camera views the layout holds for it
 // (used on phones and by build.py's --preview; the desktop stops come from stop.ts, not the layout).
+// The three spare CRTs, which are no station, are listed apart.
 // The numbers live in room-layout.json, which tools/room/build.py also reads to place the CRTs,
 // so the room and the tour can't drift apart. Change a CRT's place there, then re-bake (`make room`).
 // Positions are in site axes: x across, y up, +z toward the room's door.
@@ -38,12 +39,12 @@ const toCrt = (c: LayoutCrt): Crt => ({
   ...(c.phone && { phone: { camera: v3(c.phone.camera), look: v3(c.phone.look), panel: v3(c.phone.panel ?? c.panel ?? c.screen) } }),
 });
 
-/** One entry per station, in tour order. Ids match the content module's station ids. */
+/** One entry per station, in tour order: Work, Projects (the bench TV), About me. Ids match the content module's station ids. */
 export const crts: Crt[] = (layout.crts as LayoutCrt[]).map(toCrt);
 
-/** The bench TV: the switched-off set on the workbench. It has no station, so it is not in `crts`
- *  (the code matches a TV's place in that list to its station). Only Phosphor.tsx draws it. */
-export const bench: Crt = toCrt(layout.bench as LayoutCrt);
+/** The three spare CRTs: lit glass with no station, so not in `crts` (the code matches a TV's place in
+ *  that list to its station). They have no card, no bezel layer, no glow and no click. Only Phosphor.tsx draws them. */
+export const spares: Crt[] = (layout.spares as LayoutCrt[]).map(toCrt);
 
 /** The camera's vertical field of view, in degrees. */
 export const CAMERA_FOV = 55;

@@ -30,10 +30,15 @@ random.seed(23)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 LAYOUT = json.load(open(os.path.join(HERE, "..", "..", "src", "room-layout.json")))
-# Every TV to place: the stations' (LAYOUT["crts"]) and the switched-off bench TV (LAYOUT["bench"]).
-# The bench TV goes where it always did in the bake order (after the third station), so a re-bake's
-# random draws (a sticky note's colour, a keyboard's tilt) fall where they did.
-BENCH_AND_STATION_TVS = LAYOUT["crts"][:3] + [LAYOUT["bench"]] + LAYOUT["crts"][3:]
+# Every TV to place: the three stations' (LAYOUT["crts"]) and the three spare CRTs' (LAYOUT["spares"]), baked in
+# the order LAYOUT["bakeOrder"] names. That is the physical order they always had (old Work CRT, MediaSafe CRT,
+# Home lab CRT, bench TV, Software factory CRT, Contact CRT), whatever order crts and spares list them in, so a
+# re-bake's random draws (a sticky note's colour, a keyboard's tilt) fall where they did. src/crts.test.ts checks it.
+_TV_BY_ID = {c["id"]: c for c in LAYOUT["crts"] + LAYOUT["spares"]}
+ALL_TVS = [_TV_BY_ID[i] for i in LAYOUT["bakeOrder"]]
+assert len(ALL_TVS) == len(_TV_BY_ID) == len(set(LAYOUT["bakeOrder"])), "bakeOrder must list every TV once"
+# The bench TV is the Projects station's entry. It stays switched off in the bake until the re-bake ticket (#286) lights it.
+BENCH_TV = _TV_BY_ID["projects"]
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 scene = bpy.context.scene
@@ -388,8 +393,8 @@ box("rug", (-0.35, 0.005, 0.05), (1.3, 0.01, 1.6), yaw=8, group="furniture", bev
 
 # ---------------------------------------------------------------- props
 def is_off(spec):
-    """The bench TV is switched off: dark glass, dark LED, and no light (see the lights below)."""
-    return spec is LAYOUT["bench"]
+    """The bench TV (the Projects station's entry) is switched off: dark glass, dark LED, and no light (see the lights below)."""
+    return spec is BENCH_TV
 
 def crt(spec):
     """A beige CRT monitor whose glass centre is at `screen`, facing `yaw`."""
@@ -420,7 +425,7 @@ def crt(spec):
     cable([back, f(0.1, -0.27, -0.55)], r=0.006)
     return f
 
-for spec in BENCH_AND_STATION_TVS:
+for spec in ALL_TVS:
     crt(spec)
 
 def mug(p, mat="mug"):
@@ -668,7 +673,7 @@ def point(p, energy, color, radius=0.02):
     l.energy, l.color, l.shadow_soft_size = energy, color, radius
 
 GREEN = (0.35, 1.0, 0.5)
-for spec in BENCH_AND_STATION_TVS:
+for spec in ALL_TVS:
     if is_off(spec):
         continue  # switched off: no green light on the bench or pegboard
     f = frame(spec["screen"], spec["yaw"])
@@ -724,7 +729,7 @@ if args.preview:
     cam.data.clip_start = 0.02
     scene.render.resolution_x, scene.render.resolution_y = 640, 360
     from mathutils import Vector
-    stops = [("overview-16x9", LAYOUT["overview"]), ("overview-16x10", LAYOUT["overview"])] + [(c["id"], c) for c in BENCH_AND_STATION_TVS]
+    stops = [("overview-16x9", LAYOUT["overview"]), ("overview-16x10", LAYOUT["overview"])] + [(c["id"], c) for c in ALL_TVS]
     for name, s in stops:
         cam.data.angle_y = math.radians(s.get("fov", 55))
         scene.render.resolution_y = 400 if name.endswith("16x10") else 360

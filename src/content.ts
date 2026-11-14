@@ -14,6 +14,8 @@ export type Station = {
   reading: number;
   /** plain heading shown on the CRT */
   heading: string;
+  /** a line under the heading that belongs to the whole station (Work's, About me's), not to a page */
+  line?: string;
   /** The station's bullets, in order, for a station that keeps a whole text (Work). When it is set,
    *  the pages' bullets are the same strings, in the same order. Other stations keep their text on
    *  their pages only. */
@@ -26,16 +28,23 @@ export type Station = {
   /** words on the TV's bezel: the maker's plate and the sticky note. Neither may read as a status. */
   bezel: Bezel;
 };
-/** One page of a station: its lead, its bullets (at most three, and none for a list page), and the
- *  diagram and links that go with them. `label` names it. `dates` and `months` are only on Work's job
- *  pages: they set the timeline's text and its segment's width. */
+/** One page of a station: its lead (a page may have none), its bullets (at most three, and none for a
+ *  list page), and the diagram and links that go with them. `label` names it. `dates` and `months` are
+ *  only on Work's job pages: they set the timeline's text and its segment's width. `stat` is a project
+ *  page's one stat line, a fact its copy already states. `list` is the Projects list page's prompt, rows
+ *  and foot. */
 export type Page = {
   id: string; label: string; dates?: string; months?: number;
-  lead: string; body: string[];
+  lead?: string; body: string[];
+  stat?: string;
+  list?: PageList;
   /** optional line drawing of facts already in the lead and `body` */
   diagram?: Diagram;
   links: Link[];
 };
+/** A list page: a shell prompt, one row per page of the same station (`name` is the row's text, `tag` its
+ *  tech line; its stat is that page's `stat`), and a line at the foot. */
+export type PageList = { prompt: string; rows: { page: string; name: string; tag: string }[]; foot: string };
 /** The most bullets a page may have. */
 export const MAX_BULLETS = 3;
 /** `plate` is an invented maker and model (no real brand, nothing from the series, ADR-0002). */
@@ -126,6 +135,7 @@ export type Content = {
 // Links that more than one station or the HUD uses, written once.
 const LINKEDIN: Link = { label: "LinkedIn", href: "https://www.linkedin.com/in/adham-sedik-971a57184/" };
 const GITHUB: Link = { label: "GitHub", href: "https://github.com/Joyaroin" };
+const RESUME: Link = { label: "Résumé", href: "/resume.pdf" };
 const SITE_SOURCE: Link = { label: "This site's source", href: "https://github.com/Joyaroin/lab" };
 
 // Work's two jobs, written once: the station shows them as two pages, each with its own lead.
@@ -158,17 +168,18 @@ export const content: Content = {
   },
 
   links: [
-    { label: "Résumé", href: "/resume.pdf" },
+    RESUME,
     LINKEDIN,
     GITHUB,
   ],
 
-  // Real copy, in tour order. Plain descriptions.
-  // Every fact here comes from spec #165. Add nothing that is not there.
+  // Real copy, in tour order: Work, Projects, About me. Plain descriptions.
+  // Every fact here comes from spec #165, and the copy spec #280 approved. Add nothing that is not there.
   stations: [
     {
       id: "work", name: "Work", reading: 214,
       heading: "Work experience",
+      line: "Two platform co-ops, 16 months in all. Newest first.",
       // `body` is the whole text in order (Solace, then Barracuda); `pages` splits the same bullets.
       // Work has no lead of its own: each page has one.
       body: [...SOLACE, ...BARRACUDA],
@@ -176,90 +187,111 @@ export const content: Content = {
         { id: "solace", label: "Solace", dates: "Sep to Dec 2026", months: 4, lead: SOLACE_LEAD, body: SOLACE, links: [LINKEDIN] },
         { id: "barracuda", label: "Barracuda", dates: "Sep 2025 to Aug 2026", months: 12, lead: BARRACUDA_LEAD, body: BARRACUDA, links: [LINKEDIN] },
       ],
-      bezel: { plate: "HALDEN HX-101", note: "Call\nFriday" },
+      bezel: { plate: "HALDEN HX-214", note: "Write the\nrunbook" },
     },
     {
-      id: "mediasafe", name: "MediaSafe", reading: 377,
-      heading: "MediaSafe",
-      pages: [{
-        id: "mediasafe", label: "MediaSafe",
-        lead: "My tracker for shows and films, built and run by me alone. Next.js 16 and Postgres.",
-        body: [
-          "Git is the only way it changes: Argo CD ships every merge to staging, and I promote to production by hand.",
-          "Secrets live in Vault, backed up nightly to Cloudflare R2, with a restore I've tested.",
-          "170+ merged pull requests since August 2026.",
-        ],
-        diagram: {
-          description: "Git is the only way it changes. Argo CD ships every merge to staging. I promote to production by hand.",
-          steps: ["Git", "Argo CD", "Staging", "Production"],
-          hops: ["", "every merge", "by hand"],
+      id: "projects", name: "Projects", reading: 733,
+      heading: "Things I've built and run",
+      upToFirstPage: true, // Esc on a project page goes up to the list
+      pages: [
+        {
+          id: "list", label: "All projects", body: [], links: [],
+          list: {
+            prompt: "~/projects $ ls",
+            rows: [
+              { page: "software-factory", name: "software-factory/", tag: "AI agents · CI/CD" },
+              { page: "mediasafe", name: "mediasafe/", tag: "Next.js · Postgres · GitOps" },
+              { page: "home-lab", name: "home-lab/", tag: "Proxmox · k3s · Cloudflare" },
+            ],
+            foot: "Pick a project to open it.",
+          },
         },
-        links: [
-          { label: "MediaSafe repo", href: "https://github.com/Joyaroin/MediaSafe" },
-          { label: "Deploy repo", href: "https://github.com/Joyaroin/morioh-cho-gitops" },
-          { label: "mediasafe.space (Google sign-in)", href: "https://mediasafe.space" },
-        ],
-      }],
-      bezel: { plate: "HALDEN HX-214", note: "Buy\ntape" },
-    },
-    {
-      id: "home-lab", name: "Home lab", reading: 512,
-      heading: "Home lab and Proxmox",
-      pages: [{
-        id: "home-lab", label: "Home lab",
-        lead: "I run my own Kubernetes cluster at home, and this site runs on it.",
-        body: [
-          "A Proxmox host runs a single-node k3s cluster, with production and staging in separate namespaces.",
-          "No ports are open at home: all traffic comes in through a Cloudflare Tunnel.",
-          "My Git server and CI runner live here too, with the runner firewalled off from the rest of the network.",
-        ],
-        diagram: {
-          description: "All traffic comes in through a Cloudflare Tunnel. A Proxmox host runs a single-node k3s cluster.",
-          steps: ["Cloudflare Tunnel", "Proxmox host", "k3s cluster"],
-          hops: ["traffic", "run"],
+        {
+          id: "software-factory", label: "Software factory",
+          lead: "My AI software factory: I plan, and agents build, review and merge. It built this site.",
+          stat: "100+ merged PRs since 5 November 2026",
+          body: [
+            "I plan a feature with an orchestrator agent, which cuts it into small tickets. Builder agents write each ticket test-first on my Mac and open a pull request.",
+            "Every PR runs CI on my own runner. Then a fresh reviewer agent decides whether it merges by itself, needs me, or goes back for a rebuild.",
+            "This site has 100+ merged pull requests since 5 November 2026. Production moves only when I promote it.",
+          ],
+          diagram: {
+            description: "I plan, agents build each ticket and open a PR, a reviewer agent decides, and it merges.",
+            steps: ["Plan", "Build", "Review", "Merge"],
+            hops: ["tickets", "PR", "decides"],
+          },
+          links: [SITE_SOURCE],
         },
-        links: [SITE_SOURCE],
-      }],
-      bezel: { plate: "HALDEN HX-330", note: "Water\nthe fern" },
-    },
-    {
-      id: "software-factory", name: "Software factory", reading: 733,
-      heading: "Software factory",
-      pages: [{
-        id: "software-factory", label: "Software factory",
-        lead: "My AI software factory: I plan, and agents build, review and merge. It built this site.",
-        body: [
-          "I plan a feature with an orchestrator agent, which cuts it into small tickets. Builder agents write each ticket test-first on my Mac and open a pull request.",
-          "Every PR runs CI on my own runner. Then a fresh reviewer agent decides whether it merges by itself, needs me, or goes back for a rebuild.",
-          "This site has 100+ merged pull requests since 5 November 2026. Production moves only when I promote it.",
-        ],
-        diagram: {
-          description: "I plan, agents build each ticket and open a PR, a reviewer agent decides, and it merges.",
-          steps: ["Plan", "Build", "Review", "Merge"],
-          hops: ["tickets", "PR", "decides"],
+        {
+          id: "mediasafe", label: "MediaSafe",
+          lead: "My tracker for shows and films, built and run by me alone. Next.js 16 and Postgres.",
+          stat: "170+ merged PRs since August 2026",
+          body: [
+            "Git is the only way it changes: Argo CD ships every merge to staging, and I promote to production by hand.",
+            "Secrets live in Vault, backed up nightly to Cloudflare R2, with a restore I've tested.",
+            "170+ merged pull requests since August 2026.",
+          ],
+          diagram: {
+            description: "Git is the only way it changes. Argo CD ships every merge to staging. I promote to production by hand.",
+            steps: ["Git", "Argo CD", "Staging", "Production"],
+            hops: ["", "every merge", "by hand"],
+          },
+          links: [
+            { label: "MediaSafe repo", href: "https://github.com/Joyaroin/MediaSafe" },
+            { label: "Deploy repo", href: "https://github.com/Joyaroin/morioh-cho-gitops" },
+            { label: "mediasafe.space (Google sign-in)", href: "https://mediasafe.space" },
+          ],
         },
-        links: [SITE_SOURCE],
-      }],
-      bezel: { plate: "HALDEN HX-552", note: "Lunch\nat 1" },
+        {
+          id: "home-lab", label: "Home lab",
+          lead: "I run my own Kubernetes cluster at home, and this site runs on it.",
+          stat: "No ports open at home",
+          body: [
+            "A Proxmox host runs a single-node k3s cluster, with production and staging in separate namespaces.",
+            "No ports are open at home: all traffic comes in through a Cloudflare Tunnel.",
+            "My Git server and CI runner live here too, with the runner firewalled off from the rest of the network.",
+          ],
+          diagram: {
+            description: "All traffic comes in through a Cloudflare Tunnel. A Proxmox host runs a single-node k3s cluster.",
+            steps: ["Cloudflare Tunnel", "Proxmox host", "k3s cluster"],
+            hops: ["traffic", "run"],
+          },
+          links: [SITE_SOURCE],
+        },
+      ],
+      bezel: { plate: "HALDEN HX-418", note: "Patch the\ncluster" },
     },
     {
-      id: "contact", name: "Contact", reading: 861,
-      heading: "Contact",
-      pages: [{
-        id: "contact", label: "Contact",
-        lead: "I'm Adham Sedik, a software and platform engineer.",
-        body: [
-          "Honours Computer Science, Software Engineering stream, at Carleton University in Ottawa. I graduate in December 2027.",
-          "I'm open to co-op and full-time roles.",
-        ],
-        links: [
-          { label: "adhamsedik@cmail.carleton.ca", href: "mailto:adhamsedik@cmail.carleton.ca" },
-          LINKEDIN,
-          GITHUB,
-          SITE_SOURCE,
-        ],
-      }],
-      bezel: { plate: "HALDEN HX-607", note: "Fix the\nshelf" },
+      id: "about", name: "About me", reading: 861,
+      heading: "Hi, I'm Adham.",
+      line: "Honours Computer Science, Software Engineering stream, at Carleton University in Ottawa.",
+      pages: [
+        {
+          id: "why-i-do-this", label: "Why I do this",
+          lead: "I'm a software and platform engineer who cares about systems that stay up and stay easy to change. Reliability and maintainability are what I build for, and security is what keeps pulling me in: every system is a puzzle about how it could break.",
+          body: [], links: [],
+        },
+        {
+          id: "off-the-keyboard", label: "Off the keyboard",
+          body: [
+            "Tennis. Most weeks, on a court somewhere in Ottawa.",
+            "Home lab. A Proxmox box running k3s, my Git server and CI. This site runs on it.",
+          ],
+          links: [],
+        },
+        {
+          id: "contact", label: "Contact",
+          body: ["I graduate in December 2027.", "I'm open to co-op and full-time roles."],
+          links: [
+            { label: "adhamsedik@cmail.carleton.ca", href: "mailto:adhamsedik@cmail.carleton.ca" },
+            LINKEDIN,
+            GITHUB,
+            SITE_SOURCE,
+            RESUME,
+          ],
+        },
+      ],
+      bezel: { plate: "HALDEN HX-607", note: "Court\nat 7" },
     },
   ],
 };
@@ -360,6 +392,7 @@ export function validateContent(c: Content): string[] {
     const p = `stations[${i}]`;
     text(`${p}.id`, s.id);
     text(`${p}.heading`, s.heading);
+    if (s.line !== undefined) text(`${p}.line`, s.line);
     tvText(`${p}.name`, s.name);
     if (typeof s.reading !== "number" || !Number.isFinite(s.reading)) problems.push(`${p}.reading: missing`);
     if (!Array.isArray(s.pages) || s.pages.length === 0) problems.push(`${p}.pages: need at least one`);
@@ -372,7 +405,23 @@ export function validateContent(c: Content): string[] {
         // A job page is the only kind with dates and months. Either one, when given, is checked.
         if (pg.dates !== undefined) tvText(`${q}.dates`, pg.dates);
         if (pg.months !== undefined && (!Number.isInteger(pg.months) || pg.months <= 0)) problems.push(`${q}.months: must be a whole number above 0`);
-        text(`${q}.lead`, pg.lead);
+        // A page's lead is optional, but a page is never empty: it has a lead, bullets or a list.
+        if (pg.lead !== undefined) text(`${q}.lead`, pg.lead);
+        else if (!(Array.isArray(pg.body) && pg.body.length) && !pg.list) problems.push(`${q}.lead: missing`);
+        if (pg.stat !== undefined) text(`${q}.stat`, pg.stat);
+        if (pg.list) {
+          const l = pg.list;
+          text(`${q}.list.prompt`, l.prompt);
+          text(`${q}.list.foot`, l.foot);
+          if (!Array.isArray(l.rows) || l.rows.length === 0) problems.push(`${q}.list.rows: missing`);
+          else l.rows.forEach((r, k) => {
+            text(`${q}.list.rows[${k}].name`, r.name);
+            text(`${q}.list.rows[${k}].tag`, r.tag);
+            const target = s.pages.find((x) => x.id === r.page);
+            if (!target) problems.push(`${q}.list.rows[${k}].page: no page "${r.page}" in this station`);
+            else if (!target.stat) problems.push(`${q}.list.rows[${k}].page: "${r.page}" has no stat to show`);
+          });
+        }
         // A page may have no bullets (a list page), but never more than three.
         if (!Array.isArray(pg.body)) problems.push(`${q}.body: must be a list`);
         else {

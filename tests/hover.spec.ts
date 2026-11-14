@@ -59,9 +59,9 @@ test.describe("the hover preview at the overview (1440 x 900)", () => {
     await expect(page.locator("canvas").first()).toHaveCSS("filter", "none");
   };
 
-  test("the pointer on the MediaSafe link shows its name under the meter bar; moving off shows the gap's sentence", async ({ page }) => {
+  test("the pointer on the Projects link shows its name under the meter bar; moving off shows the gap's sentence", async ({ page }) => {
     await hudLink(page, 2).hover();
-    await expect(barLine(page)).toHaveText("MediaSafe");
+    await expect(barLine(page)).toHaveText(line(2));
     expect(await barLine(page).textContent(), "no count in a preview").not.toContain(" of ");
     // the digits follow the line once the pointer has rested
     await expect(page.locator("[data-meter-bar] [role=img]")).toHaveAttribute("aria-label", fill(ui.meterReading, { digits: formatReading(stations[1].reading) }));
@@ -73,7 +73,7 @@ test.describe("the hover preview at the overview (1440 x 900)", () => {
 
   test("the pointer on a TV shows that station's line; leaving it shows the gap's sentence", async ({ page }) => {
     const size = page.viewportSize()!;
-    for (const i of [0, 3]) {
+    for (const i of [0, 1, 2]) {
       const g = glassAt(i, size);
       await page.mouse.move(g.x, g.y);
       await expect(barLine(page)).toHaveText(line(i + 1));
@@ -114,6 +114,6 @@ test.describe("the hover preview at the overview (1440 x 900)", () => {
     // moving off the link and back on is a new rest: the preview works again
     await page.mouse.move(720, 2);
     await hudLink(page, 2).hover();
-    await expect(barLine(page)).toHaveText("MediaSafe");
+    await expect(barLine(page)).toHaveText(line(2));
   });
 });

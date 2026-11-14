@@ -47,14 +47,14 @@ test("an unknown hash opens the overview", async ({ page }) => {
   await landedAt(page, 0);
 });
 
-test("a reload on /#mediasafe lands there", async ({ page }) => {
-  await page.goto("/#mediasafe");
+test("a reload on /#projects lands there", async ({ page }) => {
+  await page.goto("/#projects");
   await expect(page.getByLabel("Boot log")).toBeHidden();
   await landedAt(page, 2);
   await page.reload();
   await expect(page.getByLabel("Boot log")).toBeHidden();
   await landedAt(page, 2);
-  await expect(panelOf(page, "mediasafe")).toBeVisible();
+  await expect(panelOf(page, "projects")).toBeVisible();
 });
 
 test("focus moves to the panel on landing, and back to the link on return", async ({ page }) => {

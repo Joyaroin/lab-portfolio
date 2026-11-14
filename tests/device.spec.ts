@@ -14,7 +14,7 @@ const list = JSON.parse(readFileSync(new URL("../src/assets/meter/layers.json", 
 };
 const DEVICE = { width: list.width, height: list.height };
 
-const MEDIASAFE = stationIds.indexOf("mediasafe") + 1;
+const PROJECTS = stationIds.indexOf("projects") + 1;
 const device = (page: Page) => page.locator("[data-meter-bar] [data-device]");
 
 test.beforeEach(async ({ page }) => {
@@ -38,7 +38,7 @@ for (const [name, size, width] of [
       expect(line.y, `${where}: the line is under the device`).toBeGreaterThanOrEqual(box.y + box.height - 1);
     };
     await check("overview");
-    await goTo(page, MEDIASAFE);
+    await goTo(page, PROJECTS);
     await check("station");
   });
 }
@@ -89,7 +89,7 @@ test("at 1440 x 900 the overview's line is the long gap sentence", async ({ page
 test("on a portrait window a station shows PREV and NEXT, and the middle key's place on the device is empty", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openTour(page);
-  await goTo(page, MEDIASAFE);
+  await goTo(page, PROJECTS);
   await expect(device(page).locator("[data-key]")).toHaveCount(2);
   await expect(barKey(page, "prev")).toBeVisible();
   await expect(barKey(page, "next")).toBeVisible();

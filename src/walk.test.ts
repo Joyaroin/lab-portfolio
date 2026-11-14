@@ -6,10 +6,11 @@ const page = (station: string, p: string): Step => ({ kind: "page", station, pag
 // Every page of the shipped content, in order, written out from the content itself.
 const pages = content.stations.flatMap((s) => s.pages.map((p) => page(s.id, p.id)));
 
-/** The shipped content with a second page on the first station that has one page, and the flag on it. */
+/** The shipped content with the flag on Work (Projects, the one station that has it, loses it) and two more pages on Work. */
 const withFlag = (): Content => {
   const c = structuredClone(content);
-  const s = c.stations[1];
+  c.stations[1].upToFirstPage = undefined;
+  const s = c.stations[0];
   s.upToFirstPage = true;
   s.pages.push({ ...s.pages[0], id: "second" }, { ...s.pages[0], id: "third" });
   return c;
@@ -37,10 +38,10 @@ describe("walk order", () => {
   it("walks the pages a station has, not one per station", () => {
     const c = withFlag();
     expect(walk(c)).toHaveLength(walk().length + 2);
-    expect(next(page("mediasafe", "mediasafe"), c)).toEqual(page("mediasafe", "second"));
-    expect(next(page("mediasafe", "second"), c)).toEqual(page("mediasafe", "third"));
-    expect(next(page("mediasafe", "third"), c)).toEqual(page("home-lab", "home-lab"));
-    expect(prev(page("home-lab", "home-lab"), c)).toEqual(page("mediasafe", "third"));
+    expect(next(page("work", "barracuda"), c)).toEqual(page("work", "second"));
+    expect(next(page("work", "second"), c)).toEqual(page("work", "third"));
+    expect(next(page("work", "third"), c)).toEqual(page("projects", "list"));
+    expect(prev(page("projects", "list"), c)).toEqual(page("work", "third"));
   });
   it("refuses a step the content does not have", () => {
     expect(() => next(page("nowhere", "x"))).toThrow(/no such step/);
@@ -50,22 +51,26 @@ describe("walk order", () => {
 });
 
 describe("going up", () => {
-  it("goes to the overview from every page of the shipped content, since no station sets upToFirstPage yet", () => {
-    for (const s of content.stations) expect(s.upToFirstPage).toBeUndefined();
-    for (const step of pages) expect(up(step)).toEqual(OVERVIEW);
+  it("goes to the overview from every page of the shipped content, except a project page, which goes to the Projects list", () => {
+    expect(content.stations.filter((s) => s.upToFirstPage).map((s) => s.id)).toEqual(["projects"]);
+    for (const step of pages) {
+      const project = step.kind === "page" && step.station === "projects" && step.page !== "list";
+      expect(up(step), JSON.stringify(step)).toEqual(project ? page("projects", "list") : OVERVIEW);
+    }
   });
   it("goes from a non-first page to the first page when the station says upToFirstPage", () => {
     const c = withFlag();
-    expect(up(page("mediasafe", "second"), c)).toEqual(page("mediasafe", "mediasafe"));
-    expect(up(page("mediasafe", "third"), c)).toEqual(page("mediasafe", "mediasafe"));
+    expect(up(page("work", "second"), c)).toEqual(page("work", "solace"));
+    expect(up(page("work", "third"), c)).toEqual(page("work", "solace"));
   });
   it("goes from that station's first page to the overview", () => {
-    expect(up(page("mediasafe", "mediasafe"), withFlag())).toEqual(OVERVIEW);
+    expect(up(page("work", "solace"), withFlag())).toEqual(OVERVIEW);
   });
   it("goes to the overview from a station without the flag, even on a later page", () => {
     const c = withFlag();
     c.stations[0].upToFirstPage = false;
     expect(up(page("work", "barracuda"), c)).toEqual(OVERVIEW);
+    expect(up(page("about", "contact"), c)).toEqual(OVERVIEW);
   });
   it("stays at the overview", () => {
     expect(up(OVERVIEW)).toEqual(OVERVIEW);

@@ -9,7 +9,7 @@ import { barKey, goTo, landedAt, openTour, stationIds } from "./lib/page";
 // A move is a quick fade, so the specs run under reduced motion.
 
 const stopOf = (id: string) => stationIds.indexOf(id) + 1;
-const MEDIASAFE = stopOf("mediasafe"), HOME_LAB = stopOf("home-lab"), WORK = stopOf("work"), CONTACT = stopOf("contact");
+const WORK = stopOf("work"), PROJECTS = stopOf("projects"), ABOUT = stopOf("about");
 
 /** The stop the URL names: 0 for the overview. */
 const urlStop = (page: Page) => stopForHash(new URL(page.url()).hash);
@@ -22,11 +22,11 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.describe("the keys", () => {
-  test("NEXT at MediaSafe goes to Home lab", async ({ page }) => {
-    await goTo(page, MEDIASAFE);
+  test("NEXT at Work goes to Projects", async ({ page }) => {
+    await goTo(page, WORK);
     await barKey(page, "next").click();
-    await landedAt(page, HOME_LAB);
-    expect(new URL(page.url()).hash).toBe("#home-lab");
+    await landedAt(page, PROJECTS);
+    expect(new URL(page.url()).hash).toBe("#projects");
   });
 
   test("PREV at Work goes to the overview", async ({ page }) => {
@@ -36,8 +36,8 @@ test.describe("the keys", () => {
     expect(urlStop(page)).toBe(0);
   });
 
-  test("PREV at MediaSafe goes to Work", async ({ page }) => {
-    await goTo(page, MEDIASAFE);
+  test("PREV at Projects goes to Work", async ({ page }) => {
+    await goTo(page, PROJECTS);
     await barKey(page, "prev").click();
     await landedAt(page, WORK);
   });
@@ -57,30 +57,30 @@ test.describe("the keys", () => {
     expect(new URL(page.url()).hash).toBe("#work");
   });
 
-  test("NEXT at Contact goes to the overview", async ({ page }) => {
-    await goTo(page, CONTACT);
+  test("NEXT at About me goes to the overview", async ({ page }) => {
+    await goTo(page, ABOUT);
     await barKey(page, "next").click();
     await landedAt(page, 0);
     expect(urlStop(page)).toBe(0);
   });
 
   test("the bar's line names the stop and counts the stations, from the content module", async ({ page }) => {
-    await goTo(page, MEDIASAFE);
-    const s = stations[MEDIASAFE - 1];
-    const line = fill(ui.stopLine, { station: s.name, n: MEDIASAFE, total: stations.length });
+    await goTo(page, PROJECTS);
+    const s = stations[PROJECTS - 1];
+    const line = fill(ui.stopLine, { station: s.name, n: PROJECTS, total: stations.length });
     await expect(page.locator("[data-meter-bar]").getByText(line, { exact: true })).toBeVisible();
     await expect(page.getByRole("img", { name: fill(ui.meterReading, { digits: formatReading(s.reading) }) })).toBeVisible();
   });
 });
 
 test.describe("the arrow keys", () => {
-  test("Right at MediaSafe goes to Home lab, Left goes back", async ({ page }) => {
-    await goTo(page, MEDIASAFE);
+  test("Right at Work goes to Projects, Left goes back", async ({ page }) => {
+    await goTo(page, WORK);
     await page.keyboard.press("ArrowRight");
-    await landedAt(page, HOME_LAB);
-    expect(new URL(page.url()).hash).toBe("#home-lab");
+    await landedAt(page, PROJECTS);
+    expect(new URL(page.url()).hash).toBe("#projects");
     await page.keyboard.press("ArrowLeft");
-    await landedAt(page, MEDIASAFE);
+    await landedAt(page, WORK);
   });
 
   test("Left at Work goes to the overview", async ({ page }) => {
@@ -89,8 +89,8 @@ test.describe("the arrow keys", () => {
     await landedAt(page, 0);
   });
 
-  test("Right at Contact goes to the overview", async ({ page }) => {
-    await goTo(page, CONTACT);
+  test("Right at About me goes to the overview", async ({ page }) => {
+    await goTo(page, ABOUT);
     await page.keyboard.press("ArrowRight");
     await landedAt(page, 0);
   });
@@ -113,11 +113,11 @@ test.describe("the arrow keys", () => {
     await page.waitForTimeout(800);
     await landedAt(page, 0);
     expect(urlStop(page)).toBe(0);
-    await goTo(page, MEDIASAFE);
+    await goTo(page, PROJECTS);
     await page.keyboard.press("Control+ArrowRight");
     await page.keyboard.press("Alt+ArrowLeft");
     await page.waitForTimeout(800);
-    await landedAt(page, MEDIASAFE);
+    await landedAt(page, PROJECTS);
   });
 });
 
@@ -144,7 +144,7 @@ for (const [name, size, atStation] of [
       }
     };
     await check(["start"]); // the overview
-    await goTo(page, MEDIASAFE);
+    await goTo(page, PROJECTS);
     await check(atStation);
   });
 }
@@ -166,12 +166,12 @@ test.describe("the bar itself", () => {
     await page.waitForTimeout(800);
     await landedAt(page, 0);
     expect(urlStop(page)).toBe(0);
-    await goTo(page, MEDIASAFE);
+    await goTo(page, PROJECTS);
     await bar.click({ position: { x: 3, y: 3 } });
     await page.getByRole("img", { name: /^Reading/ }).click(); // the reading is not a key either
     await page.waitForTimeout(800);
-    await landedAt(page, MEDIASAFE);
-    expect(urlStop(page)).toBe(MEDIASAFE);
+    await landedAt(page, PROJECTS);
+    expect(urlStop(page)).toBe(PROJECTS);
   });
 
   test("the reading is found by its label, and at the overview its digits are visible", async ({ page }) => {

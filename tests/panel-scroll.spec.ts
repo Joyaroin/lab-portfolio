@@ -46,7 +46,7 @@ for (const [w, h] of [[1280, 800], [1920, 1080]]) {
     for (let i = 0; i < 8; i++) { await page.mouse.wheel(0, 200); await page.waitForTimeout(FRAME_PAUSE_MS); }
     expect(await waitForCamera(page), "the camera did not move").toEqual(camera);
     await landedAt(page, 1);
-    await expect(panelOf(page, "mediasafe")).toBeHidden();
+    await expect(panelOf(page, "projects")).toBeHidden();
   });
 }
 
@@ -81,24 +81,24 @@ test("resizing a desktop window keeps a scrolled panel at its place in the new r
 
 test("resizing a phone-sized window keeps a scrolled panel at its place in the new range", async ({ page }) => {
   test.setTimeout(90_000);
-  await resizeKeepsPosition(page, "mediasafe", 2, { width: 390, height: 844 }, { width: 360, height: 640 });
-  await resizeKeepsPosition(page, "mediasafe", 2, { width: 390, height: 844 }, { width: 430, height: 932 });
+  await resizeKeepsPosition(page, "projects", 2, { width: 390, height: 844 }, { width: 360, height: 640 });
+  await resizeKeepsPosition(page, "projects", 2, { width: 390, height: 844 }, { width: 430, height: 932 });
 });
 
 // Phone-sized window (the non-glass path, where the panel's height limit was reset every frame).
 test.describe("phone-sized window", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
-  test("a real touch swipe and the wheel over MediaSafe keep the panel's position", async ({ page }) => {
+  test("a real touch swipe and the wheel over Projects keep the panel's position", async ({ page }) => {
     test.setTimeout(90_000);
     await openTour(page);
     await goTo(page, 2);
-    await expect(panelOf(page, "mediasafe")).toHaveCSS("opacity", "1");
-    await waitForPanel(page, "mediasafe");
-    await overflowPanel(page, "mediasafe"); // the real copy is too short, so the test adds text
-    const room = await panelRoom(page, "mediasafe");
+    await expect(panelOf(page, "projects")).toHaveCSS("opacity", "1");
+    await waitForPanel(page, "projects");
+    await overflowPanel(page, "projects"); // the real copy is too short, so the test adds text
+    const room = await panelRoom(page, "projects");
     expect(room).toBeGreaterThan(200);
-    const box = (await panelOf(page, "mediasafe").boundingBox())!;
+    const box = (await panelOf(page, "projects").boundingBox())!;
     const cdp = await page.context().newCDPSession(page);
     // a real touch drag: finger down, moves up 60 px in steps, lifts
     const swipe = async () => {
@@ -111,7 +111,7 @@ test.describe("phone-sized window", () => {
     let prev = 0;
     for (let i = 0; i < 16 && prev < room - 2; i++) {
       await swipe();
-      const now = await panelScrollTop(page, "mediasafe");
+      const now = await panelScrollTop(page, "projects");
       expect(now, `swipe ${i}`).toBeGreaterThanOrEqual(prev);
       prev = now;
     }
@@ -120,34 +120,35 @@ test.describe("phone-sized window", () => {
     // wheel) must not move the page or the camera.
     for (let i = 0; i < 5; i++) {
       await swipe();
-      expect(await panelScrollTop(page, "mediasafe"), `swipe past the end ${i}`).toBeGreaterThanOrEqual(prev - 1);
+      expect(await panelScrollTop(page, "projects"), `swipe past the end ${i}`).toBeGreaterThanOrEqual(prev - 1);
     }
     expect(await page.evaluate(() => scrollY), "swiping past the end does not scroll the page").toBe(0);
     await landedAt(page, 2);
     await page.mouse.move(box.x + 20, box.y + 20, { steps: 4 });
     await page.waitForTimeout(FRAME_PAUSE_MS);
-    expect(await panelScrollTop(page, "mediasafe")).toBeGreaterThanOrEqual(prev - 1);
+    expect(await panelScrollTop(page, "projects")).toBeGreaterThanOrEqual(prev - 1);
   });
 });
 
-test("phone-sized window: the real wheel over MediaSafe does not jump back", async ({ page }) => {
+test("phone-sized window: the real wheel over Work does not jump back", async ({ page }) => {
   test.setTimeout(90_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await openTour(page);
-  await goTo(page, 2);
-  await expect(panelOf(page, "mediasafe")).toHaveCSS("opacity", "1");
-  await waitForPanel(page, "mediasafe");
-  const box = (await panelOf(page, "mediasafe").boundingBox())!;
+  await goTo(page, 1);
+  await expect(panelOf(page, "work")).toHaveCSS("opacity", "1");
+  await waitForPanel(page, "work");
+  await overflowPanel(page, "work", 1.5); // Work's real copy only just fills a phone's panel, so the test makes sure it scrolls (by about half a box, which 25 ticks of 20 px cover)
+  const box = (await panelOf(page, "work").boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 3 });
   let prev = 0;
   for (let i = 0; i < 25; i++) {
     await page.mouse.wheel(0, 20);
     await page.waitForTimeout(FRAME_PAUSE_MS);
-    const now = await panelScrollTop(page, "mediasafe");
+    const now = await panelScrollTop(page, "work");
     expect(now, `step ${i}`).toBeGreaterThanOrEqual(prev);
     prev = now;
   }
-  expect(prev).toBeGreaterThanOrEqual((await panelOf(page, "mediasafe").evaluate((e) => e.scrollHeight - e.clientHeight)) - 2);
+  expect(prev).toBeGreaterThanOrEqual((await panelOf(page, "work").evaluate((e) => e.scrollHeight - e.clientHeight)) - 2);
 });
 
 // The "more" cue follows its panel's visibility: marked as having more, it still must not count as

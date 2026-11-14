@@ -7,6 +7,9 @@ import { validateContent, content, pageSwitch, ui, fill, hasPrivateAddress, MAX_
 import { WORK_COPY, WORK_LEADS } from "../tests/fixtures/work-copy";
 
 const good = () => structuredClone(content);
+const station = (id: string) => content.stations.find((s) => s.id === id)!;
+const projectPage = (id: string) => station("projects").pages.find((p) => p.id === id)!;
+// stations: 0 work, 1 projects, 2 about
 
 describe("the page's description and preview alt text", () => {
   it("are the approved words", () => {
@@ -119,23 +122,24 @@ describe("validateContent", () => {
 
 // A count goes stale, so each says since when.
 it.each([["mediasafe"], ["software-factory"]])("%s: its pull request count says since a date", (id) => {
-  const bullets = content.stations.find((s) => s.id === id)!.pages.flatMap((p) => p.body);
+  const bullets = projectPage(id).body;
   expect(bullets.filter((b) => /pull requests/i.test(b)).join(" ")).toMatch(/\d\+? merged pull requests since (\d+ )?[A-Z][a-z]+ 2026/);
 });
 
-// Every station has pages. Each page is a one-line lead and at most three bullets.
+// Every station has pages. Each page is a lead, at most three bullets, or a list.
 describe("pages", () => {
-  const first = (id: string) => content.stations.find((s) => s.id === id)!.pages[0];
-  it.each(content.stations.flatMap((s) => s.pages.map((p) => [s.id, p.id] as const)))("%s / %s has a lead and at most three bullets", (sid, pid) => {
-    const pg = content.stations.find((s) => s.id === sid)!.pages.find((p) => p.id === pid)!;
-    expect(pg.lead).toBeTruthy();
-    expect(pg.body.length).toBeGreaterThan(0);
+  const ids = (id: string) => station(id).pages.map((p) => p.id);
+  it.each(content.stations.flatMap((s) => s.pages.map((p) => [s.id, p.id] as const)))("%s / %s has something to show and at most three bullets", (sid, pid) => {
+    const pg = station(sid).pages.find((p) => p.id === pid)!;
+    expect(Boolean(pg.lead) || pg.body.length > 0 || Boolean(pg.list)).toBe(true);
     expect(pg.body.length).toBeLessThanOrEqual(MAX_BULLETS);
   });
-  it("every station but Work has one page, holding its lead, bullets, diagram and links", () => {
-    expect(content.stations.filter((s) => s.id !== "work").map((s) => s.pages.length)).toEqual([1, 1, 1, 1]);
-    expect(first("mediasafe").diagram?.steps[0]).toBe("Git");
-    expect(first("contact").links.map((l) => l.label)).toEqual(["adhamsedik@cmail.carleton.ca", "LinkedIn", "GitHub", "This site's source"]);
+  it("Work has Solace then Barracuda, Projects the list then Software factory, MediaSafe and Home lab, About me three pages", () => {
+    expect(ids("work")).toEqual(["solace", "barracuda"]);
+    expect(ids("projects")).toEqual(["list", "software-factory", "mediasafe", "home-lab"]);
+    expect(ids("about")).toEqual(["why-i-do-this", "off-the-keyboard", "contact"]);
+    expect(station("projects").pages.map((p) => p.label)).toEqual(["All projects", "Software factory", "MediaSafe", "Home lab"]);
+    expect(station("about").pages.map((p) => p.label)).toEqual(["Why I do this", "Off the keyboard", "Contact"]);
   });
   it("only Work's job pages have dates and months", () => {
     for (const s of content.stations) for (const p of s.pages) {
@@ -146,34 +150,39 @@ describe("pages", () => {
   it("only Work keeps a body of its own", () => {
     expect(content.stations.filter((s) => s.body !== undefined).map((s) => s.id)).toEqual(["work"]);
   });
-  it("the stations are, in order, work, mediasafe, home-lab, software-factory, contact", () => {
-    expect(content.stations.map((s) => s.id)).toEqual(["work", "mediasafe", "home-lab", "software-factory", "contact"]);
+  it("the stations are, in order, work, projects, about, with the names the title cards show", () => {
+    expect(content.stations.map((s) => s.id)).toEqual(["work", "projects", "about"]);
+    expect(content.stations.map((s) => s.name)).toEqual(["Work", "Projects", "About me"]);
   });
-  it("the readings keep their values", () => {
-    expect(content.stations.map((s) => s.reading)).toEqual([214, 377, 512, 733, 861]);
+  it("the readings are 214, 733 and 861", () => {
+    expect(content.stations.map((s) => s.reading)).toEqual([214, 733, 861]);
   });
   it("Software factory links to this site's source", () => {
-    expect(first("software-factory").links.map((l) => l.href)).toContain("https://github.com/Joyaroin/lab");
+    expect(projectPage("software-factory").links.map((l) => l.href)).toContain("https://github.com/Joyaroin/lab");
   });
-  it("rejects a page with no lead", () => {
+  it("rejects a page with no lead, no bullets and no list, and accepts one with only bullets", () => {
     const c = good();
-    c.stations[1].pages[0].lead = "";
-    expect(validateContent(c).join("\n")).toContain("stations[1].pages[0].lead: missing");
+    const pg = c.stations[1].pages[1];
+    pg.lead = undefined;
+    expect(validateContent(c)).toEqual([]);
+    pg.body = [];
+    expect(validateContent(c).join("\n")).toContain("stations[1].pages[1].lead: missing");
+    pg.lead = "";
+    expect(validateContent(c).join("\n")).toContain("stations[1].pages[1].lead: missing");
   });
   it("rejects a page with four bullets", () => {
     const c = good();
-    c.stations[1].pages[0].body.push("A fourth bullet.");
-    expect(validateContent(c).join("\n")).toContain("stations[1].pages[0].body: at most 3 bullets");
+    c.stations[1].pages[1].body.push("A fourth bullet.");
+    expect(validateContent(c).join("\n")).toContain("stations[1].pages[1].body: at most 3 bullets");
   });
-  it("accepts a page with an empty body", () => {
-    const c = good();
-    c.stations[2].pages[0].body = [];
-    expect(validateContent(c)).toEqual([]);
+  it("accepts a page with an empty body: the Projects list is one", () => {
+    expect(station("projects").pages[0].body).toEqual([]);
+    expect(validateContent(content)).toEqual([]);
   });
   it("rejects a bullet that is blank", () => {
     const c = good();
-    c.stations[2].pages[0].body = [" "];
-    expect(validateContent(c).join("\n")).toContain("stations[2].pages[0].body[0]: missing");
+    c.stations[2].pages[1].body = [" "];
+    expect(validateContent(c).join("\n")).toContain("stations[2].pages[1].body[0]: missing");
   });
   it("accepts a station with no body of its own, and checks one that has it against the pages", () => {
     expect(good().stations[1].body).toBeUndefined();
@@ -198,6 +207,95 @@ describe("pages", () => {
   });
 });
 
+// The new copy, word for word from spec #280's Copy section. Existing approved copy (#165) is moved, not changed.
+describe("the three stations' copy", () => {
+  it("Work: the heading and the line", () => {
+    expect(station("work").heading).toBe("Work experience");
+    expect(station("work").line).toBe("Two platform co-ops, 16 months in all. Newest first.");
+  });
+  it("Projects: the heading, the list's prompt, rows with their tags, and its foot", () => {
+    expect(station("projects").heading).toBe("Things I've built and run");
+    const list = station("projects").pages[0].list!;
+    expect(list.prompt).toBe("~/projects $ ls");
+    expect(list.rows).toEqual([
+      { page: "software-factory", name: "software-factory/", tag: "AI agents · CI/CD" },
+      { page: "mediasafe", name: "mediasafe/", tag: "Next.js · Postgres · GitOps" },
+      { page: "home-lab", name: "home-lab/", tag: "Proxmox · k3s · Cloudflare" },
+    ]);
+    expect(list.foot).toBe("Pick a project to open it.");
+  });
+  it("Projects: each project keeps its approved lead, bullets, diagram and links, and has one stat line", () => {
+    expect(projectPage("software-factory").stat).toBe("100+ merged PRs since 5 November 2026");
+    expect(projectPage("mediasafe").stat).toBe("170+ merged PRs since August 2026");
+    expect(projectPage("home-lab").stat).toBe("No ports open at home");
+    expect(projectPage("mediasafe").diagram?.steps).toEqual(["Git", "Argo CD", "Staging", "Production"]);
+    expect(projectPage("home-lab").links.map((l) => l.label)).toEqual(["This site's source"]);
+    expect(projectPage("mediasafe").links.map((l) => l.label)).toEqual(["MediaSafe repo", "Deploy repo", "mediasafe.space (Google sign-in)"]);
+    expect(projectPage("home-lab").lead).toBe("I run my own Kubernetes cluster at home, and this site runs on it.");
+    expect(projectPage("software-factory").lead).toBe("My AI software factory: I plan, and agents build, review and merge. It built this site.");
+    expect(projectPage("mediasafe").lead).toBe("My tracker for shows and films, built and run by me alone. Next.js 16 and Postgres.");
+  });
+  it("Projects: a stat line repeats a fact the page's copy already states", () => {
+    const facts: [string, RegExp][] = [["software-factory", /100\+ merged pull requests since 5 November 2026/], ["mediasafe", /170\+ merged pull requests since August 2026/], ["home-lab", /No ports are open at home/]];
+    for (const [id, fact] of facts) expect(projectPage(id).body.join(" "), id).toMatch(fact);
+  });
+  it("Projects: Esc on a project page goes up to the list", () => {
+    expect(station("projects").upToFirstPage).toBe(true);
+    expect(station("work").upToFirstPage).toBeUndefined();
+    expect(station("about").upToFirstPage).toBeUndefined();
+  });
+  it("About me: the heading, the line, the tabs, and the three pages' words", () => {
+    const a = station("about");
+    expect(a.heading).toBe("Hi, I'm Adham.");
+    expect(a.line).toBe("Honours Computer Science, Software Engineering stream, at Carleton University in Ottawa.");
+    expect(a.pages.map((p) => p.label)).toEqual(["Why I do this", "Off the keyboard", "Contact"]);
+    expect(a.pages[0].lead).toBe("I'm a software and platform engineer who cares about systems that stay up and stay easy to change. Reliability and maintainability are what I build for, and security is what keeps pulling me in: every system is a puzzle about how it could break.");
+    expect(a.pages[1].body).toEqual([
+      "Tennis. Most weeks, on a court somewhere in Ottawa.",
+      "Home lab. A Proxmox box running k3s, my Git server and CI. This site runs on it.",
+    ]);
+    expect(a.pages[2].body).toEqual(["I graduate in December 2027.", "I'm open to co-op and full-time roles."]);
+    expect(a.pages[2].links.map((l) => l.label)).toEqual(["adhamsedik@cmail.carleton.ca", "LinkedIn", "GitHub", "This site's source", "Résumé"]);
+  });
+  it("the sticky notes and plates", () => {
+    expect(content.stations.map((s) => s.bezel.note.replace("\n", " "))).toEqual(["Write the runbook", "Patch the cluster", "Court at 7"]);
+    expect(content.stations.map((s) => s.bezel.plate)).toEqual(["HALDEN HX-214", "HALDEN HX-418", "HALDEN HX-607"]);
+  });
+  it("no retired station name is a station any more", () => {
+    expect(content.stations.map((s) => s.name)).not.toEqual(expect.arrayContaining(["MediaSafe"]));
+    for (const old of ["MediaSafe", "Home lab", "Software factory", "Contact"]) expect(content.stations.some((s) => s.name === old), old).toBe(false);
+    expect(content.stations.some((s) => ["377", "512"].includes(String(s.reading)))).toBe(false);
+  });
+  it("rejects a station line that is blank, and a stat that is blank or a phone number", () => {
+    const c = good();
+    c.stations[0].line = " ";
+    c.stations[1].pages[1].stat = "Call 613-555-0142";
+    const problems = validateContent(c).join("\n");
+    expect(problems).toContain("stations[0].line: missing");
+    expect(problems).toContain("stations[1].pages[1].stat: looks like a phone number");
+  });
+  it("rejects a list that is missing a part, or has a row for a page that isn't there or has no stat", () => {
+    const c = good();
+    const list = c.stations[1].pages[0].list!;
+    list.prompt = "";
+    list.foot = "";
+    list.rows[0].tag = "";
+    list.rows[1].page = "nope";
+    delete c.stations[1].pages[3].stat;
+    const problems = validateContent(c).join("\n");
+    expect(problems).toContain("pages[0].list.prompt: missing");
+    expect(problems).toContain("pages[0].list.foot: missing");
+    expect(problems).toContain("pages[0].list.rows[0].tag: missing");
+    expect(problems).toContain('pages[0].list.rows[1].page: no page "nope"');
+    expect(problems).toContain('pages[0].list.rows[2].page: "home-lab" has no stat');
+  });
+  it("rejects a list with no rows", () => {
+    const c = good();
+    c.stations[1].pages[0].list!.rows = [];
+    expect(validateContent(c).join("\n")).toContain("list.rows: missing");
+  });
+});
+
 it("has no placeholder copy left", () => {
   expect(JSON.stringify(content)).not.toMatch(/placeholder/i);
 });
@@ -217,7 +315,7 @@ describe("title card text", () => {
 describe("diagram", () => {
   const media = () => {
     const c = good();
-    return { c, d: c.stations.find((s) => s.id === "mediasafe")!.pages[0].diagram! };
+    return { c, d: c.stations[1].pages.find((p) => p.id === "mediasafe")!.diagram! };
   };
   it("MediaSafe has one: Git to Argo CD to staging, then production by hand", () => {
     const { d } = media();
@@ -240,11 +338,11 @@ describe("diagram", () => {
     const copy = new Set(words((s.lead ?? "") + " " + s.body.join(" ") + " " + s.heading + " " + s.name));
     return diagramText(s.diagram!).flatMap((t) => words(t).filter((w) => !FREE.has(w) && !copy.has(w)).map((w) => `"${w}" in "${t}"`));
   };
-  const withDiagram = content.stations.filter((s) => s.pages[0].diagram).map((s) => [s.id]);
-  const pageOf = (id: string) => content.stations.find((x) => x.id === id)!.pages[0];
+  const withDiagram = station("projects").pages.filter((p) => p.diagram).map((p) => [p.id]);
+  const pageOf = projectPage;
   it.each(withDiagram)("%s: every word of its diagram, description included, is in its copy", (id) => {
-    const st = content.stations.find((x) => x.id === id)!;
-    expect(missingWords({ ...pageOf(id), heading: st.heading, name: st.name })).toEqual([]);
+    const st = station("projects");
+    expect(missingWords({ ...pageOf(id), heading: st.heading, name: st.name + " " + pageOf(id).label })).toEqual([]);
   });
   it("the word check counts the lead as copy", () => {
     const s = { lead: "Plan first.", body: ["x"], heading: "h", name: "n", diagram: { description: "Plan", steps: ["Plan"], hops: [] } };
@@ -256,13 +354,14 @@ describe("diagram", () => {
     expect(missingWords({ ...s, diagram: { ...s.diagram, steps: ["automatically"] } })).toEqual([]);
     expect(missingWords(s)).toEqual(['"automatic" in "automatic"']);
   });
-  it("exactly MediaSafe, Home lab and Software factory have one; Work and Contact do not", () => {
-    expect(content.stations.filter((s) => s.pages.some((p) => p.diagram)).map((s) => s.id)).toEqual(["mediasafe", "home-lab", "software-factory"]);
+  it("exactly the Software factory, MediaSafe and Home lab pages have one; no other page does", () => {
+    expect(content.stations.flatMap((s) => s.pages.filter((p) => p.diagram).map((p) => `${s.id}/${p.id}`)))
+      .toEqual(["projects/software-factory", "projects/mediasafe", "projects/home-lab"]);
   });
   describe.each(withDiagram)("%s", (id) => {
     it("is checked for live-status words like the other copy", () => {
       const c = good();
-      c.stations.find((x) => x.id === id)!.pages[0].diagram!.steps[0] = "passing";
+      c.stations[1].pages.find((p) => p.id === id)!.diagram!.steps[0] = "passing";
       expect(validateContent(c).join("\n")).toMatch(/diagram\.steps\[0\]: reads as a live status/);
     });
     it("shows no score, leaderboard or result", () => {
@@ -271,7 +370,7 @@ describe("diagram", () => {
   });
   it("a station without one is still valid", () => {
     const c = good();
-    delete c.stations[1].pages[0].diagram;
+    delete c.stations[1].pages[2].diagram;
     expect(validateContent(c)).toEqual([]);
   });
   it.each(["description", "step", "hop"])("checks the %s text like other copy", (what) => {
@@ -487,8 +586,8 @@ describe("no copy outside the content module", () => {
 
 describe("the pull request count", () => {
   it("says 100+ in Software factory's last bullet, and nothing says 76", () => {
-    const factory = content.stations.find((s) => s.id === "software-factory")!;
-    expect(factory.pages[0].body.at(-1)).toContain("This site has 100+ merged pull requests since 5 November 2026.");
+    const factory = projectPage("software-factory");
+    expect(factory.body.at(-1)).toContain("This site has 100+ merged pull requests since 5 November 2026.");
     expect(JSON.stringify(content)).not.toMatch(/\b76\b/);
   });
 });

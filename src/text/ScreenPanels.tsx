@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { markMore } from "./more";
 import type { OnPageTurn } from "../TearView";
-import { pageSwitch, stations, ui, type Diagram, type Station } from "../content";
+import { pageSwitch, stations, ui, type Diagram, type PageList, type Station } from "../content";
 
 // Each station's text as real HTML. place.ts (run per frame by TextPins, which the room mounts)
 // pins each panel to its CRT screen and sets its position, size and opacity; this file holds how it looks: green phosphor with
@@ -28,8 +28,11 @@ function StationPanel({ s, onTurn }: { s: Station; onTurn?: OnPageTurn }) {
     <section ref={ref} tabIndex={-1} data-screen={s.id} aria-label={s.name} className="crt-panel" style={{ ...panel, visibility: "hidden" }}
       onScroll={(e) => markMore(e.currentTarget)}>
       <h2 style={heading}>{s.heading}</h2>
+      {s.line && <p data-line style={lead}>{s.line}</p>}
       {/* the open page's lead: it changes when the page turns */}
-      <p data-lead style={lead}>{page.lead}</p>
+      {page.lead && <p data-lead style={lead}>{page.lead}</p>}
+      {page.stat && <p data-stat style={stat}>{page.stat}</p>}
+      {page.list && <ProjectList list={page.list} s={s} />}
       {/* links first, so they are on screen without scrolling even in a phone's short panel */}
       <p style={linkRow}>
         {page.links.map((l) => (
@@ -40,12 +43,38 @@ function StationPanel({ s, onTurn }: { s: Station; onTurn?: OnPageTurn }) {
         ))}
       </p>
       {page.diagram && <DiagramFigure d={page.diagram} />}
-      {s.pages.length > 1 && <Timeline pages={s.pages} open={open} onOpen={(i) => { if (i !== open && ref.current) onTurn?.(ref.current); setOpen(i); }} />}
+      {/* the job timeline is Work's; the other stations' pages get their own controls in a later ticket */}
+      {s.pages.length > 1 && s.pages.every((p) => p.dates) && <Timeline pages={s.pages} open={open} onOpen={(i) => { if (i !== open && ref.current) onTurn?.(ref.current); setOpen(i); }} />}
       <ul style={list}>{page.body.map((b, i) => <li key={i} style={item}>{b}</li>)}</ul>
       <div className="crt-more" aria-hidden="true"><span>{ui.more}</span></div>
     </section>
   );
 }
+
+// The Projects list page: a shell prompt, a row for each project (its name, tech tag and stat) and a line at the foot.
+function ProjectList({ list, s }: { list: PageList; s: Station }) {
+  return (
+    <div data-list>
+      <p style={prompt}>{list.prompt}</p>
+      <ul style={rows}>
+        {list.rows.map((r) => (
+          <li key={r.page} style={row}>
+            <span style={rowName}>{r.name}</span> <span style={rowTag}>{r.tag}</span>
+            <span style={rowStat}>{s.pages.find((p) => p.id === r.page)?.stat}</span>
+          </li>
+        ))}
+      </ul>
+      <p style={{ ...lead, color: "#ffb347" }}>{list.foot}</p>
+    </div>
+  );
+}
+const prompt: CSSProperties = { margin: "0 0 0.5em", color: "#7dffb0" };
+const rows: CSSProperties = { margin: "0 0 0.7em", padding: 0, listStyle: "none" };
+const row: CSSProperties = { margin: "0 0 0.6em" };
+const rowName: CSSProperties = { fontWeight: 700, color: "#b4ffd0" };
+const rowTag: CSSProperties = { fontSize: "0.8em", letterSpacing: "0.04em", color: "#ffb347" };
+const rowStat: CSSProperties = { display: "block" };
+const stat: CSSProperties = { margin: "0 0 0.7em", color: "#ffb347" };
 
 // The timeline that is Work's diagram and its page switch: one real button per job, oldest on the
 // left, each as wide as its months. The open one is filled and tagged "open" with a marker, the

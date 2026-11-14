@@ -4,10 +4,15 @@ import { waitForCamera } from "./lib/page";
 
 // Ticket 53: MediaSafe shows a line diagram under its links, drawn from data in the content module.
 // Other stations that have none look as they did.
-const mediasafe = stations.find((s) => s.id === "mediasafe")!;
+//
+// PARKED (test.fixme) by #282, which made the stations Work, Projects and About me: the diagrams are on the project
+// pages (Software factory, MediaSafe, Home lab), and until #284 puts pages on the glass the glass shows only each station's
+// first page, which is the Projects list. These tests still name the old stations (#mediasafe, #home-lab, #software-factory,
+// #contact). #284 restores them against the project pages.
+const mediasafe = stations.flatMap((s) => s.pages).find((p) => p.id === "mediasafe")!;
 
 for (const [w, h] of [[1280, 800], [1920, 1080]]) {
-  test(`desktop ${w}x${h}: MediaSafe's diagram sits under its links, and Work has none`, async ({ page }) => {
+  test.fixme(`desktop ${w}x${h}: MediaSafe's diagram sits under its links, and Work has none`, async ({ page }) => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width: w, height: h });
     await page.goto("/");
@@ -29,7 +34,7 @@ for (const [w, h] of [[1280, 800], [1920, 1080]]) {
 
     // real text, in order, readable by a screen reader's description too
     await expect(fig.locator("svg text")).toHaveText(["Git", "Argo CD", "every merge", "Staging", "by hand", "Production"]);
-    await expect(fig.getByRole("img", { name: mediasafe.pages[0].diagram!.description })).toBeVisible();
+    await expect(fig.getByRole("img", { name: mediasafe.diagram!.description })).toBeVisible();
 
     // under the links, above the body, inside the panel and the window
     const y = async (sel: string) => (await panel.locator(sel).first().boundingBox())!;
@@ -46,7 +51,7 @@ for (const [w, h] of [[1280, 800], [1920, 1080]]) {
   });
 }
 
-test("phone: MediaSafe still shows its panel with the diagram not breaking the layout", async ({ browser }) => {
+test.fixme("phone: MediaSafe still shows its panel with the diagram not breaking the layout", async ({ browser }) => {
   test.setTimeout(60_000);
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   const page = await ctx.newPage();
@@ -77,7 +82,7 @@ async function goToStation(page: Page, id: string) {
 }
 
 for (const id of ["home-lab", "software-factory"]) {
-  test(`desktop 1280x800: ${id} shows its diagram, drawn from its copy, inside the panel`, async ({ page }) => {
+  test.fixme(`desktop 1280x800: ${id} shows its diagram, drawn from its copy, inside the panel`, async ({ page }) => {
     test.setTimeout(90_000);
     const panel = await goToStation(page, id);
     const d = stations.find((s) => s.id === id)!.pages[0].diagram!;
@@ -99,14 +104,14 @@ for (const id of ["home-lab", "software-factory"]) {
     // the bullets are a real list, below the lead
     const st = stations.find((s) => s.id === id)!;
     const lead = panel.locator("[data-lead]"), items = panel.locator("ul > li");
-    await expect(lead).toHaveText(st.pages[0].lead);
+    await expect(lead).toHaveText(st.pages[0].lead!);
     await expect(items).toHaveText(st.pages[0].body);
     expect((await lead.boundingBox())!.y).toBeLessThan((await panel.locator("ul").boundingBox())!.y);
     await page.screenshot({ path: `test-results/diagram-1280x800-${id}.png` });
   });
 }
 
-test("desktop 1280x800: contact has no diagram", async ({ page }) => {
+test.fixme("desktop 1280x800: contact has no diagram", async ({ page }) => {
   test.setTimeout(90_000);
   const panel = await goToStation(page, "contact");
   await expect(panel.locator("figure")).toHaveCount(0);

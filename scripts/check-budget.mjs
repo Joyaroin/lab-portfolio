@@ -19,8 +19,11 @@ function walk(dir) {
 
 export function checkBudget(dir, budgets = BUDGETS) {
   const html = join(dir, "index.html");
-  // Icons don't hold up the first paint, so rel="icon" and rel="apple-touch-icon" links aren't counted.
-  const page = readFileSync(html, "utf8").replace(/<link\b[^>]*\brel="(?:icon|apple-touch-icon)"[^>]*>/g, "");
+  // Icons don't hold up the first paint, so rel="icon" and rel="apple-touch-icon" links aren't counted. Nor are
+  // <a> links: the pre-boot text links to the résumé PDF, and a link is not fetched until it is followed.
+  const page = readFileSync(html, "utf8")
+    .replace(/<link\b[^>]*\brel="(?:icon|apple-touch-icon)"[^>]*>/g, "")
+    .replace(/<a\b[^>]*>/g, "");
   const refs = [...page.matchAll(/(?:src|href)="\/([^"]+)"/g)]
     .map((m) => join(dir, m[1]))
     .filter((p) => existsSync(p));

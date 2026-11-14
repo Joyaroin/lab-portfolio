@@ -49,6 +49,19 @@ describe("icon links", () => {
   });
 });
 
+describe("anchor links", () => {
+  it("do not count toward the first screen: the pre-boot text links to the résumé PDF, which is not fetched", () => {
+    const link = '<a href="/resume.pdf" tabindex="-1">Résumé</a>';
+    const dir = site({ "index.html": link + html("a.js"), "assets/a.js": "x", "resume.pdf": randomBytes(5000) });
+    expect(checkBudget(dir, { firstScreen: 1000, total: 100000 }).ok).toBe(true);
+  });
+  it("leave a script or stylesheet next to one counted", () => {
+    const link = '<a href="/resume.pdf">Résumé</a>';
+    const dir = site({ "index.html": link + html("a.js"), "assets/a.js": randomBytes(5000), "resume.pdf": "x" });
+    expect(checkBudget(dir, { firstScreen: 1000, total: 100000 }).ok).toBe(false);
+  });
+});
+
 describe("the budgets themselves", () => {
   // Written out, so a change to the limits (which the spec says to ask about first) fails here.
   it("are about 100 KB for the first screen and 15 MB for the whole site, in gzip bytes", async () => {

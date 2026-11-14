@@ -33,15 +33,15 @@ describe("linkHistory", () => {
     const { visit, calls } = setup();
     visit.next();
     visit.go(3);
-    expect(calls).toEqual(["push #work", "title Work · Adham Sedik", "push #home-lab", "title Home lab · Adham Sedik"]);
+    expect(calls).toEqual(["push #work", "title Work · Adham Sedik", "push #about", "title About me · Adham Sedik"]);
   });
   it("a popstate moves the visit, pushes nothing and sets the title", () => {
     const { visit, calls, popstate } = setup();
-    popstate("#mediasafe");
+    popstate("#projects");
     expect(visit.target()).toBe(2);
     popstate("");
     expect(visit.target()).toBe(0);
-    expect(calls).toEqual(["title MediaSafe · Adham Sedik", "title Adham Sedik · Lab"]);
+    expect(calls).toEqual(["title Projects · Adham Sedik", "title Adham Sedik · Lab"]);
   });
   it("a direct link lands there, with an overview entry under it, and no flight", () => {
     const { visit, calls } = setup("#work");
@@ -113,7 +113,7 @@ describe("linkHistory", () => {
       s.visit.go(2);
       s.at(700);
       expect(s.visit.target()).toBe(2);
-      expect(s.url()).toBe("#mediasafe");
+      expect(s.url()).toBe("#projects");
     });
   });
 });

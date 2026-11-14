@@ -39,6 +39,6 @@ test("Esc at a station goes back to the overview; at the overview it does nothin
 test("a second click mid-flight re-targets and lands at the last one", async ({ page }) => {
   await openTour(page);
   await clickLink(page, 1);
-  await clickLink(page, 5);
-  await landedAt(page, 5);
+  await clickLink(page, 3);
+  await landedAt(page, 3);
 });

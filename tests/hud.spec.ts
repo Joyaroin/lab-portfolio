@@ -51,8 +51,11 @@ for (const [width, height] of [[1440, 900], [1280, 800], [1024, 768], [800, 600]
         const ys = await linkRow(page).locator("a").evaluateAll((as) => as.map((a) => Math.round(a.getBoundingClientRect().y)));
         const perLine = [...new Set(ys)].map((y) => ys.filter((v) => v === y).length);
         expect(Math.min(...perLine), `links per line ${perLine}`).toBeGreaterThan(1);
-        expect(perLine.length, `lines of links ${perLine}`).toBe(wrapped ? 2 : 1);
-        if (wrapped) expect(perLine, "the stations, then the outside links").toEqual([1 + stations.length, links.length]);
+        // Under TWO_LINE_MIN_W the row may wrap, as two whole groups. With three stations it can still fit on one line
+        // down to 700 px, so under it one line is as good (the HUD ticket, #285, works out the tiers again).
+        if (wrapped) expect([1, 2], `lines of links ${perLine}`).toContain(perLine.length);
+        else expect(perLine.length, `lines of links ${perLine}`).toBe(1);
+        if (perLine.length === 2) expect(perLine, "the stations, then the outside links").toEqual([1 + stations.length, links.length]);
       }
       const bottom = Math.max(name.y + name.height, row.y + row.height);
       expect(bottom, "the HUD is no taller than the top clearance").toBeLessThanOrEqual(clear.top);

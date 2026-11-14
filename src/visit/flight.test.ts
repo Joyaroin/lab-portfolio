@@ -22,8 +22,12 @@ function project(pose: Pose, p: V3, aspect: number): [number, number] | null {
 type Box = { name: string; left: number; top: number; width: number; height: number };
 
 describe("the overview", () => {
+  // The three stations are the TVs that must be in frame, today's pose unchanged. The spare CRTs are not checked: they are no station.
+  it("is checked against the three stations' glass: Work, Projects (the bench TV) and About me", () => {
+    expect(crts.map((c) => c.id)).toEqual(["work", "projects", "about"]);
+  });
   for (const [name, aspect] of [["16:9", 16 / 9], ["16:10", 16 / 10]] as const)
-    it(`has every TV's glass corners inside a ${name} frame`, () => {
+    it(`has every station's glass corners inside a ${name} frame`, () => {
       for (const crt of crts) for (const c of glassCorners(crt)) {
         const q = project(OVERVIEW, c, aspect);
         expect(q, `${crt.id} is behind the camera`).not.toBeNull();
@@ -42,7 +46,7 @@ describe("the overview", () => {
     });
   // The HUD's boxes, all from src/pin.ts's constants and rules: the name block, the link row, the device with its text.
   for (const win of [{ width: 1280, height: 720 }, { width: 1440, height: 900 }, { width: 1920, height: 1080 }])
-    it(`has no TV glass corner or desk meter end under the HUD's boxes at ${win.width} x ${win.height}`, () => {
+    it(`has no station glass corner or desk meter end under the HUD's boxes at ${win.width} x ${win.height}`, () => {
       const nameBlock: Box = { name: "the name block", left: HUD_MARGIN, top: HUD_MARGIN, width: NAME_BLOCK_W, height: NAME_BLOCK_H };
       const oneRow = win.width >= ONE_ROW_MIN_W;
       const linkRow: Box = oneRow
@@ -67,7 +71,7 @@ describe("the overview", () => {
     expect(OVERVIEW.fov).toBeGreaterThan(CAMERA_FOV);
     expect(OVERVIEW.fov).toBeLessThanOrEqual(75);
   });
-  it("is in front of every TV's glass in the in-frame set, as each station's stop is", () => {
+  it("is in front of every station's glass, as each station's stop is", () => {
     for (const crt of crts) {
       const a = (crt.yaw * Math.PI) / 180;
       const d = sub(OVERVIEW.camera, crt.screen);

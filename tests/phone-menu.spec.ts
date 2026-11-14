@@ -19,7 +19,7 @@ test("on a phone the links are bottom buttons at least 44 px tall, clear of the 
     expect(b.y + b.height, `link ${i} is on screen`).toBeLessThanOrEqual(844);
     expect(b.y >= meter.y + meter.height || b.y + b.height <= meter.y, `link ${i} clear of the meter bar`).toBe(true);
   }
-  // Three to a row: Room and the stations fill rows of three, the last one with what is left.
+  // Three to a row: Room and the three stations fill a row of three, then the one left over (the phone bar ticket makes it one row).
   const ys: number[] = [];
   for (let i = 0; i <= stationIds.length; i++) ys.push(Math.round((await hudLink(page, i).boundingBox())!.y));
   const perRow = [...new Set(ys)].map((y) => ys.filter((v) => v === y).length);

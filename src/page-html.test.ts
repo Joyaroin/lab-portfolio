@@ -38,28 +38,46 @@ describe("#root before boot", () => {
     expect(CLIP_STYLE).toContain("clip:rect(0 0 0 0)");
     expect(root).not.toContain("display:none");
   });
-  it.each(stations.map((s) => [s.id, s] as const))("%s: heading, lead and bullets are in the block, escaped", (_id, s) => {
+  it.each(stations.map((s) => [s.id, s] as const))("%s: heading, line, leads, stats and bullets are in the block, escaped", (_id, s) => {
     expect(root).toContain(`<h2>${esc(s.heading)}</h2>`);
+    if (s.line) expect(root).toContain(`<p>${esc(s.line)}</p>`);
     for (const p of s.pages) {
-      expect(root).toContain(`<p>${esc(p.lead)}</p>`);
+      if (p.lead) expect(root).toContain(`<p>${esc(p.lead)}</p>`);
+      if (p.stat) expect(root).toContain(`<p>${esc(p.stat)}</p>`);
       for (const b of p.body) expect(root).toContain(`<li>${esc(b)}</li>`);
     }
   });
-  it("writes a station with one page without a page heading, and Work's two with theirs", () => {
+  it("writes each page of a station with several with its label as a heading, and a station with one page without", () => {
     for (const s of stations) for (const p of s.pages) expect(root.includes(`<h3>${esc(p.label)}</h3>`)).toBe(s.pages.length > 1);
+    const c: Content = structuredClone(content);
+    c.stations = [{ ...c.stations[2], pages: [c.stations[2].pages[2]] }];
+    expect(rootHtml(c)).not.toContain("<h3>");
+  });
+  it("writes the Projects list: its prompt, a row for each project with its tag and stat, and its foot", () => {
+    const list = stations.find((s) => s.id === "projects")!.pages[0].list!;
+    expect(root).toContain(`<p>${esc(list.prompt)}</p>`);
+    expect(root).toContain("<li>software-factory/ AI agents · CI/CD, 100+ merged PRs since 5 November 2026</li>");
+    expect(root).toContain("<li>mediasafe/ Next.js · Postgres · GitOps, 170+ merged PRs since August 2026</li>");
+    expect(root).toContain("<li>home-lab/ Proxmox · k3s · Cloudflare, No ports open at home</li>");
+    expect(root).toContain(`<p>${esc(list.foot)}</p>`);
+  });
+  it("writes the new stations' words and none of the old stations'", () => {
+    for (const w of ["Things I&#39;ve built and run", "Hi, I&#39;m Adham.", "Why I do this", "Off the keyboard", "Tennis. Most weeks, on a court somewhere in Ottawa."]) expect(root).toContain(w);
+    expect(root).not.toContain("<h2>Contact</h2>");
+    expect(root).not.toContain("<h2>MediaSafe</h2>");
   });
   it("writes a page with no bullets without an empty list", () => {
     const c: Content = structuredClone(content);
-    c.stations[1].pages[0].body = [];
+    c.stations[0].pages[0].body = [];
     const html = rootHtml(c);
     expect(html).not.toContain("<ul></ul>");
-    expect(html).toContain(`<p>${esc(c.stations[1].pages[0].lead)}</p>`);
+    expect(html).toContain(`<p>${esc(c.stations[0].pages[0].lead!)}</p>`);
   });
   it("writes Work's pages: label, dates, lead and body", () => {
     for (const p of stations.find((s) => s.id === "work")!.pages) {
       expect(root).toContain(`<h3>${esc(p.label)}</h3>`);
       expect(root).toContain(`<p>${esc(p.dates!)}</p>`);
-      expect(root).toContain(`<p>${esc(p.lead)}</p>`);
+      expect(root).toContain(`<p>${esc(p.lead!)}</p>`);
     }
   });
   it("writes Work's bullets once", () => {
@@ -78,7 +96,7 @@ describe("#root before boot", () => {
   });
   it("escapes the text it writes", () => {
     const c: Content = structuredClone(content);
-    c.stations[1].heading = "A <b>&</b>";
+    c.stations[0].heading = "A <b>&</b>";
     c.identity.name = "N & <m>";
     const html = rootHtml(c);
     expect(html).toContain("<h2>A &lt;b&gt;&amp;&lt;/b&gt;</h2>");

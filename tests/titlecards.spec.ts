@@ -4,18 +4,18 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { PerspectiveCamera, Vector3 } from "three";
 import { stations } from "../src/content";
-import { bench, crts, type Crt } from "../src/crts";
+import { crts, spares, type Crt } from "../src/crts";
 import { glassOnScreen } from "../src/glass";
 import { framingFor } from "../src/framing";
 import { goBack, readCamera, readShot } from "./lib/page";
 
-// A TV you aren't at carries a title card: its station's name, drawn on the
+// A TV you aren't at carries a title card: its station's number over its name ("1" / "Work"), drawn on the
 // glass. This takes one shot from the overview (every TV in view, no text showing), finds each glass on
 // screen from the tour's own camera, and works out WHICH card is there: it draws every station's
 // card with the app's own drawing code (src/card.ts, run in a blank page) and checks that the glass
 // matches its own station's card better than any other station's, and better than plain glass.
 // Counting green pixels would pass on another station's card, or on a lit patch of glass.
-// The bench TV has no station and so no card: the same shot checks its glass matches none.
+// The three spare CRTs are no station and so carry no card: the same shot checks their glass matches none.
 // The other half, that the card is gone behind the text at the stop, is checked in boot.spec.ts
 // ("the text sits on the glass with no card and no phosphor behind it").
 
@@ -41,7 +41,7 @@ function glassCornersAt(crt: Crt) {
   return [tl, tr, bl, br];
 }
 
-/** The most any card may match plain glass, or the bench TV's switched-off glass, by `scoreOf`. */
+/** The most any card may match plain glass, or a spare CRT's glass, by `scoreOf`. */
 const PLAIN_GLASS_BEST = 0.3;
 
 /** The map from the glass's own (u, v) in 0..1 to window pixels, as nine numbers (a homography). */
@@ -82,17 +82,22 @@ const sampleGlass = (page: Page, shot: Buffer, h: number[]) => readShot(page, sh
   return out;
 }, { h, grid: GRID });
 
+/** The app's own card drawing (src/card.ts) as a script a blank page can run: it sets window.drawPhosphor and window.CARD_PX. */
+async function cardSource() {
+  const file = fileURLToPath(new URL("../src/card.ts", import.meta.url));
+  return (await transformWithOxc(readFileSync(file, "utf8"), file, { lang: "ts" })).code.replace(/^export /gm, "") + "\nwindow.drawPhosphor = drawPhosphor; window.CARD_PX = CARD_PX;";
+}
+
 /** Draws plain glass and each station's card with the app's own code (src/card.ts) in a blank page,
  *  and returns each as brightness on the same GRID. */
 async function expectedCards(page: Page): Promise<Expected> {
-  const file = fileURLToPath(new URL("../src/card.ts", import.meta.url));
-  const source = (await transformWithOxc(readFileSync(file, "utf8"), file, { lang: "ts" })).code.replace(/^export /gm, "") + "\nwindow.drawPhosphor = drawPhosphor; window.CARD_PX = CARD_PX;";
+  const source = await cardSource();
   const blank = await page.context().newPage();
   try {
     await blank.addScriptTag({ content: source });
     return await blank.evaluate(({ cards, grid }) => {
-      const w = window as unknown as { drawPhosphor: (c: HTMLCanvasElement, card?: { name: string }) => void; CARD_PX: { width: number; height: number } };
-      const thumb = (card?: { name: string }) => {
+      const w = window as unknown as { drawPhosphor: (c: HTMLCanvasElement, card?: { name: string; number: number }) => void; CARD_PX: { width: number; height: number } };
+      const thumb = (card?: { name: string; number: number }) => {
         const big = document.createElement("canvas");
         big.width = w.CARD_PX.width; big.height = w.CARD_PX.height;
         w.drawPhosphor(big, card);
@@ -106,7 +111,7 @@ async function expectedCards(page: Page): Promise<Expected> {
         return out;
       };
       return { clear: thumb(), cards: cards.map(thumb) };
-    }, { cards: stations.map((s) => ({ name: s.name })), grid: GRID });
+    }, { cards: stations.map((s, k) => ({ name: s.name, number: k + 1 })), grid: GRID });
   } finally {
     await blank.close();
   }
@@ -171,15 +176,17 @@ test("every TV shows its own title card from the overview", { tag: "@render" }, 
     rows.push(`${s.id}: own ${own.toFixed(2)}, best other ${Math.max(...others).toFixed(2)}`);
     expect(own, `${s.id}: its own card, not another's. ${rows[rows.length - 1]}`).toBeGreaterThan(Math.max(...others) + 0.15);
   }
-  // The bench TV has no station and no card: its glass is switched off, so it matches no card better than plain glass does.
-  const benchCorners = glassCornersAt(bench);
-  for (const c of benchCorners) {
-    expect(c.x, "bench: glass inside the window").toBeGreaterThan(0); expect(c.x).toBeLessThan(size.width);
-    expect(c.y, "bench: glass inside the window").toBeGreaterThan(0); expect(c.y).toBeLessThan(size.height);
+  // The spare CRTs are no station and have no card: their glass is the clear phosphor, so it matches no card better than plain glass does.
+  for (const spare of spares) {
+    const spareCorners = glassCornersAt(spare);
+    for (const c of spareCorners) {
+      expect(c.x, `${spare.id}: glass inside the window`).toBeGreaterThan(0); expect(c.x).toBeLessThan(size.width);
+      expect(c.y, `${spare.id}: glass inside the window`).toBeGreaterThan(0); expect(c.y).toBeLessThan(size.height);
+    }
+    const spareScores = scoreOf(want, await sampleGlass(page, full, homography(spareCorners)));
+    rows.push(`${spare.id}: best card ${Math.max(...spareScores).toFixed(2)}`);
+    expect(Math.max(...spareScores), `${spare.id} carries no card. ${rows[rows.length - 1]}`).toBeLessThan(PLAIN_GLASS_BEST);
   }
-  const benchScores = scoreOf(want, await sampleGlass(page, full, homography(benchCorners)));
-  rows.push(`bench: best card ${Math.max(...benchScores).toFixed(2)}`);
-  expect(Math.max(...benchScores), `the bench TV carries no card. ${rows[rows.length - 1]}`).toBeLessThan(PLAIN_GLASS_BEST);
   test.info().annotations.push({ type: "card match", description: rows.join("; ") });
 });
 
@@ -196,4 +203,42 @@ test("the matching tells cards apart: each card is found as itself, and plain gl
   }
   const plain = scoreOf(want, want.clear);
   expect(Math.max(...plain), "plain glass matches no card").toBeLessThan(PLAIN_GLASS_BEST);
+});
+
+// The card is the station's number on the first line and its name on the second ("1" / "Work"): drawn with the app's own
+// code, the number's band changes with the number alone and the name's band with the name alone, and both are drawn.
+test("a title card has the station's number above its name", async ({ page }) => {
+  await page.goto("about:blank");
+  await page.addScriptTag({ content: await cardSource() });
+  const r = await page.evaluate(() => {
+    const w = window as unknown as { drawPhosphor: (c: HTMLCanvasElement, card?: { name: string; number: number }) => void; CARD_PX: { width: number; height: number } };
+    const draw = (card?: { name: string; number: number }) => {
+      const c = document.createElement("canvas");
+      c.width = w.CARD_PX.width; c.height = w.CARD_PX.height;
+      w.drawPhosphor(c, card);
+      return c.getContext("2d")!.getImageData(0, 0, c.width, c.height);
+    };
+    // How many pixels of a band (a share of the height) differ visibly between two drawings.
+    const diff = (a: ImageData, b: ImageData, from: number, to: number) => {
+      let n = 0;
+      for (let y = Math.floor(a.height * from); y < Math.floor(a.height * to); y++) for (let x = 0; x < a.width; x++) {
+        const k = (y * a.width + x) * 4;
+        if (Math.abs(a.data[k + 1] - b.data[k + 1]) > 24) n++;
+      }
+      return n;
+    };
+    const one = draw({ name: "Work", number: 1 }), two = draw({ name: "Work", number: 2 }), other = draw({ name: "Projects", number: 1 }), plain = draw();
+    const NUMBER = [0.2, 0.38] as const, NAME = [0.46, 0.8] as const;
+    return {
+      numberVsOtherNumber: diff(one, two, ...NUMBER), nameVsOtherNumber: diff(one, two, ...NAME),
+      numberVsOtherName: diff(one, other, ...NUMBER), nameVsOtherName: diff(one, other, ...NAME),
+      numberVsPlain: diff(one, plain, ...NUMBER), nameVsPlain: diff(one, plain, ...NAME),
+    };
+  });
+  expect(r.numberVsOtherNumber, "a different number changes the number's band").toBeGreaterThan(100);
+  expect(r.nameVsOtherNumber, "a different number leaves the name's band alone").toBe(0);
+  expect(r.nameVsOtherName, "a different name changes the name's band").toBeGreaterThan(100);
+  expect(r.numberVsOtherName, "a different name leaves the number's band alone").toBe(0);
+  expect(r.numberVsPlain, "the number is drawn").toBeGreaterThan(100);
+  expect(r.nameVsPlain, "the name is drawn").toBeGreaterThan(100);
 });

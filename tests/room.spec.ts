@@ -4,7 +4,7 @@ import { clearances, SIDE } from "../src/pin";
 import { boxOf, panelOf, meanBrightness, goTo, landedAt, openTour, stationIds, waitForCamera, waitForPanel, waitUntilStill } from "./lib/page";
 
 // Baked room loads and the tour still moves the camera. Screenshots go to test-results/.
-// Seven software-WebGL screenshots: each waits for a drawn frame, which is slow on a loaded machine.
+// Four software-WebGL screenshots: each waits for a drawn frame, which is slow on a loaded machine.
 test.setTimeout(60_000);
 test("baked room loads and the overview and every station render", { tag: "@render" }, async ({ page }) => {
   const errors: string[] = [];
@@ -27,15 +27,15 @@ test("baked room loads and the overview and every station render", { tag: "@rend
   expect(errors).toEqual([]);
 });
 
-// Ticket 36: on a portrait phone, MediaSafe and Software factory used to be mostly dark. Visited
-// through the HUD, each must now frame lit parts of the room. Mean frame brightness (0-255) was about
+// Ticket 36: on a portrait phone, the MediaSafe CRT (now Work's) used to be mostly dark. Visited
+// through the HUD, it must now frame lit parts of the room. Mean frame brightness (0-255) was about
 // 22 for both before; the other stations sit between 22 and 31. The mean covers the whole window,
 // station text and HUD included, so this shows the frame got brighter, not which part is lit.
 
-test("on a phone, MediaSafe and Software factory frame lit parts of the room", async ({ page }) => {
+test("on a phone, Work frames lit parts of the room", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openTour(page);
-  for (const name of ["mediasafe", "software-factory"]) {
+  for (const name of ["work"]) {
     const stop = stationIds.indexOf(name) + 1;
     await goTo(page, stop);
     // The station's line is on the meter bar, as the content module builds it (station, n and total).
@@ -77,7 +77,7 @@ for (const [name, size, bar] of [["desktop", { width: 1280, height: 800 }, 0], [
 // moving the pointer inside a hold doesn't move either.
 for (const [w, h] of [[1280, 800], [1920, 1080]]) {
   test(`desktop ${w}x${h}: text sits on the glass at every station and the pointer does not move it`, { tag: "@render" }, async ({ page }) => {
-    test.setTimeout(150_000); // five stations, each waits for the camera on software WebGL
+    test.setTimeout(150_000); // three stations, each waits for the camera on software WebGL
     await page.setViewportSize({ width: w, height: h });
     await openTour(page);
     for (const [k, id] of stationIds.entries()) {

@@ -1,7 +1,7 @@
 // The page's HTML, written from the content module: the head tags, and what #root holds before the
 // room boots. A pure function of the content. vite.config.ts applies it (transformIndexHtml), so
 // `npm run dev` and the build both get it. createRoot().render replaces #root's contents at boot.
-import type { Content, Station } from "./content";
+import type { Content, Page, Station } from "./content";
 import { iconTags } from "./page-icon-tags";
 import { imageTags } from "./page-image-tags";
 
@@ -38,17 +38,28 @@ export function headTags(c: Content): string[] {
 const list = (items: string[]) => `<ul>${items.map((b) => `<li>${e(b)}</li>`).join("")}</ul>`;
 const link = (l: { label: string; href: string }) => `<a href="${e(l.href)}" tabindex="-1">${e(l.label)}</a>`;
 
+function pageHtml(s: Station, p: Page, heading: boolean): string[] {
+  const parts: string[] = [];
+  if (heading) parts.push(`<h3>${e(p.label)}</h3>`);
+  if (p.dates) parts.push(`<p>${e(p.dates)}</p>`);
+  if (p.lead) parts.push(`<p>${e(p.lead)}</p>`);
+  if (p.stat) parts.push(`<p>${e(p.stat)}</p>`);
+  if (p.body.length) parts.push(list(p.body));
+  if (p.list) {
+    // the Projects list: its prompt, one row per project (name, tag, stat) and its foot
+    const rows = p.list.rows.map((r) => `${r.name} ${r.tag}, ${s.pages.find((x) => x.id === r.page)?.stat ?? ""}`.replace(/, $/, ""));
+    parts.push(`<p>${e(p.list.prompt)}</p>`, list(rows), `<p>${e(p.list.foot)}</p>`);
+  }
+  return parts;
+}
+
 function stationHtml(s: Station): string {
   const parts = [`<h2>${e(s.heading)}</h2>`];
+  if (s.line) parts.push(`<p>${e(s.line)}</p>`);
   // Every station is written through its pages (Work's body repeats its pages' bullets). A station with
   // one page needs no page heading. A link several pages share is written once, after the last page.
   const several = s.pages.length > 1;
-  for (const p of s.pages) {
-    if (several) parts.push(`<h3>${e(p.label)}</h3>`);
-    if (p.dates) parts.push(`<p>${e(p.dates)}</p>`);
-    parts.push(`<p>${e(p.lead)}</p>`);
-    if (p.body.length) parts.push(list(p.body));
-  }
+  for (const p of s.pages) parts.push(...pageHtml(s, p, several));
   const links = s.pages.flatMap((p) => p.links).filter((l, i, all) => all.findIndex((m) => m.label === l.label && m.href === l.href) === i);
   if (links.length) parts.push(`<p>${links.map(link).join(" ")}</p>`);
   return `<section>${parts.join("")}</section>`;

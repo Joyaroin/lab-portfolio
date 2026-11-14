@@ -134,7 +134,7 @@ describe("what a preview shows", () => {
   it("nothing previews at a station or in a flight: the digits are the stop's, as without a preview", () => {
     expect(digitsOf("bar", at(3), p(2), 5000).reading).toBe(stations[2].reading);
     expect(digitsOf("bar", at(3), p(2), 5000).scramble).toBeNull();
-    expect(digitsOf("bar", flying(0, 4, 0.5), p(2), 5000).reading).toBe(stations[3].reading);
+    expect(digitsOf("bar", flying(0, 3, 0.5), p(2), 5000).reading).toBe(stations[2].reading);
   });
 
   it("under reduced motion the digits change at 150 ms with no scramble", () => {
@@ -148,7 +148,7 @@ describe("what a preview shows", () => {
 
   it("the desk meter and the meter bar get the same digits and scramble through a preview, at every moment of it", () => {
     for (const now of [1000, 1100, 1150, 1300, 9000]) {
-      expect(digitsOf("desk", at(0), p(4), now)).toEqual(digitsOf("bar", at(0), p(4), now));
+      expect(digitsOf("desk", at(0), p(3), now)).toEqual(digitsOf("bar", at(0), p(3), now));
     }
   });
 });

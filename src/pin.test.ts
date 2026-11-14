@@ -172,7 +172,7 @@ describe("clearances", () => {
     const rows = Math.ceil((stations.length + 1) / 3); // Room and one button per station, three to a row
     const menu = rows * 44 + (rows - 1) * 4.8 + 2 * 6.4; // 44 px buttons, the gaps and the padding
     expect(PHONE_MENU_H).toBeCloseTo(menu, 6);
-    expect(stations.length, "five stations: two rows, 105.6 px").toBe(5);
+    expect(stations.length, "three stations and Room: two rows of three, 105.6 px (the phone bar ticket makes it one row)").toBe(3);
     expect(PHONE_MENU_H).toBeCloseTo(105.6, 6);
     expect(clearances(win).bottom).toBeCloseTo(menu + 16 + 118.8 + lineHeight(win), 1);
     expect(clearances(win).top).toBe(96);

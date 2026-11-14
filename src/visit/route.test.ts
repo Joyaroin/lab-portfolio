@@ -16,12 +16,17 @@ describe("route", () => {
     // built in two parts: the repo's grep for the old name (ticket #221) must find nothing in src or tests
     expect(stopForHash(`#${["order", "tracker"].join("-")}`)).toBe(0);
   });
+  it("the three hashes are #work, #projects and #about, and the old station hashes are the overview until the visit ticket redirects them", () => {
+    expect(stations.map((s) => hashForStop(stations.indexOf(s) + 1))).toEqual(["#work", "#projects", "#about"]);
+    for (const old of ["#mediasafe", "#home-lab", "#software-factory", "#contact"]) expect(stopForHash(old), old).toBe(0);
+  });
   it("the overview has no hash", () => {
     expect(hashForStop(0)).toBe("");
   });
   it("a station's tab title names the station and the visitor; the overview's is the page title", () => {
     expect(titleForStop(1)).toBe("Work · Adham Sedik");
-    expect(titleForStop(3)).toBe("Home lab · Adham Sedik");
+    expect(titleForStop(2)).toBe("Projects · Adham Sedik");
+    expect(titleForStop(3)).toBe("About me · Adham Sedik");
     expect(titleForStop(0)).toBe(identity.pageTitle);
     expect(titleForStop(0)).toBe("Adham Sedik · Lab");
     stations.forEach((s, i) => expect(titleForStop(i + 1)).toBe(`${s.name} · ${identity.name}`));

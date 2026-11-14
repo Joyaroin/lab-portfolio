@@ -34,8 +34,8 @@ describe("go, back, land", () => {
 
   it("land puts the visitor at the stop with no flight", () => {
     const { visit, now } = setup();
-    visit.land(4);
-    expect(visit.where(now())).toEqual({ kind: "at", stop: 4 });
+    visit.land(3);
+    expect(visit.where(now())).toEqual({ kind: "at", stop: 3 });
   });
 
   it("going to where you already are does nothing", () => {
@@ -173,13 +173,13 @@ describe("a go mid-flight", () => {
     visit.go(1);
     advance(FLIGHT_MS / 2);
     const before = visit.where(now());
-    visit.go(4);
-    expect(visit.where(now())).toMatchObject({ kind: "flying", to: 4, f: 0 });
+    visit.go(3);
+    expect(visit.where(now())).toMatchObject({ kind: "flying", to: 3, f: 0 });
     expect(visit.launch(now())).toEqual({ kind: "flying", from: { kind: "at", stop: 0 }, to: 1, f: before.kind === "flying" ? before.f : -1 });
     advance(FLIGHT_MS / 2);
-    expect(visit.where(now())).toMatchObject({ kind: "flying", to: 4 });
+    expect(visit.where(now())).toMatchObject({ kind: "flying", to: 3 });
     advance(FLIGHT_MS / 2);
-    expect(visit.where(now())).toEqual({ kind: "at", stop: 4 });
+    expect(visit.where(now())).toEqual({ kind: "at", stop: 3 });
   });
 
   it("launches from a stop's own Where when not mid-flight", () => {
@@ -203,9 +203,9 @@ describe("a go mid-flight", () => {
     const second = { kind: "flying", from: first, to: 2, f: ease(0.2) };
     expect(visit.launch(t0 + 0.5 * FLIGHT_MS)).toEqual(second);
     at(t0 + 0.75 * FLIGHT_MS); // 0.25 of the third flight
-    visit.go(4);
+    visit.go(1);
     expect(visit.launch(t0 + 0.75 * FLIGHT_MS)).toEqual({ kind: "flying", from: second, to: 3, f: ease(0.25) });
-    expect(visit.where(t0 + 0.75 * FLIGHT_MS)).toMatchObject({ kind: "flying", to: 4, f: 0 });
+    expect(visit.where(t0 + 0.75 * FLIGHT_MS)).toMatchObject({ kind: "flying", to: 1, f: 0 });
   });
 });
 
@@ -319,23 +319,23 @@ describe("reduced motion: a press during a fade waits (Adham, #176)", () => {
     const { visit, events, advance, now } = setup(true);
     visit.go(2);
     advance(100);
-    visit.go(4);
-    visit.go(5);
-    expect(visit.target()).toBe(5);
+    visit.go(3);
+    visit.go(1);
+    expect(visit.target()).toBe(1);
     advance(FADE_MS / 2 - 100);
     expect(visit.where(now())).toEqual({ kind: "at", stop: 2 }); // the first fade finishes its own move
     advance(FADE_MS / 2);
     expect(visit.where(now())).toEqual({ kind: "at", stop: 2 });
     expect(visit.fade(now())).toBe(0); // the waiting move starts on the next read
     advance(FADE_MS);
-    expect(visit.where(now())).toEqual({ kind: "at", stop: 5 });
-    expect(events.filter((e) => e.type === "move").map((e) => (e as { to: number }).to)).toEqual([2, 5]);
+    expect(visit.where(now())).toEqual({ kind: "at", stop: 1 });
+    expect(events.filter((e) => e.type === "move").map((e) => (e as { to: number }).to)).toEqual([2, 1]);
   });
 
   it("a press back to the stop being faded to cancels the waiting one", () => {
     const { visit, events, advance, now } = setup(true);
     visit.go(2);
-    visit.go(4);
+    visit.go(3);
     visit.go(2);
     advance(FADE_MS * 3);
     expect(visit.where(now())).toEqual({ kind: "at", stop: 2 });

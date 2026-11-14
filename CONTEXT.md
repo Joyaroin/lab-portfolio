@@ -5,19 +5,15 @@ The language of this project: its terms, what each one means, and what it doesn'
 - **Lab**: the whole site. A 3D late-night home lab that hiring teams tour to learn what Adham does.
   Not a page with a 3D header: the room is the site.
 - **Room**: the 3D scene itself, its models and baked lighting.
-- **Station**: a stop on the tour, with its own place in the room, its reading and its pages (every station has at least one).
+- **Station**: one of the three monitors on the tour, with its own place in the room, its reading and its pages (every station has at least one). Visitors see "Monitor 1 · Work", "Monitor 2 · Projects" and "Monitor 3 · About me"; the code says station, with ids `work`, `projects` and `about`. Work is on the CRT that was MediaSafe's, Projects on the bench TV, About me on the CRT that was Contact's. A TV's place in `crts` (`src/crts.ts`, from `src/room-layout.json`) is its station's place in the content module, so the two lists change together.
 - **Tour**: visiting the stations by clicking and stepping. The site opens on the overview; the HUD's links, the
   **keys** on the meter bar, the arrow keys and Esc move the visitor, as does clicking a TV (see **TV click**), and
   the camera follows the visit. Right is `next()` and Left is `prev()` (at the overview Right goes to Work and Left
   does nothing; in a flight they act on the stop being flown to; a key with a modifier is ignored). Nothing scrolls:
   the wheel never moves the camera (ADR 0005, spec #170).
-- **Bench TV**: the switched-off TV on the workbench, once Order Tracker's. It has no station, so it is not in
-  `crts` (one entry per station, in tour order); it is `bench` in `src/crts.ts`, from the `bench` key of
-  `src/room-layout.json`, and `tools/room/build.py` still places it, switched off (dark glass, dark LED, no light on
-  its surroundings). `Phosphor.tsx` still draws a dark glass over the baked glass, for its sheen and curve. It has no
-  title card, bezel layer, hover glow or click of its own: a click on it is a click on the room. The overview shows it
-  dark, and it is not counted among the five stations.
-- **TV click**: at the overview only, a TV takes a click and flies the visitor to its station, and a hover glow shows which
+- **Bench TV**: the TV on the workbench, once Order Tracker's, and now the Projects station: the second entry in `crts` (`projects` in `src/room-layout.json`), drawn like any station (title card, bezel layer, hover glow, click, text on the glass) with the plate "HALDEN HX-418". Its glass is the same 0.46 x 0.36 m as the others, so `squareStop` gives its desktop stop, and its portrait stop comes from its `camera`, `look` and `portrait` entries. Until the re-bake ticket (#286) the bake still has it switched off (`is_off()` in `tools/room/build.py` finds the `projects` entry): dark baked glass, dark LED and no light on its surroundings, with the site's phosphor drawn over the glass.
+- **Spare CRT**: one of the three CRTs that are no station: the old Work CRT, the Home lab CRT and the Software factory CRT (`spares` in `src/crts.ts`, `spares` in `src/room-layout.json`). It shows the clear phosphor glass and nothing else: no title card, no bezel layer, no hover glow and no click, so a click on one is a click on the room. It is in no list the tour reads. The Home lab spare keeps `keyboard: false`. `bakeOrder` in `src/room-layout.json` is the six TVs' ids in the order `tools/room/build.py` bakes them (old Work CRT, MediaSafe CRT, Home lab CRT, bench TV, Software factory CRT, Contact CRT), whatever order `crts` and `spares` list them in, so the random draws (note colours, keyboard tilts) don't move; `src/crts.test.ts` checks it.
+- **TV click**: at the overview only, a station's TV (not a spare CRT) takes a click and flies the visitor to its station, and a hover glow shows which
   one (`clickable` in `src/clickable.ts`, `easeGlow` in `src/glow.ts`). At a station or in flight no TV is clickable and no
   glow shows. At a station, a click on the room goes back to the overview: any press on the room that is not on that
   station's own TV (its glass or bezel), and another TV counts as the room from there (`goesBack` in `src/back.ts`, heard by
@@ -27,7 +23,7 @@ The language of this project: its terms, what each one means, and what it doesn'
   station, so the rule is given `visit.moving()`). Resting the pointer on a lit TV also previews its station on the meter
   (see **Hover preview**): `TvTargets` tells the tour which TV the pointer is on, through the meter link's `tvHover`.
 - **Hover preview**: at the overview, resting the pointer on a lit TV or on a station's HUD link makes the meter show
-  that station before the click. The bar's line changes at once to the station's name only ("MediaSafe",
+  that station before the click. The bar's line changes at once to the station's name only ("Projects",
   no count); after the pointer has rested `PREVIEW_REST_MS` (150 ms) the digits play the short scramble
   (`SHIFT_SECONDS.short`, 0.25 s) onto the station's reading, or change with no scramble under reduced motion. Leaving,
   or moving to another station before the 150 ms (which starts the rest again), puts the gap's line and digits back at
@@ -39,9 +35,9 @@ The language of this project: its terms, what each one means, and what it doesn'
   is on, from the TV and the HUD link, each reporting its own enter and leave), `previewStop` (only at the overview) and
   `meterDigits` (below). The tour feeds it and passes the result to the bar through the `reading`, `label` and `shift`
   props, so the bar is not edited for it.
-- **Overview**: stop 0. A camera pose that shows the glass of all five station TVs and the whole desk meter on a
+- **Overview**: stop 0. A camera pose that shows the glass of the three station TVs (the bench TV included) and the whole desk meter on a
   landscape window at 16:9 and 16:10, with none of them under the HUD's name block, link row or the meter device
-  (the boxes in `src/pin.ts`). The bench TV may be out of frame. It has its own wider field of
+  (the boxes in `src/pin.ts`). The spare CRTs are not checked. It has its own wider field of
   view (`OVERVIEW` in `src/crts.ts`, 75 degrees at most; stations use `CAMERA_FOV`), and a separate pose for a
   portrait window. `src/visit/flight.test.ts` projects the TVs and the meter through the real camera to check this; if the
   HUD's boxes in `src/pin.ts` change, the pose may need to change with them. It is where the site opens and where Back (the HUD's Room link, Esc, the ROOM key) goes. The meter shows
@@ -60,10 +56,10 @@ The language of this project: its terms, what each one means, and what it doesn'
   (`/#work`) lands there with no flight and no shift, with an overview entry under it so Back goes to the overview.
   The tab title follows the same stop (`titleForStop` in `src/visit/route.ts`): "Work · Adham Sedik" at a station,
   the page title at the overview, set after each history call so every entry keeps its own title.
-- **Title card**: the big label on the glass of a TV you aren't at: its station's name,
-  such as "Home lab", readable from across the room: as big as the glass allows, wrapped onto two lines at a
-  space when that makes it larger. The words come from the
-  station's `name` in the content module, nothing else. It clears when that station's
+- **Title card**: the big label on the glass of a station's TV you aren't at: its number over its name
+  ("1" over "Work"), readable from across the room: as big as the glass allows, wrapped onto two lines at a
+  space when that makes it larger. The name comes from the
+  station's `name` in the content module, and the number is the station's place in the tour. It clears when that station's
   text is on its glass, which happens only in the Square framing (`textOnGlass`); on a portrait window
   the text is pinned beside the CRT and the card stays. It never moves and never reads as a live status
   or result.
@@ -75,13 +71,17 @@ The language of this project: its terms, what each one means, and what it doesn'
 - **Sticky note**: the small coloured note at a bezel's top left, with a few words of its own and a tilt
   that differs on each TV, pinned to its station by id (`noteStyleFor` in `src/notes.ts`).
 - **Diagram**: a page's line drawing on its glass. It redraws facts already in that page's copy
-  and adds none, and never reads as a live status or result. Contact has none. Most are a left-to-right
-  chain of steps joined by hops; Work's is its timeline, made of segments, with no steps or hops.
+  and adds none, and never reads as a live status or result. Only the three project pages (Software factory,
+  MediaSafe and Home lab) have one, and they are a left-to-right chain of steps joined by hops. Work's timeline
+  is also called a diagram, made of segments, with no steps or hops.
 - **Page**: one part of a station's text, shown one at a time. Every station has at least one. A page has a
-  lead, up to three bullets (none is allowed), and its diagram and links. Only Work has more than one so far
-  (Solace and Barracuda), and only its job pages have dates and months. Where a station keeps a whole text
-  (Work's `body`), its pages hold exactly that text, in order; the other stations keep theirs on their page
-  only. The station opens on its first page and scrolling never changes it. The **walk order** (`src/walk.ts`,
+  lead (a page may have none), up to three bullets (none is allowed), and its diagram and links. Work has
+  two (Solace and Barracuda, the only pages with dates and months), Projects four (the list, then Software
+  factory, MediaSafe and Home lab) and About me three (Why I do this, Off the keyboard, Contact). A project
+  page has one stat line, and the list page has a `list`: a prompt, a row for each project with its tag and its
+  stat, and a foot. A station may have a `line` under its heading (Work's, About me's). Where a station keeps a
+  whole text (Work's `body`), its pages hold exactly that text, in order; the other stations keep theirs on their
+  pages only. The glass shows only each station's first page for now, and scrolling never changes it. The **walk order** (`src/walk.ts`,
   not called yet) puts every page in one sequence after the overview, and `up` goes back up (a station with
   `upToFirstPage` goes from a later page to its first page, otherwise to the overview).
 - **Timeline**: Work's diagram, and the switch between its pages. A row of segments drawn on the TV,
@@ -103,7 +103,7 @@ The language of this project: its terms, what each one means, and what it doesn'
 - **Meter bar**: the bar under the room, drawn as the **device**: the meter layers put together (below) at the size
   `deviceSize(win)` in `src/pin.ts` gives (420 px wide at 1920 x 1080, 417.6 at 1440 x 900, 280 on a phone), with the
   reading's digits as lit numerals over the tubes, the keys over their drawn keys, and the line under it (its height is `lineHeight(win)` in `src/pin.ts`, part of the bottom clearance, and the bottom clearance's `hudTier` test uses it too). The line is 14.4 px type, 12.8 px on a portrait window and on a short landscape window (the compact HUD). On a compact window its box may run wider than the device, up to the HUD's side margins (`HUD_MARGIN`; `lineMaxWidth(win)`), and it shows the **short form** of the gap sentence (`ui.gapBehindShort`, `ui.gapBehindAtLeastShort`: "MediaSafe: 9 deploys ahead of prod", "MediaSafe: 9+ deploys ahead of prod"; `gapLabel(gap, true)` in `src/gap.ts`, chosen by `isCompact(win)`), so the line is always one line there, from 560 px wide up (the saved form, `ui.gapSaved` around it, is 60 characters at a count of 100). The height is worked out from the real longest text of the form the window shows, at a count of 100 (what `countGap` returns at most and the save script stores; `lineTexts` in `src/pin.ts`). Elsewhere the box is at most the window less 1 rem. The line is the
-  gap's sentence at the overview and, at a station, `ui.stopLine` filled in ("MediaSafe · 2 of 5"; the
+  gap's sentence at the overview and, at a station, `ui.stopLine` filled in ("Projects · 2 of 3"; the
   total is the number of stations in the content module). The bar itself takes no click: only the keys do. In a flight
   it shows the stop being flown to (keys, line and digits). What it shows is one pure rule, `barFor(where, framing)` in
   `src/bar.ts`; `deviceLayers` in `src/meter-device.ts` maps a reading and the keys to the layers shown (a digit change
@@ -154,7 +154,7 @@ The language of this project: its terms, what each one means, and what it doesn'
   two-line HUD's (126 px) from `TWO_LINE_MIN_W`, the three-line HUD's (162 px) under it, or the compact HUD's, each worked out from the boxes. A hint line 8 px above the bottom clearance tells the visitor what to
   click; it fades after the first landing at a station and stays gone.
 - **Phone stop**: a station's own camera stop, look point and text pin used on a portrait window instead of
-  the pulled-back view, where that view would be mostly dark. Only MediaSafe and Software factory have one.
+  the pulled-back view, where that view would be mostly dark. Only Work (the CRT that was MediaSafe's) has one.
 - **Framing**: how the camera and the text are set for the window's shape. Two exist. **Square** (a window
   at least as wide as tall): each station's own square stop, worked out from the window; the text is laid
   over the glass; no mouse parallax at a station. **Portrait** (taller than wide): the pull-back, or the phone

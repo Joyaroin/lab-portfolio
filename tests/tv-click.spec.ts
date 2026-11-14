@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { PerspectiveCamera, Vector3 } from "three";
-import { crts } from "../src/crts";
+import { crts, spares } from "../src/crts";
 import { boxAround, glassBox } from "../src/glass";
 import { BEZEL } from "../src/draw";
 import { framingFor } from "../src/framing";
@@ -11,12 +11,15 @@ import { goTo, landedAt, openTour, stationIds, waitForCamera, clickLink, boxOf, 
 // dark cover fading out and in, with no tear. That in flight the TVs take no clicks is proved by clickable()'s unit test.
 // A click on the room at a station goes back (#224): the rule is goesBack()'s unit test; here the real clicks and taps.
 
+/** Every TV in the room, the three stations first (so index `i` below 3 is stop `i + 1`'s), then the spare CRTs. */
+const tvs = [...crts, ...spares];
+
 /** Where TV `i`'s glass is in the window as the camera sees it at `stop`: its centre, and whether that is clearly in frame. */
 function glassAt(i: number, stop: number, size: { width: number; height: number }) {
   const s = framingFor(size).cameraAt({ kind: "at", stop });
   const cam = new PerspectiveCamera(s.fov, size.width / size.height, 0.01, 50);
   cam.position.set(...s.camera); cam.lookAt(new Vector3(...s.look)); cam.updateMatrixWorld();
-  const b = glassBox(crts[i], cam, size);
+  const b = glassBox(tvs[i], cam, size);
   const x = b.left + b.width / 2, y = b.top + b.height / 2;
   const m = 30;
   return { x, y, inFrame: x > m && x < size.width - m && y > m && y < size.height - m };
@@ -27,7 +30,7 @@ function bezelBox(i: number, stop: number, size: { width: number; height: number
   const s = framingFor(size).cameraAt({ kind: "at", stop });
   const cam = new PerspectiveCamera(s.fov, size.width / size.height, 0.01, 50);
   cam.position.set(...s.camera); cam.lookAt(new Vector3(...s.look)); cam.updateMatrixWorld();
-  const a = (crts[i].yaw * Math.PI) / 180, [cx, cy, cz] = crts[i].screen;
+  const a = (tvs[i].yaw * Math.PI) / 180, [cx, cy, cz] = tvs[i].screen;
   const pts = [-1, 1].flatMap((sx) => [-1, 1].map((sy) => {
     const r = (sx * BEZEL.width) / 2;
     return new Vector3(cx + Math.cos(a) * r, cy + (sy * BEZEL.height) / 2, cz - Math.sin(a) * r).project(cam);
@@ -51,11 +54,11 @@ const topAt = (page: Page, x: number, y: number) => page.evaluate(([x, y]) => do
 
 /** A point on the room itself (the canvas is on top there), off every TV's bezel, found by scanning the window. */
 async function roomPoint(page: Page, stop: number, size: { width: number; height: number }) {
-  const tvs = crts.map((_, i) => bezelBox(i, stop, size)).filter((b) => b !== null);
+  const onScreen = tvs.map((_, i) => bezelBox(i, stop, size)).filter((b) => b !== null);
   for (const f of [0.04, 0.96, 0.1, 0.9, 0.5, 0.2, 0.8]) {
     for (const g of [0.5, 0.35, 0.65, 0.2, 0.8, 0.95]) {
       const x = Math.round(size.width * f), y = Math.round(size.height * g);
-      if (tvs.some((t) => x > t.left - 12 && x < t.left + t.width + 12 && y > t.top - 12 && y < t.top + t.height + 12)) continue; // off every bezel
+      if (onScreen.some((t) => x > t.left - 12 && x < t.left + t.width + 12 && y > t.top - 12 && y < t.top + t.height + 12)) continue; // off every bezel
       if (await topAt(page, x, y) === "canvas") return { x, y };
     }
   }
@@ -80,7 +83,7 @@ test.describe("desktop window", () => {
     await landedAt(page, 0);
     await waitForCamera(page);
     const size = page.viewportSize()!;
-    for (const i of [0, 3]) {
+    for (const i of [0, 1, 2]) {
       const g = glassAt(i, 0, size);
       expect(g.inFrame, `TV ${i} is in frame on the overview`).toBe(true);
       await page.mouse.move(g.x, g.y);
@@ -109,14 +112,19 @@ test.describe("desktop window", () => {
 
   test("at a station, clicking where another TV is goes back to the overview", async ({ page }) => {
     await openTour(page);
-    await goTo(page, 1);
-    await waitForCamera(page);
     const size = page.viewportSize()!;
-    const panel = await page.locator(`[data-screen="${stationIds[0]}"]`).boundingBox();
-    const own = bezelBox(0, 1, size)!;
-    const other = crts.map((_, i) => i).filter((i) => i !== 0).map((i) => ({ i, ...glassAt(i, 1, size) }))
-      .find((g) => g.inFrame && !(g.x > own.left && g.x < own.left + own.width && g.y > own.top && g.y < own.top + own.height) && !(panel && g.x > panel.x && g.x < panel.x + panel.width && g.y > panel.y && g.y < panel.y + panel.height));
-    expect(other, "another TV is in frame beside the station's TV and text").toBeTruthy();
+    // Another TV (a station's or a spare CRT's) in frame from a station depends on the stop: take the first stop that has one.
+    let other: ({ i: number } & ReturnType<typeof glassAt>) | undefined, stop = 0;
+    for (stop = 1; stop <= crts.length && !other; stop++) {
+      await goTo(page, stop);
+      await waitForCamera(page);
+      const panel = await page.locator(`[data-screen="${stationIds[stop - 1]}"]`).boundingBox();
+      const own = bezelBox(stop - 1, stop, size)!;
+      other = tvs.map((_, i) => i).filter((i) => i !== stop - 1).map((i) => ({ i, ...glassAt(i, stop, size) }))
+        .find((g) => g.inFrame && !(g.x > own.left && g.x < own.left + own.width && g.y > own.top && g.y < own.top + own.height) && !(panel && g.x > panel.x && g.x < panel.x + panel.width && g.y > panel.y && g.y < panel.y + panel.height));
+    }
+    stop--;
+    expect(other, "another TV is in frame beside the station's TV and text, from one of the stops").toBeTruthy();
     expect(await topAt(page, other!.x, other!.y), "the other TV is the canvas there").toBe("canvas");
     await page.mouse.move(other!.x, other!.y);
     // From a station another TV is not hot: no hover, no pointer cursor, but the click is a click on the room.
@@ -124,7 +132,7 @@ test.describe("desktop window", () => {
     await expect.poll(() => cursor(page)).toBe("");
     await page.mouse.click(other!.x, other!.y);
     await landedAt(page, 0);
-    expect(page.url()).not.toContain(`#${stationIds[0]}`);
+    expect(page.url()).not.toContain(`#${stationIds[stop - 1]}`);
   });
 });
 
@@ -194,17 +202,17 @@ test.describe("phone window with touch", () => {
     await landedAt(page, tvs[0].i + 1);
   });
 
-  test("at Contact, a tap on the room between the text panel and the meter bar goes back to the overview", async ({ page }) => {
-    const contact = stationIds.indexOf("contact");
+  test("at About me, a tap on the room between the text panel and the meter bar goes back to the overview", async ({ page }) => {
+    const about = stationIds.indexOf("about");
     await openTour(page);
-    await goTo(page, contact + 1);
-    await waitForPanel(page, "contact");
+    await goTo(page, about + 1);
+    await waitForPanel(page, "about");
     await waitForCamera(page);
     const size = page.viewportSize()!;
-    const panel = await boxOf(page, "contact");
+    const panel = await boxOf(page, "about");
     const bar = await page.locator("[data-meter-bar]").boundingBox();
     expect(bar, "the meter bar is on screen").toBeTruthy();
-    // Contact's text is short, so the panel ends well above the meter bar: the strip between them is the room.
+    // About me's first page is short, so the panel ends well above the meter bar: the strip between them is the room.
     const gap = { top: panel.top + panel.height, bottom: bar!.y };
     expect(gap.bottom - gap.top, `room between the panel (bottom ${gap.top}) and the meter bar (top ${gap.bottom})`).toBeGreaterThan(8);
     const x = Math.round(size.width / 2), y = Math.round((gap.top + gap.bottom) / 2);
@@ -274,7 +282,7 @@ test.describe("reduced motion", () => {
       const at = await page.evaluate(([x, y]) => new Promise<number>((done) => {
         const next = document.querySelector<HTMLElement>('[data-meter-bar] [data-key="next"]')!, canvas = document.querySelector("canvas")!;
         const t0 = performance.now();
-        next.click(); // NEXT: Work to MediaSafe, a 300 ms fade
+        next.click(); // NEXT: Work to Projects, a 300 ms fade
         const tick = () => {
           const elapsed = performance.now() - t0;
           if (elapsed < 170) return void requestAnimationFrame(tick);

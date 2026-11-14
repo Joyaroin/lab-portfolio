@@ -3,20 +3,21 @@ import { createRef, useEffect, useMemo, useRef, type MutableRefObject } from "re
 import type { Mesh, MeshBasicMaterial } from "three";
 import { framingFor } from "./framing";
 import type { Where } from "./where";
-import { bench, crts, CRT_GLASS, type Crt } from "./crts";
+import { crts, spares, CRT_GLASS, type Crt } from "./crts";
 import { stations } from "./content";
-import { CARD_PX, drawPhosphor, drawSwitchedOff } from "./card";
+import { CARD_PX, drawPhosphor } from "./card";
 import { SCREEN_LAYER, canvas, texture } from "./draw";
 
 // ---------------------------------------------------------------- CRT phosphor
 // The baked glass is a flat green block. Each CRT gets a phosphor screen over it: a dark glass
 // whose centre glows, scanlines and darker curved corners. While you aren't at that station it
-// also carries a title card: the station's name, big enough to read from the wide view. It comes
-// from the content module (name); no copy is held here.
+// also carries a title card: the station's number over its name, big enough to read from the wide view. It comes
+// from the content module (name, and its place in the tour for the number); no copy is held here.
 // Nothing on the card moves or reads as live. The station's own text is the HTML panel pinned on
 // top (Room.tsx), and the card is swapped for the clear glass while that text is showing.
-// The bench TV, which has no station, gets a glass too: dark, switched off, over its baked glass (also dark: the bake has it off). It gives the glass its sheen and curve.
-// It has no card, no bezel layer, no hover glow and no click of its own, and it never changes.
+// The bench TV is the Projects station's, drawn like any other station: a card, then the text on the glass.
+// The three spare CRTs get the clear phosphor glass and nothing else: no card, no bezel layer, no hover glow and no click
+// (a click on one is a click on the room), and it never changes.
 
 /** How much smaller than the glass the phosphor plane is, so it stays inside the bezel. */
 const PLANE_INSET = 0.012;
@@ -28,10 +29,10 @@ function phosphorFrame(crt: Crt) {
 
 export function Phosphor({ where }: { where: MutableRefObject<Where> }) {
   const invalidate = useThree((s) => s.invalidate);
-  const screens = useMemo(() => crts.map((crt) => {
-    const station = stations.find((s) => s.id === crt.id);
+  const screens = useMemo(() => crts.map((crt, k) => {
+    const station = stations.find((s) => s.id === crt.id)!;
     const c = canvas(CARD_PX.width, CARD_PX.height);
-    drawPhosphor(c, station);
+    drawPhosphor(c, { name: station.name, number: k + 1 });
     // the same glass with no card, shown while the station's own text is on it
     const clear = canvas(CARD_PX.width, CARD_PX.height);
     drawPhosphor(clear);
@@ -68,19 +69,24 @@ export function Phosphor({ where }: { where: MutableRefObject<Where> }) {
       if (mesh.scale.x !== grow) mesh.scale.set(grow, clear ? CRT_GLASS.height / (CRT_GLASS.height - PLANE_INSET) : 1, 1);
     });
   });
-  const off = useMemo(() => {
+  // The spares' glass: the clear phosphor, the same texture the stations show while their text is on the glass.
+  // Full glass size, not inset: the baked glass must not show round it as a bright rim.
+  const spare = useMemo(() => {
     const c = canvas(CARD_PX.width, CARD_PX.height);
-    drawSwitchedOff(c);
+    drawPhosphor(c);
     return texture(c);
   }, []);
-  const benchFrame = phosphorFrame(bench);
   return (
     <>
-      {/* full glass size, not inset: the baked glass must not show round it as a bright rim */}
-      <mesh position={[...benchFrame.position]} rotation={[0, benchFrame.yaw, 0]} raycast={() => null}>
-        <planeGeometry args={[CRT_GLASS.width, CRT_GLASS.height]} />
-        <meshBasicMaterial map={off} toneMapped={false} />
-      </mesh>
+      {spares.map((crt) => {
+        const f = phosphorFrame(crt);
+        return (
+          <mesh key={crt.id} position={[...f.position]} rotation={[0, f.yaw, 0]} raycast={() => null}>
+            <planeGeometry args={[CRT_GLASS.width, CRT_GLASS.height]} />
+            <meshBasicMaterial map={spare} toneMapped={false} />
+          </mesh>
+        );
+      })}
       {screens.map(({ crt, t, mat, mesh }) => {
         const f = phosphorFrame(crt);
         return (

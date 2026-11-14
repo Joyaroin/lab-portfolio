@@ -132,7 +132,7 @@ test("visiting a station rolls the meter, and Room rolls it back", async ({ page
   const reading = page.getByRole("img", { name: /^Reading/ });
   await expect(reading).toHaveAttribute("aria-label", gapReading(9));
   await goTo(page, STATION_COUNT);
-  await expect(reading).toHaveAttribute("aria-label", stationReading("contact"));
+  await expect(reading).toHaveAttribute("aria-label", stationReading("about"));
   await goBack(page);
   await expect(reading).toHaveAttribute("aria-label", gapReading(9));
 });
@@ -153,20 +153,20 @@ test("HUD links and the meter jump to stations; the HUD stays reachable", async 
   await page.emulateMedia({ reducedMotion: "reduce" }); // a move is a quick fade
   await startTour(page);
   const reading = page.getByRole("img", { name: /^Reading/ });
-  await goTo(page, stationIds.indexOf("home-lab") + 1);
-  await expect(reading).toHaveAttribute("aria-label", stationReading("home-lab"));
-  await page.screenshot({ path: "test-results/tour-home-lab.png" });
+  await goTo(page, stationIds.indexOf("projects") + 1);
+  await expect(reading).toHaveAttribute("aria-label", stationReading("projects"));
+  await page.screenshot({ path: "test-results/tour-projects.png" });
   await barKey(page, "next").click(); // next station
-  const next = stationIds[stationIds.indexOf("home-lab") + 1];
+  const next = stationIds[stationIds.indexOf("projects") + 1];
   await expect(reading).toHaveAttribute("aria-label", stationReading(next));
   await page.screenshot({ path: `test-results/tour-${next}.png` });
-  for (const stop of [0, 1, 3, STATION_COUNT]) {
+  for (const stop of [0, 1, 2, STATION_COUNT]) {
     await goTo(page, stop);
-    for (const name of ["Résumé", "LinkedIn", "GitHub", "Contact"])
+    for (const name of ["Résumé", "LinkedIn", "GitHub", "About me"])
       await expect(hud(page).getByRole("link", { name })).toBeInViewport();
   }
-  await expect(reading).toHaveAttribute("aria-label", stationReading("contact"));
-  await page.screenshot({ path: "test-results/tour-contact.png" });
+  await expect(reading).toHaveAttribute("aria-label", stationReading("about"));
+  await page.screenshot({ path: "test-results/tour-about.png" });
   await barKey(page, "next").click(); // wraps to the overview
   await expect(reading).toHaveAttribute("aria-label", gapReading(9));
   await landedAt(page, 0);
@@ -217,13 +217,14 @@ for (const [name, size] of Object.entries(sizes)) {
     await page.setViewportSize(size);
     await page.emulateMedia({ reducedMotion: "reduce" });
     await startTour(page);
-    await hud(page).getByRole("link", { name: "Contact" }).click();
+    // Work: the first station whose first page has bullets and a link
+    await hud(page).getByRole("link", { name: "Work", exact: true }).click();
 
-    const panel = page.locator('[data-screen="contact"]');
+    const panel = page.locator('[data-screen="work"]');
     await expect(panel).toBeVisible();
     await expect(panel).toHaveCSS("opacity", "1");
     // Other stations' text is not showing.
-    await expect(page.locator('[data-screen="work"]')).toBeHidden();
+    await expect(page.locator('[data-screen="about"]')).toBeHidden();
 
     // Readable: real text at 14px or more, fully inside the window.
     const fontSize = await panel.locator("p").nth(1).evaluate((e) => parseFloat(getComputedStyle(e).fontSize));
@@ -233,18 +234,18 @@ for (const [name, size] of Object.entries(sizes)) {
     expect(box.x + box.width).toBeLessThanOrEqual(size.width);
     expect(box.y).toBeGreaterThanOrEqual(0);
     expect(box.y + box.height).toBeLessThanOrEqual(size.height);
-    await page.screenshot({ path: `test-results/screen-contact-${name}.png` });
+    await page.screenshot({ path: `test-results/screen-work-${name}.png` });
 
     // Selectable: selecting a paragraph yields its text.
-    const para = panel.getByText("I'm open to co-op and full-time roles.");
+    const para = panel.getByText("I automated product offboarding across UI, API, data model and scripts");
     await para.selectText();
-    expect(await page.evaluate(() => getSelection()!.toString())).toContain("I'm open to co-op and full-time roles.");
+    expect(await page.evaluate(() => getSelection()!.toString())).toContain("ending 30–60 minutes of manual cleanup each time.");
 
     // Links work: the link opens its address.
-    await context.route("https://github.com/**", (r) => r.fulfill({ body: "ok", contentType: "text/html" }));
+    await context.route("https://www.linkedin.com/**", (r) => r.fulfill({ body: "ok", contentType: "text/html" }));
     const popup = page.waitForEvent("popup");
-    await panel.getByRole("link", { name: "GitHub" }).click();
-    expect((await popup).url()).toBe("https://github.com/Joyaroin");
+    await panel.getByRole("link", { name: "LinkedIn" }).click();
+    expect((await popup).url()).toBe("https://www.linkedin.com/in/adham-sedik-971a57184/");
   });
 }
 
@@ -309,10 +310,10 @@ test("a panel that scrolls shows a 'more' cue until its end (phone)", async ({ p
   await page.setViewportSize(sizes.phone);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await startTour(page);
-  await hud(page).locator('a[href="#contact"]').click();
-  const panel = page.locator('[data-screen="contact"]');
+  await hud(page).locator('a[href="#about"]').click();
+  const panel = page.locator('[data-screen="about"]');
   await expect(panel).toHaveCSS("opacity", "1");
-  await overflow(page, "contact");
+  await overflow(page, "about");
   await panel.evaluate((e) => e.dispatchEvent(new Event("scroll"))); // the panel's own scroll handler marks the cue
   await expect(panel).toHaveAttribute("data-more", "true");
   await expect(panel.getByText("more ▾")).toBeVisible();
@@ -426,20 +427,20 @@ test("a hang on the room model file, with no bytes at all, reaches signal lost",
 });
 
 for (const [name, size] of Object.entries(sizes)) {
-  test(`Contact's email link is on screen without scrolling (${name})`, async ({ page }) => {
+  test(`Work's LinkedIn link is on screen without scrolling (${name})`, async ({ page }) => {
     await page.setViewportSize(size);
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.route("https://api.github.com/**", (r) => r.fulfill({ status: 403, json: {} }));
     await page.goto("/");
     await expect(hud(page)).toBeVisible();
-    await hud(page).getByRole("link", { name: "Contact" }).click();
-    const panel = page.locator('[data-screen="contact"]');
+    await hud(page).getByRole("link", { name: "Work", exact: true }).click();
+    const panel = page.locator('[data-screen="work"]');
     await expect(panel).toHaveCSS("opacity", "1");
     await page.waitForTimeout(300); // let the pin settle
     expect(await panel.evaluate((e) => e.scrollTop)).toBe(0);
-    const email = panel.getByRole("link", { name: /@/ });
-    await expect(email).toBeInViewport({ ratio: 1 }); // clipped by the panel's own scroll area counts as not visible
-    await page.screenshot({ path: `test-results/ticket-27-contact-${name}.png` });
+    const link = panel.getByRole("link", { name: "LinkedIn" });
+    await expect(link).toBeInViewport({ ratio: 1 }); // clipped by the panel's own scroll area counts as not visible
+    await page.screenshot({ path: `test-results/ticket-27-work-${name}.png` });
   });
 }
 
@@ -460,7 +461,7 @@ test("the HUD's Résumé link points at the PDF", async ({ page, request }) => {
 const bigSizes = { "1280x800": { width: 1280, height: 800 }, "1920x1080": { width: 1920, height: 1080 } };
 for (const [name, size] of Object.entries(bigSizes)) {
   test(`at every station the text sits on the glass with no card and no phosphor behind it (${name})`, { tag: "@render" }, async ({ page }) => {
-    test.setTimeout(90_000); // five stops, each with a full-panel screenshot, on software WebGL
+    test.setTimeout(90_000); // three stops, each with a full-panel screenshot, on software WebGL
     await page.setViewportSize(size);
     await page.emulateMedia({ reducedMotion: "reduce" });
     await startTour(page);

@@ -8,12 +8,12 @@ import type { Station } from "./content";
 /** The size the screen is drawn at. */
 export const CARD_PX = { width: 640, height: 500 };
 
-/** The card's font size, as a share of the screen's height (the most the name gets, on one line or on two). */
-const LINE_CAP = { nameOne: 1 / 5, nameTwo: 1 / 5 };
+/** The card's font size, as a share of the screen's height (the most each line gets: the number, and the name on one line or on two). */
+const LINE_CAP = { number: 1 / 7, nameOne: 1 / 5, nameTwo: 1 / 5 };
 
 export const MONO = '"DejaVu Sans Mono", ui-monospace, monospace';
 
-export function drawPhosphor(c: HTMLCanvasElement, card?: Pick<Station, "name">) {
+export function drawPhosphor(c: HTMLCanvasElement, card?: Pick<Station, "name"> & { number: number }) {
   const g = c.getContext("2d")!, w = c.width, h = c.height;
   g.fillStyle = "#020a05"; g.fillRect(0, 0, w, h);
   const glow = g.createRadialGradient(w / 2, h / 2, 10, w / 2, h / 2, w * 0.62);
@@ -24,7 +24,7 @@ export function drawPhosphor(c: HTMLCanvasElement, card?: Pick<Station, "name">)
     g.shadowColor = "rgba(90,255,150,0.9)"; g.shadowBlur = 8;
     g.fillStyle = "#7dffb0";
     // The name is the part read from across the room, so it gets most of the glass: as large as fits,
-    // on one line or, when that is larger, on two split at a space.
+    // on one line or, when that is larger, on two split at a space. The station's number above it is smaller.
     // The one place the font is set: it measures at a probe size, then draws at the size that fits.
     const fit = (text: string, max: number) => {
       g.font = `bold 100px ${MONO}`;
@@ -40,9 +40,11 @@ export function drawPhosphor(c: HTMLCanvasElement, card?: Pick<Station, "name">)
     const draw = (text: string, px: number, y: number) => {
       g.font = `bold ${px}px ${MONO}`; g.fillText(text, w / 2, y);
     };
-    const mid = h * 0.5, gap = size * 1.12;
+    draw(String(card.number), fit(String(card.number), h * LINE_CAP.number), h * 0.3);
+    const mid = h * (lines.length > 1 ? 0.66 : 0.56), gap = size * 1.12;
     lines.forEach((t, i) => draw(t, size, mid + (i - (lines.length - 1) / 2) * gap));
     g.shadowBlur = 0;
+    g.fillRect(w * 0.15, h * 0.4, w * 0.7, Math.max(2, h / 120)); // rule between the lines
   }
   g.fillStyle = "rgba(0,0,0,0.35)"; // scanlines
   for (let y = 0; y < h; y += 3) g.fillRect(0, y, w, 1);
@@ -52,18 +54,5 @@ export function drawPhosphor(c: HTMLCanvasElement, card?: Pick<Station, "name">)
   g.fillStyle = v; g.fillRect(0, 0, w, h);
   const sheen = g.createLinearGradient(0, 0, w, h); // a faint reflection on the glass
   sheen.addColorStop(0, "rgba(200,255,220,0.07)"); sheen.addColorStop(0.35, "rgba(200,255,220,0)");
-  g.fillStyle = sheen; g.fillRect(0, 0, w, h);
-}
-
-/** A switched-off tube: dark grey glass with a faint curve at the corners and a pale reflection, and
- *  no glow, no scanlines and no card. Drawn over the bench TV's baked glass, which is dark too (the bake has it switched off), so it reads as glass and not a black hole. */
-export function drawSwitchedOff(c: HTMLCanvasElement) {
-  const g = c.getContext("2d")!, w = c.width, h = c.height;
-  g.fillStyle = "#0b0d0c"; g.fillRect(0, 0, w, h);
-  const v = g.createRadialGradient(w / 2, h / 2, h * 0.3, w / 2, h / 2, w * 0.68);
-  v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, "rgba(0,0,0,0.7)");
-  g.fillStyle = v; g.fillRect(0, 0, w, h);
-  const sheen = g.createLinearGradient(0, 0, w, h); // the room's light on the glass
-  sheen.addColorStop(0, "rgba(210,225,215,0.16)"); sheen.addColorStop(0.4, "rgba(210,225,215,0.03)"); sheen.addColorStop(1, "rgba(210,225,215,0)");
   g.fillStyle = sheen; g.fillRect(0, 0, w, h);
 }
