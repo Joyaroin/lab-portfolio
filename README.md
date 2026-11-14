@@ -71,7 +71,7 @@ pull request ──► CI ──► merge to main ──► release: full browse
 |---|---|
 | [`src/`](src) | The site: the room, the tour, the HUD and the meter, with unit tests beside the code |
 | [`tests/`](tests) | Playwright browser specs and the integration test |
-| [`tools/`](tools) | Scripts that make the committed assets: the room, the meter's images, the preview image and the favicon |
+| [`tools/`](tools) | Scripts that make the committed assets: the room, the meter's images, the About me photo, the preview image and the favicon |
 | [`deploy/`](deploy) | The Helm chart and values that Argo CD runs |
 | [`.forgejo/workflows/`](.forgejo/workflows) | CI, release and promotion pipelines |
 | [`docs/adr/`](docs/adr) | Architecture decisions, one file each |
@@ -93,7 +93,7 @@ don't need Blender unless you rebuild it (below).
 
 ## Rebuilding the committed assets
 
-The room, the meter's images, the résumé, the preview image and the favicon are all made by scripts and committed
+The room, the meter's images, the About me photo, the résumé, the preview image and the favicon are all made by scripts and committed
 (ADR-0004, ADR-0006). CI never makes them, so you only need these when you change one on purpose. The notes below
 are for whoever maintains the site.
 
@@ -128,6 +128,13 @@ and writes the layers to `src/assets/meter/`. Run it on the Mac, through `heavy`
 grain uses a fixed seed, so rendering again at the same commit writes the same files. `src/meter-layers.ts` lists
 the layers with their places and sizes on the 840 px wide device. The key words come from `src/content.ts`, so a
 change to one means rendering again. The images are committed (ADR-0006), and CI never runs it.
+
+</details>
+
+<details>
+<summary>The About me photo</summary>
+
+`make photo SRC=<jpeg> PREVIEW=<png>` runs `tools/photo/make.py` and writes `src/assets/adham.jpg`. `PREVIEW` is optional: it also writes a phosphor-green copy with scanlines, for looking at the result, and that copy is not committed. The script crops the source to head and shoulders, makes it greyscale, darkens the edges so the face is the brightest part, scales it to 600 px tall and writes a JPEG with no EXIF, XMP, IPTC or comment. It needs Python 3 with Pillow. Run it on the Mac. The source photo stays on the Mac and is never committed: it carries the camera model and the date taken. The output is committed, and CI never runs it. `src/photo-metadata.test.ts` checks that the committed file has no metadata.
 
 </details>
 
