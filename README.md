@@ -42,7 +42,7 @@ An AI software factory built this site:
 ## How it ships
 
 ```
-pull request ──► CI ──► merge to main ──► release: full browser suite + screenshots ──► staging ──► (by hand) production
+pull request ──► CI ──► merge to main ──► release: full browser suite ──► staging ──► (by hand) production
 ```
 
 - **CI** (Forgejo Actions on my own runner): type check, unit tests, the production build with its size budget,
