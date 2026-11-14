@@ -8,12 +8,12 @@ import type { Station } from "./content";
 /** The size the screen is drawn at. */
 export const CARD_PX = { width: 640, height: 500 };
 
-/** The card's font size, as a share of the screen's height (the most each line gets: the name on one line or on two, the world line). */
-const LINE_CAP = { worldLine: 1 / 11, nameOne: 1 / 5, nameTwo: 1 / 5 };
+/** The card's font size, as a share of the screen's height (the most the name gets, on one line or on two). */
+const LINE_CAP = { nameOne: 1 / 5, nameTwo: 1 / 5 };
 
 export const MONO = '"DejaVu Sans Mono", ui-monospace, monospace';
 
-export function drawPhosphor(c: HTMLCanvasElement, card?: Pick<Station, "worldLine" | "name">) {
+export function drawPhosphor(c: HTMLCanvasElement, card?: Pick<Station, "name">) {
   const g = c.getContext("2d")!, w = c.width, h = c.height;
   g.fillStyle = "#020a05"; g.fillRect(0, 0, w, h);
   const glow = g.createRadialGradient(w / 2, h / 2, 10, w / 2, h / 2, w * 0.62);
@@ -24,7 +24,7 @@ export function drawPhosphor(c: HTMLCanvasElement, card?: Pick<Station, "worldLi
     g.shadowColor = "rgba(90,255,150,0.9)"; g.shadowBlur = 8;
     g.fillStyle = "#7dffb0";
     // The name is the part read from across the room, so it gets most of the glass: as large as fits,
-    // on one line or, when that is larger, on two split at a space. The world line above it is smaller.
+    // on one line or, when that is larger, on two split at a space.
     // The one place the font is set: it measures at a probe size, then draws at the size that fits.
     const fit = (text: string, max: number) => {
       g.font = `bold 100px ${MONO}`;
@@ -40,11 +40,9 @@ export function drawPhosphor(c: HTMLCanvasElement, card?: Pick<Station, "worldLi
     const draw = (text: string, px: number, y: number) => {
       g.font = `bold ${px}px ${MONO}`; g.fillText(text, w / 2, y);
     };
-    draw(card.worldLine, fit(card.worldLine, h * LINE_CAP.worldLine), h * 0.3);
-    const mid = h * (lines.length > 1 ? 0.66 : 0.56), gap = size * 1.12;
+    const mid = h * 0.5, gap = size * 1.12;
     lines.forEach((t, i) => draw(t, size, mid + (i - (lines.length - 1) / 2) * gap));
     g.shadowBlur = 0;
-    g.fillRect(w * 0.15, h * 0.4, w * 0.7, Math.max(2, h / 120)); // rule between the lines
   }
   g.fillStyle = "rgba(0,0,0,0.35)"; // scanlines
   for (let y = 0; y < h; y += 3) g.fillRect(0, y, w, 1);

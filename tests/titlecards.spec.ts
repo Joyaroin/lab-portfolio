@@ -9,7 +9,7 @@ import { glassOnScreen } from "../src/glass";
 import { framingFor } from "../src/framing";
 import { goBack, readCamera, readShot } from "./lib/page";
 
-// A TV you aren't at carries a title card: its station's world line over its name, drawn on the
+// A TV you aren't at carries a title card: its station's name, drawn on the
 // glass. This takes one shot from the overview (every TV in view, no text showing), finds each glass on
 // screen from the tour's own camera, and works out WHICH card is there: it draws every station's
 // card with the app's own drawing code (src/card.ts, run in a blank page) and checks that the glass
@@ -91,8 +91,8 @@ async function expectedCards(page: Page): Promise<Expected> {
   try {
     await blank.addScriptTag({ content: source });
     return await blank.evaluate(({ cards, grid }) => {
-      const w = window as unknown as { drawPhosphor: (c: HTMLCanvasElement, card?: { worldLine: string; name: string }) => void; CARD_PX: { width: number; height: number } };
-      const thumb = (card?: { worldLine: string; name: string }) => {
+      const w = window as unknown as { drawPhosphor: (c: HTMLCanvasElement, card?: { name: string }) => void; CARD_PX: { width: number; height: number } };
+      const thumb = (card?: { name: string }) => {
         const big = document.createElement("canvas");
         big.width = w.CARD_PX.width; big.height = w.CARD_PX.height;
         w.drawPhosphor(big, card);
@@ -106,7 +106,7 @@ async function expectedCards(page: Page): Promise<Expected> {
         return out;
       };
       return { clear: thumb(), cards: cards.map(thumb) };
-    }, { cards: stations.map((s) => ({ worldLine: s.worldLine, name: s.name })), grid: GRID });
+    }, { cards: stations.map((s) => ({ name: s.name })), grid: GRID });
   } finally {
     await blank.close();
   }
@@ -132,7 +132,7 @@ function alike(a: number[], b: number[]) {
 type Expected = { clear: number[]; cards: number[][] };
 
 /** How well what the window shows over the glass (`seen`) matches each station's card. All the cards
- *  share their layout, "World line 0N" and the glow, so first take away plain glass and what every
+ *  share their layout and the glow, so first take away plain glass and what every
  *  card has in common; what is left of each is what makes that station's card its own. The same is
  *  done to what was seen, after fitting out the shared part. */
 function scoreOf(want: Expected, seen: number[]) {

@@ -80,7 +80,7 @@ export function deviceSize(win: Win): { width: number; height: number } {
 // (Adham's decision on #246). The box is never wider than the window less 1 rem, or, in a compact-HUD window, less the HUD's
 // side margins: there the line may run wider than the device.
 const LINE_PAD = 8, LINE_SIDE = 20, LINE_MARGIN = 16, CHAR_EM = 0.602, MOST_DEPLOYS = 100;
-const stopLines = stations.map((s, i) => fill(ui.stopLine, { label: `${s.worldLine}: ${s.name}`, n: i + 1, total: stations.length }));
+const stopLines = stations.map((s, i) => fill(ui.stopLine, { station: s.name, n: i + 1, total: stations.length }));
 /** The gap's sentences a window can show (live, live but incomplete, saved), at the largest count. */
 const gapLines = (short: boolean) => [
   { live: true, complete: true }, { live: true, complete: false }, { live: false, complete: true },

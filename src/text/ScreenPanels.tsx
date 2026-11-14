@@ -19,30 +19,29 @@ export function ScreenPanels({ onTurn }: { onTurn?: OnPageTurn }) {
 
 function StationPanel({ s, onTurn }: { s: Station; onTurn?: OnPageTurn }) {
   const ref = useRef<HTMLElement>(null);
-  // A station with pages opens on its first (Work: Solace). Scrolling never changes it.
+  // A station opens on its first page (Work: Solace). Scrolling never changes it.
   const [open, setOpen] = useState(0);
-  const page = s.pages?.[open];
+  const page = s.pages[open];
   // A new page starts at its top, and the "more" cue is worked out for the new text.
   useLayoutEffect(() => { if (ref.current) { ref.current.scrollTop = 0; markMore(ref.current); } }, [open]);
   return (
     <section ref={ref} tabIndex={-1} data-screen={s.id} aria-label={s.name} className="crt-panel" style={{ ...panel, visibility: "hidden" }}
       onScroll={(e) => markMore(e.currentTarget)}>
-      <p style={worldLine}>{s.worldLine}</p>
       <h2 style={heading}>{s.heading}</h2>
-      {/* Work has no lead of its own: the open page's shows, and changes when the page turns */}
-      {(page?.lead ?? s.lead) && <p data-lead style={lead}>{page?.lead ?? s.lead}</p>}
+      {/* the open page's lead: it changes when the page turns */}
+      <p data-lead style={lead}>{page.lead}</p>
       {/* links first, so they are on screen without scrolling even in a phone's short panel */}
       <p style={linkRow}>
-        {s.links.map((l) => (
+        {page.links.map((l) => (
           <a key={l.label + l.href} href={l.href} style={link}
             {...(l.href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
             {l.label}
           </a>
         ))}
       </p>
-      {s.diagram && <DiagramFigure d={s.diagram} />}
-      {s.pages && <Timeline pages={s.pages} open={open} onOpen={(i) => { if (i !== open && ref.current) onTurn?.(ref.current); setOpen(i); }} />}
-      <ul style={list}>{(page ? page.body : s.body).map((b, i) => <li key={i} style={item}>{b}</li>)}</ul>
+      {page.diagram && <DiagramFigure d={page.diagram} />}
+      {s.pages.length > 1 && <Timeline pages={s.pages} open={open} onOpen={(i) => { if (i !== open && ref.current) onTurn?.(ref.current); setOpen(i); }} />}
+      <ul style={list}>{page.body.map((b, i) => <li key={i} style={item}>{b}</li>)}</ul>
       <div className="crt-more" aria-hidden="true"><span>{ui.more}</span></div>
     </section>
   );
@@ -52,7 +51,7 @@ function StationPanel({ s, onTurn }: { s: Station; onTurn?: OnPageTurn }) {
 // left, each as wide as its months. The open one is filled and tagged "open" with a marker, the
 // others are outlined with an arrow and brighten under the pointer or keyboard focus, so the open
 // page never rests on colour alone and the rest look clickable.
-function Timeline({ pages, open, onOpen }: { pages: NonNullable<Station["pages"]>; open: number; onOpen: (i: number) => void }) {
+function Timeline({ pages, open, onOpen }: { pages: Station["pages"]; open: number; onOpen: (i: number) => void }) {
   const order = [...pages.keys()].reverse(); // oldest first, left to right
   return (
     <div role="group" aria-label={pageSwitch.name} data-timeline style={timeline}>
@@ -60,7 +59,7 @@ function Timeline({ pages, open, onOpen }: { pages: NonNullable<Station["pages"]
       <div style={{ display: "flex", gap: 6 }}>
         {order.map((i) => (
           <button key={pages[i].id} type="button" className="crt-seg" data-page={pages[i].id} data-open={i === open}
-            aria-pressed={i === open} onClick={() => onOpen(i)} style={{ flex: `${pages[i].months} 1 0`, minWidth: "5.5em" }}>
+            aria-pressed={i === open} onClick={() => onOpen(i)} style={{ flex: `${pages[i].months ?? 1} 1 0`, minWidth: "5.5em" }}>
             <span className="crt-seg-label"><span className="crt-seg-tag">{i === open ? `${pageSwitch.openMark} ${pageSwitch.open}` : pageSwitch.closedMark}</span> {pages[i].label}</span>
             <span className="crt-seg-dates">{pages[i].dates}</span>
           </button>
@@ -154,7 +153,6 @@ const panel: CSSProperties = {
   color: "#b4ffd0", textShadow: "0 0 5px rgba(80,255,150,0.45)", fontSize: "1rem", lineHeight: 1.45,
   userSelect: "text", cursor: "auto", willChange: "transform",
 };
-const worldLine: CSSProperties = { margin: 0, fontSize: "0.75em", letterSpacing: "0.12em", textTransform: "uppercase", color: "#ffb347" };
 const heading: CSSProperties = { margin: "0.16em 0 0.4em", fontSize: "1.25em" };
 const lead: CSSProperties = { margin: "0 0 0.7em" };
 const list: CSSProperties = { margin: 0, paddingLeft: "1.2em" };

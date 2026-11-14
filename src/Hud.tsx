@@ -73,7 +73,7 @@ export function Hud({ where, visited, visit, onPoint }: { where: Where; visited:
   return (
     <>
     {hintShown && <div role="status" data-hint style={{ ...hint, bottom: clearances(win).bottom + HINT_GAP, opacity: visited ? 0 : 1 }}>{portrait ? ui.hintPortrait : ui.hintLandscape}</div>}
-    <nav aria-label={ui.hud} style={portrait ? hudPhone : oneRow ? hudOneRow : compact ? hudCompact : hudTwoLines}>
+    <nav aria-label={ui.hudLabel} style={portrait ? hudPhone : oneRow ? hudOneRow : compact ? hudCompact : hudTwoLines}>
       {compact ? (
         // Two lines: name, title and the outside links, then the stops. Three (under COMPACT_MIN_W): the outside links get a line.
         <>

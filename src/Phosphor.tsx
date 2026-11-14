@@ -11,8 +11,8 @@ import { SCREEN_LAYER, canvas, texture } from "./draw";
 // ---------------------------------------------------------------- CRT phosphor
 // The baked glass is a flat green block. Each CRT gets a phosphor screen over it: a dark glass
 // whose centre glows, scanlines and darker curved corners. While you aren't at that station it
-// also carries a title card: the station's world line over its name, big enough to read from the
-// wide view. Both lines come from the content module (worldLine and name); no copy is held here.
+// also carries a title card: the station's name, big enough to read from the wide view. It comes
+// from the content module (name); no copy is held here.
 // Nothing on the card moves or reads as live. The station's own text is the HTML panel pinned on
 // top (Room.tsx), and the card is swapped for the clear glass while that text is showing.
 // The bench TV, which has no station, gets a glass too: dark, switched off, over its baked glass (also dark: the bake has it off). It gives the glass its sheen and curve.

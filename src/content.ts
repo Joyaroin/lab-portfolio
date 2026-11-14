@@ -10,28 +10,33 @@ export type Link = { label: string; href: string };
 export type Station = {
   id: string;
   name: string;
-  worldLine: string;
   /** the station's fixed meter reading: arbitrary, and not a number from the series */
   reading: number;
   /** plain heading shown on the CRT */
   heading: string;
-  /** one line shown under the heading. Optional only when the station has `pages`, which each have one. */
-  lead?: string;
-  /** the station's bullets shown on the CRT, at most three (per page, for a station with pages) */
-  body: string[];
-  links: Link[];
-  /** optional line drawing of facts already in the lead and `body` */
-  diagram?: Diagram;
-  /** optional split of `body` into pages the visitor switches between (Work). `body` stays the
-   *  whole text in order; the pages' bullets are the same strings, in the same order. */
-  pages?: Page[];
+  /** The station's bullets, in order, for a station that keeps a whole text (Work). When it is set,
+   *  the pages' bullets are the same strings, in the same order. Other stations keep their text on
+   *  their pages only. */
+  body?: string[];
+  /** The station's pages, in walk order. Every station has at least one; the first is what shows when
+   *  the visitor arrives. */
+  pages: Page[];
+  /** Whether Esc on one of this station's later pages goes up to its first page. Without it, up goes to the overview. */
+  upToFirstPage?: boolean;
   /** words on the TV's bezel: the maker's plate and the sticky note. Neither may read as a status. */
   bezel: Bezel;
 };
-/** One page of a station: `label` and `dates` name it on the timeline that switches pages, and
- *  `months` is how long the job ran, which sets its segment's width. */
-export type Page = { id: string; label: string; dates: string; months: number; lead: string; body: string[] };
-/** The most bullets a station, or a page, may have. */
+/** One page of a station: its lead, its bullets (at most three, and none for a list page), and the
+ *  diagram and links that go with them. `label` names it. `dates` and `months` are only on Work's job
+ *  pages: they set the timeline's text and its segment's width. */
+export type Page = {
+  id: string; label: string; dates?: string; months?: number;
+  lead: string; body: string[];
+  /** optional line drawing of facts already in the lead and `body` */
+  diagram?: Diagram;
+  links: Link[];
+};
+/** The most bullets a page may have. */
 export const MAX_BULLETS = 3;
 /** `plate` is an invented maker and model (no real brand, nothing from the series, ADR-0002). */
 export type Bezel = { plate: string; note: string };
@@ -46,7 +51,7 @@ export const pageSwitch = { name: "Pages", hint: "Click a job to read it", open:
 export const ui = {
   /** the HUD's link back to the overview, and the nav's aria label */
   room: "Room",
-  hud: "HUD",
+  hudLabel: "HUD",
   /** the hint line on the overview, until the first landing at a station: landscape, and portrait (the menu is below) */
   hintLandscape: "Click a monitor",
   hintPortrait: "Tap a monitor, or pick one below",
@@ -86,15 +91,26 @@ export const ui = {
   backToRoom: "Back to the room",
   nextStation: "Next station",
   startTour: "Start the tour",
-  stopLine: "{label} · {n} of {total}",
+  stopLine: "{station} · {n} of {total}",
   /** the tab title at a station */
   stationTitle: "{station} · {name}",
+  // Marked, empty groups: each later ticket fills in only its own. validateContent already walks them.
+  /** #284: the page controls (Back, Next, tabs) */
+  pageControls: {} as Record<string, string>,
+  /** #285: the overview and the HUD */
+  hud: {} as Record<string, string>,
+  /** #293: the pins over the monitors */
+  pins: {} as Record<string, string>,
+  /** #287: the photo */
+  photo: {} as Record<string, string>,
+  /** #290: the ambient screens */
+  ambient: {} as Record<string, string>,
 };
 /** The placeholders each template must keep. */
 const PLACEHOLDERS: Record<string, string[]> = {
   meterReading: ["digits"], gapBehind: ["n", "noun"], gapBehindAtLeast: ["n", "noun"],
   gapBehindShort: ["n", "noun"], gapBehindAtLeastShort: ["n", "noun"],
-  gapSaved: ["gap"], stopLine: ["label", "n", "total"], logDone: ["step"], logPending: ["step"], signalLostReason: ["reason"],
+  gapSaved: ["gap"], stopLine: ["station", "n", "total"], logDone: ["step"], logPending: ["step"], signalLostReason: ["reason"],
   stationTitle: ["station", "name"],
 };
 export const fill = (template: string, values: Record<string, string | number>) =>
@@ -147,91 +163,102 @@ export const content: Content = {
     GITHUB,
   ],
 
-  // Real copy, in tour order. Plain descriptions; lab language lives in the world-line labels only.
+  // Real copy, in tour order. Plain descriptions.
   // Every fact here comes from spec #165. Add nothing that is not there.
   stations: [
     {
-      id: "work", name: "Work", worldLine: "World line 01", reading: 214,
+      id: "work", name: "Work", reading: 214,
       heading: "Work experience",
       // `body` is the whole text in order (Solace, then Barracuda); `pages` splits the same bullets.
       // Work has no lead of its own: each page has one.
       body: [...SOLACE, ...BARRACUDA],
       pages: [
-        { id: "solace", label: "Solace", dates: "Sep to Dec 2026", months: 4, lead: SOLACE_LEAD, body: SOLACE },
-        { id: "barracuda", label: "Barracuda", dates: "Sep 2025 to Aug 2026", months: 12, lead: BARRACUDA_LEAD, body: BARRACUDA },
+        { id: "solace", label: "Solace", dates: "Sep to Dec 2026", months: 4, lead: SOLACE_LEAD, body: SOLACE, links: [LINKEDIN] },
+        { id: "barracuda", label: "Barracuda", dates: "Sep 2025 to Aug 2026", months: 12, lead: BARRACUDA_LEAD, body: BARRACUDA, links: [LINKEDIN] },
       ],
-      links: [LINKEDIN],
       bezel: { plate: "HALDEN HX-101", note: "Call\nFriday" },
     },
     {
-      id: "mediasafe", name: "MediaSafe", worldLine: "World line 02", reading: 377,
+      id: "mediasafe", name: "MediaSafe", reading: 377,
       heading: "MediaSafe",
-      lead: "My tracker for shows and films, built and run by me alone. Next.js 16 and Postgres.",
-      body: [
-        "Git is the only way it changes: Argo CD ships every merge to staging, and I promote to production by hand.",
-        "Secrets live in Vault, backed up nightly to Cloudflare R2, with a restore I've tested.",
-        "170+ merged pull requests since August 2026.",
-      ],
-      diagram: {
-        description: "Git is the only way it changes. Argo CD ships every merge to staging. I promote to production by hand.",
-        steps: ["Git", "Argo CD", "Staging", "Production"],
-        hops: ["", "every merge", "by hand"],
-      },
-      links: [
-        { label: "MediaSafe repo", href: "https://github.com/Joyaroin/MediaSafe" },
-        { label: "Deploy repo", href: "https://github.com/Joyaroin/morioh-cho-gitops" },
-        { label: "mediasafe.space (Google sign-in)", href: "https://mediasafe.space" },
-      ],
+      pages: [{
+        id: "mediasafe", label: "MediaSafe",
+        lead: "My tracker for shows and films, built and run by me alone. Next.js 16 and Postgres.",
+        body: [
+          "Git is the only way it changes: Argo CD ships every merge to staging, and I promote to production by hand.",
+          "Secrets live in Vault, backed up nightly to Cloudflare R2, with a restore I've tested.",
+          "170+ merged pull requests since August 2026.",
+        ],
+        diagram: {
+          description: "Git is the only way it changes. Argo CD ships every merge to staging. I promote to production by hand.",
+          steps: ["Git", "Argo CD", "Staging", "Production"],
+          hops: ["", "every merge", "by hand"],
+        },
+        links: [
+          { label: "MediaSafe repo", href: "https://github.com/Joyaroin/MediaSafe" },
+          { label: "Deploy repo", href: "https://github.com/Joyaroin/morioh-cho-gitops" },
+          { label: "mediasafe.space (Google sign-in)", href: "https://mediasafe.space" },
+        ],
+      }],
       bezel: { plate: "HALDEN HX-214", note: "Buy\ntape" },
     },
     {
-      id: "home-lab", name: "Home lab", worldLine: "World line 03", reading: 512,
+      id: "home-lab", name: "Home lab", reading: 512,
       heading: "Home lab and Proxmox",
-      lead: "I run my own Kubernetes cluster at home, and this site runs on it.",
-      body: [
-        "A Proxmox host runs a single-node k3s cluster, with production and staging in separate namespaces.",
-        "No ports are open at home: all traffic comes in through a Cloudflare Tunnel.",
-        "My Git server and CI runner live here too, with the runner firewalled off from the rest of the network.",
-      ],
-      diagram: {
-        description: "All traffic comes in through a Cloudflare Tunnel. A Proxmox host runs a single-node k3s cluster.",
-        steps: ["Cloudflare Tunnel", "Proxmox host", "k3s cluster"],
-        hops: ["traffic", "run"],
-      },
-      links: [SITE_SOURCE],
+      pages: [{
+        id: "home-lab", label: "Home lab",
+        lead: "I run my own Kubernetes cluster at home, and this site runs on it.",
+        body: [
+          "A Proxmox host runs a single-node k3s cluster, with production and staging in separate namespaces.",
+          "No ports are open at home: all traffic comes in through a Cloudflare Tunnel.",
+          "My Git server and CI runner live here too, with the runner firewalled off from the rest of the network.",
+        ],
+        diagram: {
+          description: "All traffic comes in through a Cloudflare Tunnel. A Proxmox host runs a single-node k3s cluster.",
+          steps: ["Cloudflare Tunnel", "Proxmox host", "k3s cluster"],
+          hops: ["traffic", "run"],
+        },
+        links: [SITE_SOURCE],
+      }],
       bezel: { plate: "HALDEN HX-330", note: "Water\nthe fern" },
     },
     {
-      id: "software-factory", name: "Software factory", worldLine: "World line 04", reading: 733,
+      id: "software-factory", name: "Software factory", reading: 733,
       heading: "Software factory",
-      lead: "My AI software factory: I plan, and agents build, review and merge. It built this site.",
-      body: [
-        "I plan a feature with an orchestrator agent, which cuts it into small tickets. Builder agents write each ticket test-first on my Mac and open a pull request.",
-        "Every PR runs CI on my own runner. Then a fresh reviewer agent decides whether it merges by itself, needs me, or goes back for a rebuild.",
-        "This site has 100+ merged pull requests since 5 November 2026. Production moves only when I promote it.",
-      ],
-      diagram: {
-        description: "I plan, agents build each ticket and open a PR, a reviewer agent decides, and it merges.",
-        steps: ["Plan", "Build", "Review", "Merge"],
-        hops: ["tickets", "PR", "decides"],
-      },
-      links: [SITE_SOURCE],
+      pages: [{
+        id: "software-factory", label: "Software factory",
+        lead: "My AI software factory: I plan, and agents build, review and merge. It built this site.",
+        body: [
+          "I plan a feature with an orchestrator agent, which cuts it into small tickets. Builder agents write each ticket test-first on my Mac and open a pull request.",
+          "Every PR runs CI on my own runner. Then a fresh reviewer agent decides whether it merges by itself, needs me, or goes back for a rebuild.",
+          "This site has 100+ merged pull requests since 5 November 2026. Production moves only when I promote it.",
+        ],
+        diagram: {
+          description: "I plan, agents build each ticket and open a PR, a reviewer agent decides, and it merges.",
+          steps: ["Plan", "Build", "Review", "Merge"],
+          hops: ["tickets", "PR", "decides"],
+        },
+        links: [SITE_SOURCE],
+      }],
       bezel: { plate: "HALDEN HX-552", note: "Lunch\nat 1" },
     },
     {
-      id: "contact", name: "Contact", worldLine: "World line 05", reading: 861,
+      id: "contact", name: "Contact", reading: 861,
       heading: "Contact",
-      lead: "I'm Adham Sedik, a software and platform engineer.",
-      body: [
-        "Honours Computer Science, Software Engineering stream, at Carleton University in Ottawa. I graduate in December 2027.",
-        "I'm open to co-op and full-time roles.",
-      ],
-      links: [
-        { label: "adhamsedik@cmail.carleton.ca", href: "mailto:adhamsedik@cmail.carleton.ca" },
-        LINKEDIN,
-        GITHUB,
-        SITE_SOURCE,
-      ],
+      pages: [{
+        id: "contact", label: "Contact",
+        lead: "I'm Adham Sedik, a software and platform engineer.",
+        body: [
+          "Honours Computer Science, Software Engineering stream, at Carleton University in Ottawa. I graduate in December 2027.",
+          "I'm open to co-op and full-time roles.",
+        ],
+        links: [
+          { label: "adhamsedik@cmail.carleton.ca", href: "mailto:adhamsedik@cmail.carleton.ca" },
+          LINKEDIN,
+          GITHUB,
+          SITE_SOURCE,
+        ],
+      }],
       bezel: { plate: "HALDEN HX-607", note: "Fix the\nshelf" },
     },
   ],
@@ -261,7 +288,8 @@ function hasPrivateIPv4(s: string) {
 }
 const PRIVATE_IPV6 = /(?<![\w:])(f[cd][0-9a-f]{2}|fe[89ab][0-9a-f]):[0-9a-f:]*/i; // ULA, link-local
 const PRIVATE_HOST = /(?<![\w-])(localhost|[\w-]+(\.[\w-]+)*\.(ts\.net|local|lan|internal|home\.arpa|intranet))(?![\w-])/i;
-const hasPrivateAddress = (s: string) =>
+/** Exported for the ambient screens (#289), which check their own lines against it. */
+export const hasPrivateAddress = (s: string) =>
   hasPrivateIPv4(s) || PRIVATE_IPV6.test(s) || PRIVATE_HOST.test(s);
 
 // Words that make a title card read as a live result ("hamon Ready", "Synced", "42 passing").
@@ -287,6 +315,16 @@ export function validateContent(c: Content): string[] {
     text(path, v);
     if (typeof v === "string" && LIVE_STATUS.test(v)) problems.push(`${path}: reads as a live status`);
   };
+  const diagram = (dp: string, d: Diagram) => {
+    tvText(`${dp}.description`, d.description);
+    if (!Array.isArray(d.steps) || d.steps.length === 0) problems.push(`${dp}.steps: missing`);
+    else d.steps.forEach((t, j) => tvText(`${dp}.steps[${j}]`, t));
+    if (!Array.isArray(d.hops)) problems.push(`${dp}.hops: must be a list`);
+    else {
+      if (Array.isArray(d.steps) && d.hops.length !== d.steps.length - 1) problems.push(`${dp}.hops: need one fewer than steps`);
+      d.hops.forEach((t, j) => { if (t !== "") tvText(`${dp}.hops[${j}]`, t); });
+    }
+  };
   const linkList = (path: string, list: unknown) => {
     if (!Array.isArray(list)) return void problems.push(`${path}: missing`);
     list.forEach((l: Partial<Link>, i) => {
@@ -297,12 +335,19 @@ export function validateContent(c: Content): string[] {
 
   for (const [f, v] of Object.entries(c.pageSwitch ?? {})) tvText(`pageSwitch.${f}`, v);
   // Every shipped key must be present, and a key added to the given content is checked too.
-  const words: Record<string, unknown> = c.ui ?? {};
-  for (const k of new Set([...Object.keys(ui), ...Object.keys(words)])) {
-    text(`ui.${k}`, words[k]);
-    const v = words[k];
-    if (typeof v === "string") for (const ph of PLACEHOLDERS[k] ?? []) if (!v.includes(`{${ph}}`)) problems.push(`ui.${k}: must contain {${ph}}`);
-  }
+  // A word is a string; a group (the marked, empty ones later tickets fill) is an object of words, walked the same way.
+  const isGroup = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+  const walkWords = (path: string, given: unknown, shipped: unknown) => {
+    if (isGroup(shipped)) {
+      if (!isGroup(given)) return void problems.push(`${path}: missing`);
+      for (const k of new Set([...Object.keys(shipped), ...Object.keys(given)])) walkWords(`${path}.${k}`, given[k], shipped[k]);
+      return;
+    }
+    text(path, given);
+    const key = path.split(".").pop()!;
+    if (typeof given === "string") for (const ph of PLACEHOLDERS[key] ?? []) if (!given.includes(`{${ph}}`)) problems.push(`${path}: must contain {${ph}}`);
+  };
+  walkWords("ui", c.ui ?? {}, ui);
   text("identity.name", c.identity?.name);
   text("identity.title", c.identity?.title);
   text("identity.pageTitle", c.identity?.pageTitle);
@@ -313,42 +358,38 @@ export function validateContent(c: Content): string[] {
   if (!Array.isArray(c.stations) || c.stations.length === 0) problems.push("stations: missing");
   (c.stations ?? []).forEach((s, i) => {
     const p = `stations[${i}]`;
-    for (const f of ["id", "heading"] as const) text(`${p}.${f}`, s[f]);
-    for (const f of ["name", "worldLine"] as const) tvText(`${p}.${f}`, s[f]);
+    text(`${p}.id`, s.id);
+    text(`${p}.heading`, s.heading);
+    tvText(`${p}.name`, s.name);
     if (typeof s.reading !== "number" || !Number.isFinite(s.reading)) problems.push(`${p}.reading: missing`);
-    paragraphs(`${p}.body`, s.body);
-    if (s.lead === undefined || s.lead === "") { if (!s.pages) problems.push(`${p}.lead: missing`); }
-    else text(`${p}.lead`, s.lead);
-    if (!s.pages && Array.isArray(s.body) && s.body.length > MAX_BULLETS) problems.push(`${p}.body: at most ${MAX_BULLETS} bullets`);
-    linkList(`${p}.links`, s.links);
-    if (s.pages) {
+    if (!Array.isArray(s.pages) || s.pages.length === 0) problems.push(`${p}.pages: need at least one`);
+    else {
       const pp = `${p}.pages`;
-      if (!Array.isArray(s.pages) || s.pages.length < 2) problems.push(`${pp}: need at least two`);
-      else {
-        s.pages.forEach((pg, j) => {
-          text(`${pp}[${j}].id`, pg.id);
-          for (const f of ["label", "dates"] as const) tvText(`${pp}[${j}].${f}`, pg[f]);
-          if (!Number.isInteger(pg.months) || pg.months <= 0) problems.push(`${pp}[${j}].months: missing`);
-          text(`${pp}[${j}].lead`, pg.lead);
-          paragraphs(`${pp}[${j}].body`, pg.body);
-          if (Array.isArray(pg.body) && pg.body.length > MAX_BULLETS) problems.push(`${pp}[${j}].body: at most ${MAX_BULLETS} bullets`);
-        });
+      s.pages.forEach((pg, j) => {
+        const q = `${pp}[${j}]`;
+        text(`${q}.id`, pg.id);
+        tvText(`${q}.label`, pg.label);
+        // A job page is the only kind with dates and months. Either one, when given, is checked.
+        if (pg.dates !== undefined) tvText(`${q}.dates`, pg.dates);
+        if (pg.months !== undefined && (!Number.isInteger(pg.months) || pg.months <= 0)) problems.push(`${q}.months: must be a whole number above 0`);
+        text(`${q}.lead`, pg.lead);
+        // A page may have no bullets (a list page), but never more than three.
+        if (!Array.isArray(pg.body)) problems.push(`${q}.body: must be a list`);
+        else {
+          pg.body.forEach((b, k) => text(`${q}.body[${k}]`, b));
+          if (pg.body.length > MAX_BULLETS) problems.push(`${q}.body: at most ${MAX_BULLETS} bullets`);
+        }
+        linkList(`${q}.links`, pg.links);
+        if (pg.diagram) diagram(`${q}.diagram`, pg.diagram);
+      });
+      // A station that keeps a whole text (Work) must have pages that add up to it.
+      if (s.body !== undefined) {
+        paragraphs(`${p}.body`, s.body);
         const joined = s.pages.flatMap((pg) => (Array.isArray(pg.body) ? pg.body : []));
         if (JSON.stringify(joined) !== JSON.stringify(s.body)) problems.push(`${pp}: bullets must be the same as ${p}.body, in order`);
       }
     }
     for (const f of ["plate", "note"] as const) tvText(`${p}.bezel.${f}`, s.bezel?.[f]);
-    if (s.diagram) {
-      const d = s.diagram, dp = `${p}.diagram`;
-      tvText(`${dp}.description`, d.description);
-      if (!Array.isArray(d.steps) || d.steps.length === 0) problems.push(`${dp}.steps: missing`);
-      else d.steps.forEach((t, j) => tvText(`${dp}.steps[${j}]`, t));
-      if (!Array.isArray(d.hops)) problems.push(`${dp}.hops: must be a list`);
-      else {
-        if (Array.isArray(d.steps) && d.hops.length !== d.steps.length - 1) problems.push(`${dp}.hops: need one fewer than steps`);
-        d.hops.forEach((t, j) => { if (t !== "") tvText(`${dp}.hops[${j}]`, t); });
-      }
-    }
   });
   return problems;
 }

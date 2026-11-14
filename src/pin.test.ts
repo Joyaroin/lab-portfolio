@@ -127,7 +127,7 @@ describe("clearances", () => {
     expect(compact).not.toContain(gapLabel({ deploys: 100, live: false, complete: true }));
     expect(full).toContain(gapLabel({ deploys: 100, live: false, complete: true }));
     expect(Math.max(...compact.map((t) => t.length))).toBe(60);
-    for (const t of stations.map((s, i) => fill(ui.stopLine, { label: `${s.worldLine}: ${s.name}`, n: i + 1, total: stations.length }))) expect(compact).toContain(t);
+    for (const t of stations.map((s, i) => fill(ui.stopLine, { station: s.name, n: i + 1, total: stations.length }))) expect(compact).toContain(t);
   });
   it("every short landscape window has the line under the device on one line and the panel at least MIN_PANEL_H, down to the height the compact HUD can give", () => {
     // 560 to 960 wide, 320 to 480 tall. The compact HUD's top (76 px two lines from COMPACT_MIN_W, 107 px three) plus the panel's floor

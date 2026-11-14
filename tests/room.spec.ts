@@ -38,9 +38,9 @@ test("on a phone, MediaSafe and Software factory frame lit parts of the room", a
   for (const name of ["mediasafe", "software-factory"]) {
     const stop = stationIds.indexOf(name) + 1;
     await goTo(page, stop);
-    // The station's line is on the meter bar, as the content module builds it (label, n and total).
+    // The station's line is on the meter bar, as the content module builds it (station, n and total).
     const s = stations[stop - 1];
-    const line = fill(ui.stopLine, { label: `${s.worldLine}: ${s.name}`, n: stop, total: stations.length });
+    const line = fill(ui.stopLine, { station: s.name, n: stop, total: stations.length });
     await expect(page.locator("[data-meter-bar]").getByText(line, { exact: true })).toBeVisible();
     // The first visit's tear plays after the landing, and the text comes out of it: measure once it is over.
     await expect(panelOf(page, name)).toHaveCSS("opacity", "1");

@@ -21,7 +21,7 @@ function glassCentre(crt: Crt) {
   return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
 }
 
-const hudLinks = (page: Page) => page.getByRole("navigation", { name: ui.hud }).getByRole("link");
+const hudLinks = (page: Page) => page.getByRole("navigation", { name: ui.hudLabel }).getByRole("link");
 
 test("the HUD has five station links, and none is the bench TV's", async ({ page }) => {
   await page.setViewportSize(size);

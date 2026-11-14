@@ -29,7 +29,7 @@ for (const [w, h] of [[1280, 800], [1920, 1080]]) {
 
     // real text, in order, readable by a screen reader's description too
     await expect(fig.locator("svg text")).toHaveText(["Git", "Argo CD", "every merge", "Staging", "by hand", "Production"]);
-    await expect(fig.getByRole("img", { name: mediasafe.diagram!.description })).toBeVisible();
+    await expect(fig.getByRole("img", { name: mediasafe.pages[0].diagram!.description })).toBeVisible();
 
     // under the links, above the body, inside the panel and the window
     const y = async (sel: string) => (await panel.locator(sel).first().boundingBox())!;
@@ -80,7 +80,7 @@ for (const id of ["home-lab", "software-factory"]) {
   test(`desktop 1280x800: ${id} shows its diagram, drawn from its copy, inside the panel`, async ({ page }) => {
     test.setTimeout(90_000);
     const panel = await goToStation(page, id);
-    const d = stations.find((s) => s.id === id)!.diagram!;
+    const d = stations.find((s) => s.id === id)!.pages[0].diagram!;
     const fig = panel.locator("figure[data-diagram]");
     await expect(fig).toBeVisible();
     // labels in order; an arrow with no label draws no text
@@ -99,8 +99,8 @@ for (const id of ["home-lab", "software-factory"]) {
     // the bullets are a real list, below the lead
     const st = stations.find((s) => s.id === id)!;
     const lead = panel.locator("[data-lead]"), items = panel.locator("ul > li");
-    await expect(lead).toHaveText(st.lead!);
-    await expect(items).toHaveText(st.body);
+    await expect(lead).toHaveText(st.pages[0].lead);
+    await expect(items).toHaveText(st.pages[0].body);
     expect((await lead.boundingBox())!.y).toBeLessThan((await panel.locator("ul").boundingBox())!.y);
     await page.screenshot({ path: `test-results/diagram-1280x800-${id}.png` });
   });

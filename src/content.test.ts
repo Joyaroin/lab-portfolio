@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { identity } from "./content";
 import { readdirSync } from "node:fs";
 
-import { validateContent, content, pageSwitch, ui, fill, type Diagram, type Station } from "./content";
+import { validateContent, content, pageSwitch, ui, fill, hasPrivateAddress, MAX_BULLETS, type Diagram, type Page } from "./content";
 import { WORK_COPY, WORK_LEADS } from "../tests/fixtures/work-copy";
 
 const good = () => structuredClone(content);
@@ -23,15 +23,19 @@ describe("validateContent", () => {
   });
 
   describe("missing fields", () => {
-    it.each(["name", "worldLine", "heading"] as const)("rejects a station with no %s", (field) => {
+    it.each(["name", "heading"] as const)("rejects a station with no %s", (field) => {
       const c = good();
       (c.stations[1] as Record<string, unknown>)[field] = "";
       expect(validateContent(c).join("\n")).toContain(`stations[1].${field}`);
     });
-    it("rejects a station with no body", () => {
+    it.each([[undefined], [[]], ["pages"]])("rejects a station with no pages (%j)", (pages) => {
       const c = good();
-      c.stations[2].body = [];
-      expect(validateContent(c).join("\n")).toContain("stations[2].body");
+      (c.stations[2] as Record<string, unknown>).pages = pages;
+      expect(validateContent(c).join("\n")).toContain("stations[2].pages: need at least one");
+    });
+    it("rejects a station that has a worldLine field", () => {
+      expect(content.stations.filter((s) => "worldLine" in s)).toEqual([]);
+      expect(JSON.stringify(content)).not.toMatch(/world.?line/i);
     });
     it("rejects a station with no reading", () => {
       const c = good();
@@ -40,8 +44,8 @@ describe("validateContent", () => {
     });
     it("rejects a link with no href", () => {
       const c = good();
-      c.stations[0].links = [{ label: "x", href: "" }];
-      expect(validateContent(c).join("\n")).toContain("stations[0].links[0].href");
+      c.stations[0].pages[0].links = [{ label: "x", href: "" }];
+      expect(validateContent(c).join("\n")).toContain("stations[0].pages[0].links[0].href");
     });
     it("rejects a missing description and preview alt text", () => {
       const c = good();
@@ -61,7 +65,7 @@ describe("validateContent", () => {
   describe("blocked content", () => {
     const withBody = (text: string) => {
       const c = good();
-      c.stations[1].body = [text]; // not Work: its body must match its pages
+      c.stations[1].pages[0].body = [text];
       return validateContent(c).join("\n");
     };
     it.each([
@@ -97,13 +101,13 @@ describe("validateContent", () => {
     });
     it("checks link hrefs and labels too", () => {
       const c = good();
-      c.stations[0].links = [{ label: "x", href: "http://192.168.1.5/admin" }];
-      expect(validateContent(c).join("\n")).toContain("stations[0].links[0].href");
+      c.stations[0].pages[0].links = [{ label: "x", href: "http://192.168.1.5/admin" }];
+      expect(validateContent(c).join("\n")).toContain("stations[0].pages[0].links[0].href");
     });
     it("rejects unsafe link schemes", () => {
       const c = good();
-      c.stations[0].links = [{ label: "x", href: "javascript:alert(1)" }];
-      expect(validateContent(c).join("\n")).toContain("stations[0].links[0].href");
+      c.stations[0].pages[0].links = [{ label: "x", href: "javascript:alert(1)" }];
+      expect(validateContent(c).join("\n")).toContain("stations[0].pages[0].links[0].href");
     });
     it("checks the top-level links", () => {
       const c = good();
@@ -115,62 +119,82 @@ describe("validateContent", () => {
 
 // A count goes stale, so each says since when.
 it.each([["mediasafe"], ["software-factory"]])("%s: its pull request count says since a date", (id) => {
-  const bullets = content.stations.find((s) => s.id === id)!.body;
+  const bullets = content.stations.find((s) => s.id === id)!.pages.flatMap((p) => p.body);
   expect(bullets.filter((b) => /pull requests/i.test(b)).join(" ")).toMatch(/\d\+? merged pull requests since (\d+ )?[A-Z][a-z]+ 2026/);
 });
 
-// Every station's text is a one-line lead and at most three bullets (Work: per page).
-describe("lead and bullets", () => {
-  const plain = content.stations.filter((s) => !s.pages);
-  it.each(plain.map((s) => [s.id]))("%s has a lead and at most three bullets", (id) => {
-    const s = content.stations.find((x) => x.id === id)!;
-    expect(s.lead).toBeTruthy();
-    expect(s.body.length).toBeGreaterThan(0);
-    expect(s.body.length).toBeLessThanOrEqual(3);
+// Every station has pages. Each page is a one-line lead and at most three bullets.
+describe("pages", () => {
+  const first = (id: string) => content.stations.find((s) => s.id === id)!.pages[0];
+  it.each(content.stations.flatMap((s) => s.pages.map((p) => [s.id, p.id] as const)))("%s / %s has a lead and at most three bullets", (sid, pid) => {
+    const pg = content.stations.find((s) => s.id === sid)!.pages.find((p) => p.id === pid)!;
+    expect(pg.lead).toBeTruthy();
+    expect(pg.body.length).toBeGreaterThan(0);
+    expect(pg.body.length).toBeLessThanOrEqual(MAX_BULLETS);
   });
-  it("each Work page has a lead and at most three bullets", () => {
-    const pages = content.stations.find((s) => s.id === "work")!.pages!;
-    for (const pg of pages) {
-      expect(pg.lead).toBeTruthy();
-      expect(pg.body.length).toBeGreaterThan(0);
-      expect(pg.body.length).toBeLessThanOrEqual(3);
+  it("every station but Work has one page, holding its lead, bullets, diagram and links", () => {
+    expect(content.stations.filter((s) => s.id !== "work").map((s) => s.pages.length)).toEqual([1, 1, 1, 1]);
+    expect(first("mediasafe").diagram?.steps[0]).toBe("Git");
+    expect(first("contact").links.map((l) => l.label)).toEqual(["adhamsedik@cmail.carleton.ca", "LinkedIn", "GitHub", "This site's source"]);
+  });
+  it("only Work's job pages have dates and months", () => {
+    for (const s of content.stations) for (const p of s.pages) {
+      expect(p.dates !== undefined, `${s.id}/${p.id} dates`).toBe(s.id === "work");
+      expect(p.months !== undefined, `${s.id}/${p.id} months`).toBe(s.id === "work");
     }
+  });
+  it("only Work keeps a body of its own", () => {
+    expect(content.stations.filter((s) => s.body !== undefined).map((s) => s.id)).toEqual(["work"]);
   });
   it("the stations are, in order, work, mediasafe, home-lab, software-factory, contact", () => {
     expect(content.stations.map((s) => s.id)).toEqual(["work", "mediasafe", "home-lab", "software-factory", "contact"]);
   });
-  it("the world lines run 01 to 05 and the readings keep their values", () => {
-    expect(content.stations.map((s) => s.worldLine)).toEqual(["World line 01", "World line 02", "World line 03", "World line 04", "World line 05"]);
+  it("the readings keep their values", () => {
     expect(content.stations.map((s) => s.reading)).toEqual([214, 377, 512, 733, 861]);
   });
   it("Software factory links to this site's source", () => {
-    expect(content.stations.find((s) => s.id === "software-factory")!.links.map((l) => l.href)).toContain("https://github.com/Joyaroin/lab");
+    expect(first("software-factory").links.map((l) => l.href)).toContain("https://github.com/Joyaroin/lab");
   });
-  it("rejects a station with no lead and no pages", () => {
+  it("rejects a page with no lead", () => {
     const c = good();
-    delete c.stations[1].lead;
-    expect(validateContent(c).join("\n")).toContain("stations[1].lead: missing");
+    c.stations[1].pages[0].lead = "";
+    expect(validateContent(c).join("\n")).toContain("stations[1].pages[0].lead: missing");
   });
-  it("rejects a station with four bullets", () => {
+  it("rejects a page with four bullets", () => {
     const c = good();
-    c.stations[1].body.push("A fourth bullet.");
-    expect(validateContent(c).join("\n")).toContain("stations[1].body: at most 3 bullets");
+    c.stations[1].pages[0].body.push("A fourth bullet.");
+    expect(validateContent(c).join("\n")).toContain("stations[1].pages[0].body: at most 3 bullets");
   });
-  it("rejects a Work page with no lead", () => {
+  it("accepts a page with an empty body", () => {
     const c = good();
-    c.stations[0].pages![0].lead = "";
-    expect(validateContent(c).join("\n")).toContain("pages[0].lead: missing");
+    c.stations[2].pages[0].body = [];
+    expect(validateContent(c)).toEqual([]);
   });
-  it("rejects a Work page with four bullets", () => {
+  it("rejects a bullet that is blank", () => {
     const c = good();
-    const pg = c.stations[0].pages![0];
-    pg.body.push("A fourth bullet.");
-    c.stations[0].body = c.stations[0].pages!.flatMap((x) => x.body);
-    expect(validateContent(c).join("\n")).toContain("pages[0].body: at most 3 bullets");
+    c.stations[2].pages[0].body = [" "];
+    expect(validateContent(c).join("\n")).toContain("stations[2].pages[0].body[0]: missing");
+  });
+  it("accepts a station with no body of its own, and checks one that has it against the pages", () => {
+    expect(good().stations[1].body).toBeUndefined();
+    const c = good();
+    c.stations[1].body = ["Not on its page."];
+    expect(validateContent(c).join("\n")).toContain("stations[1].pages: bullets must be the same as stations[1].body");
   });
   it("accepts Work with no lead of its own", () => {
-    expect(good().stations[0].lead).toBeUndefined();
+    expect("lead" in good().stations[0]).toBe(false);
     expect(validateContent(good())).toEqual([]);
+  });
+  it("accepts a page with no dates and no months, and rejects a months that is not a whole number above 0", () => {
+    const c = good();
+    delete c.stations[0].pages[0].dates;
+    delete c.stations[0].pages[0].months;
+    expect(validateContent(c)).toEqual([]);
+    for (const bad of [0, -1, 1.5, Number.NaN]) {
+      const d = good();
+      d.stations[0].pages[0].months = bad;
+      expect(validateContent(d).join("\n")).toContain("stations[0].pages[0].months");
+    }
   });
 });
 
@@ -178,13 +202,13 @@ it("has no placeholder copy left", () => {
   expect(JSON.stringify(content)).not.toMatch(/placeholder/i);
 });
 
-// The title card on each TV is the station's worldLine and name. Nothing on a TV may read as live.
+// The title card on each TV is the station's name. Nothing on a TV may read as live.
 describe("title card text", () => {
-  it.each(["name", "worldLine"] as const)("rejects a %s that reads as a live status", (field) => {
+  it("rejects a name that reads as a live status", () => {
     for (const line of ["hamon Ready", "Synced", "42 passing", "build OK", "3 pods Running"]) {
       const c = good();
-      c.stations[0][field] = line;
-      expect(validateContent(c).join("\n")).toContain(`stations[0].${field}: reads as a live status`);
+      c.stations[0].name = line;
+      expect(validateContent(c).join("\n")).toContain("stations[0].name: reads as a live status");
     }
   });
 });
@@ -193,7 +217,7 @@ describe("title card text", () => {
 describe("diagram", () => {
   const media = () => {
     const c = good();
-    return { c, d: c.stations.find((s) => s.id === "mediasafe")!.diagram! };
+    return { c, d: c.stations.find((s) => s.id === "mediasafe")!.pages[0].diagram! };
   };
   it("MediaSafe has one: Git to Argo CD to staging, then production by hand", () => {
     const { d } = media();
@@ -211,13 +235,16 @@ describe("diagram", () => {
   const diagramText = (d: Diagram) => [d.description, ...d.steps, ...d.hops];
   const FREE = new Set(["a", "an", "the", "to", "and", "by", "from", "is", "are", "with", "which"]);
   const words = (t: string) => t.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
-  /** Words in a station's diagram that its copy doesn't have, as "word in text". */
-  const missingWords = (s: Pick<Station, "body" | "heading" | "name" | "diagram"> & { lead?: string }) => {
+  /** Words in a page's diagram that its copy doesn't have, as "word in text". */
+  const missingWords = (s: Pick<Page, "body" | "diagram"> & { heading: string; name: string; lead?: string }) => {
     const copy = new Set(words((s.lead ?? "") + " " + s.body.join(" ") + " " + s.heading + " " + s.name));
     return diagramText(s.diagram!).flatMap((t) => words(t).filter((w) => !FREE.has(w) && !copy.has(w)).map((w) => `"${w}" in "${t}"`));
   };
-  it.each(content.stations.filter((s) => s.diagram).map((s) => [s.id]))("%s: every word of its diagram, description included, is in its copy", (id) => {
-    expect(missingWords(content.stations.find((x) => x.id === id)!)).toEqual([]);
+  const withDiagram = content.stations.filter((s) => s.pages[0].diagram).map((s) => [s.id]);
+  const pageOf = (id: string) => content.stations.find((x) => x.id === id)!.pages[0];
+  it.each(withDiagram)("%s: every word of its diagram, description included, is in its copy", (id) => {
+    const st = content.stations.find((x) => x.id === id)!;
+    expect(missingWords({ ...pageOf(id), heading: st.heading, name: st.name })).toEqual([]);
   });
   it("the word check counts the lead as copy", () => {
     const s = { lead: "Plan first.", body: ["x"], heading: "h", name: "n", diagram: { description: "Plan", steps: ["Plan"], hops: [] } };
@@ -230,21 +257,21 @@ describe("diagram", () => {
     expect(missingWords(s)).toEqual(['"automatic" in "automatic"']);
   });
   it("exactly MediaSafe, Home lab and Software factory have one; Work and Contact do not", () => {
-    expect(content.stations.filter((s) => s.diagram).map((s) => s.id)).toEqual(["mediasafe", "home-lab", "software-factory"]);
+    expect(content.stations.filter((s) => s.pages.some((p) => p.diagram)).map((s) => s.id)).toEqual(["mediasafe", "home-lab", "software-factory"]);
   });
-  describe.each(content.stations.filter((s) => s.diagram).map((s) => [s.id]))("%s", (id) => {
+  describe.each(withDiagram)("%s", (id) => {
     it("is checked for live-status words like the other copy", () => {
       const c = good();
-      c.stations.find((x) => x.id === id)!.diagram!.steps[0] = "passing";
+      c.stations.find((x) => x.id === id)!.pages[0].diagram!.steps[0] = "passing";
       expect(validateContent(c).join("\n")).toMatch(/diagram\.steps\[0\]: reads as a live status/);
     });
     it("shows no score, leaderboard or result", () => {
-      expect(diagramText(content.stations.find((x) => x.id === id)!.diagram!).join(" ")).not.toMatch(/score|leader|\d+\s*[-:–]\s*\d+|win|goal|result/i);
+      expect(diagramText(pageOf(id).diagram!).join(" ")).not.toMatch(/score|leader|\d+\s*[-:–]\s*\d+|win|goal|result/i);
     });
   });
   it("a station without one is still valid", () => {
     const c = good();
-    delete c.stations[0].diagram;
+    delete c.stations[1].pages[0].diagram;
     expect(validateContent(c)).toEqual([]);
   });
   it.each(["description", "step", "hop"])("checks the %s text like other copy", (what) => {
@@ -277,39 +304,39 @@ describe("Work's pages", () => {
   const work = () => { const c = good(); return { c, w: c.stations.find((s) => s.id === "work")! }; };
   it("are Solace and Barracuda, and between them hold every bullet of the body in order", () => {
     const { w } = work();
-    expect(w.pages!.map((p) => p.label)).toEqual(["Solace", "Barracuda"]);
-    expect(w.pages!.map((p) => p.dates)).toEqual(["Sep to Dec 2026", "Sep 2025 to Aug 2026"]);
-    expect(w.pages!.map((p) => p.months)).toEqual([4, 12]);
-    expect(w.pages!.map((p) => p.lead)).toEqual(WORK_LEADS);
-    expect(w.pages!.flatMap((p) => p.body)).toEqual(WORK_COPY); // the approved wording, pinned in a fixture
+    expect(w.pages.map((p) => p.label)).toEqual(["Solace", "Barracuda"]);
+    expect(w.pages.map((p) => p.dates)).toEqual(["Sep to Dec 2026", "Sep 2025 to Aug 2026"]);
+    expect(w.pages.map((p) => p.months)).toEqual([4, 12]);
+    expect(w.pages.map((p) => p.lead)).toEqual(WORK_LEADS);
+    expect(w.pages.flatMap((p) => p.body)).toEqual(WORK_COPY); // the approved wording, pinned in a fixture
     expect(w.body).toEqual(WORK_COPY);
   });
-  it("rejects a page with no months", () => {
+  it("rejects a page with no months, when the station's pages must add up and one has none left", () => {
     const { c, w } = work();
-    w.pages![1].months = 0;
+    w.pages[1].months = 0;
     expect(validateContent(c).join("\n")).toContain("pages[1].months");
   });
-  it("rejects a page with no paragraphs", () => {
+  it("rejects a Work page with no bullets, since its pages must add up to the body", () => {
     const { c, w } = work();
-    w.pages![1].body = [];
-    expect(validateContent(c).join("\n")).toContain("pages[1].body");
+    w.pages[1].body = [];
+    expect(validateContent(c).join("\n")).toContain("stations[0].pages: bullets must be the same");
   });
   it("rejects pages whose paragraphs differ from the station's text, or are out of order", () => {
     const { c, w } = work();
-    w.pages![0].body = [...w.pages![0].body].reverse();
+    w.pages[0].body = [...w.pages[0].body].reverse();
     expect(validateContent(c).join("\n")).toContain("stations[0].pages: bullets must be the same");
     const o = work();
-    o.w.pages!.reverse();
+    o.w.pages.reverse();
     expect(validateContent(o.c).join("\n")).toContain("pages: bullets must be the same");
   });
   it.each(["label", "dates"] as const)("rejects a page %s that reads as a live status", (f) => {
     const { c, w } = work();
-    w.pages![0][f] = "Synced";
+    w.pages[0][f] = "Synced";
     expect(validateContent(c).join("\n")).toContain(`pages[0].${f}: reads as a live status`);
   });
   it("rejects a page with a phone number in it", () => {
     const { c, w } = work();
-    w.pages![0].body[0] = "Call 613-555-0142";
+    w.pages[0].body[0] = "Call 613-555-0142";
     expect(validateContent(c).join("\n")).toContain("pages[0].body[0]");
   });
 });
@@ -357,16 +384,32 @@ describe("timeline words", () => {
 // Every other word the app shows or announces: the HUD, the meter's labels, the boot log, the signal
 // lost screen, the gap's sentence. They move here from the components, so validation covers them.
 describe("interface words", () => {
-  const keys = Object.keys(ui);
+  const GROUPS = ["pageControls", "hud", "pins", "photo", "ambient"];
+  const keys = Object.keys(ui).filter((k) => !GROUPS.includes(k));
   it("accepts the shipped words", () => {
     expect(validateContent(content)).toEqual([]);
   });
   it.each(keys)("rejects %s when it is removed or empty", (k) => {
     const c = good();
-    delete (c.ui as Record<string, string>)[k];
+    delete (c.ui as unknown as Record<string, string>)[k];
     expect(validateContent(c).join("\n")).toContain(`ui.${k}: missing`);
-    (c.ui as Record<string, string>)[k] = " ";
+    (c.ui as unknown as Record<string, string>)[k] = " ";
     expect(validateContent(c).join("\n")).toContain(`ui.${k}: missing`);
+  });
+  it.each(GROUPS)("has an empty %s group for a later ticket, which validateContent walks", (g) => {
+    const group = (ui as Record<string, unknown>)[g];
+    expect(group).toEqual({});
+    const c = good();
+    delete (c.ui as Record<string, unknown>)[g];
+    expect(validateContent(c).join("\n")).toContain(`ui.${g}: missing`);
+    (c.ui as Record<string, unknown>)[g] = { added: " ", phone: "Call 613-555-0142" };
+    const problems = validateContent(c).join("\n");
+    expect(problems).toContain(`ui.${g}.added: missing`);
+    expect(problems).toContain(`ui.${g}.phone: looks like a phone number`);
+  });
+  it("exports hasPrivateAddress", () => {
+    expect(hasPrivateAddress("10.0.0.5")).toBe(true);
+    expect(hasPrivateAddress("lab.mediasafe.space")).toBe(false);
   });
   it("rejects a missing ui block, not a crash", () => {
     const c = good();
@@ -382,9 +425,9 @@ describe("interface words", () => {
     expect([ui.keyPrev, ui.keyRoom, ui.keyNext, ui.keyStart]).toEqual(["PREV", "ROOM", "NEXT", "START"]);
     expect([ui.prevStation, ui.backToRoom, ui.nextStation, ui.startTour]).toEqual(
       ["Previous station", "Back to the room", "Next station", "Start the tour"]);
-    expect(fill(ui.stopLine, { label: "Work", n: 1, total: 5 })).toBe("Work · 1 of 5");
+    expect(fill(ui.stopLine, { station: "Work", n: 1, total: 5 })).toBe("Work · 1 of 5");
   });
-  it.each(["label", "n", "total"])("rejects stopLine without {%s}", (ph) => {
+  it.each(["station", "n", "total"])("rejects stopLine without {%s}", (ph) => {
     const c = good();
     c.ui.stopLine = c.ui.stopLine.replace(`{${ph}}`, "x");
     expect(validateContent(c).join("\n")).toContain(`ui.stopLine: must contain {${ph}}`);
@@ -432,7 +475,7 @@ describe("no copy outside the content module", () => {
     readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
       e.isDirectory() ? files(`${dir}/${e.name}`) : /\.tsx?$/.test(e.name) && !/\.test\./.test(e.name) && e.name !== "content.ts" ? [`${dir}/${e.name}`] : []);
   const sources = files("src").map((f) => [f, readFileSync(f, "utf8")] as const);
-  const words = [...Object.values(ui), ...Object.values(identity)].filter((w) => w.length >= 4);
+  const words = [...Object.values(ui), ...Object.values(identity)].filter((w): w is string => typeof w === "string" && w.length >= 4);
   it("finds the source files", () => expect(sources.length).toBeGreaterThan(15));
   it.each(sources)("%s", (_f, src) => {
     for (const w of words) {
@@ -445,7 +488,7 @@ describe("no copy outside the content module", () => {
 describe("the pull request count", () => {
   it("says 100+ in Software factory's last bullet, and nothing says 76", () => {
     const factory = content.stations.find((s) => s.id === "software-factory")!;
-    expect(factory.body.at(-1)).toContain("This site has 100+ merged pull requests since 5 November 2026.");
+    expect(factory.pages[0].body.at(-1)).toContain("This site has 100+ merged pull requests since 5 November 2026.");
     expect(JSON.stringify(content)).not.toMatch(/\b76\b/);
   });
 });

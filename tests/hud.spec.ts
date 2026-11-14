@@ -6,7 +6,7 @@ import { clickLink, goTo, hudLink, landedAt, openTour } from "./lib/page";
 // The HUD (#222): a name block, one row of links, the current stop marked, all inside the boxes and clearances
 // src/pin.ts gives. Light: it only reads the page's layout, so no station's render is waited for beyond the landing.
 
-const hud = (page: Page) => page.getByRole("navigation", { name: ui.hud });
+const hud = (page: Page) => page.getByRole("navigation", { name: ui.hudLabel });
 const nameBlock = (page: Page) => page.locator("[data-name-block]");
 const linkRow = (page: Page) => page.locator("[data-link-row]");
 const hint = (page: Page) => page.locator("[data-hint]");

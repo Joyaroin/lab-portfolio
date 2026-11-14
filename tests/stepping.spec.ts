@@ -67,7 +67,7 @@ test.describe("the keys", () => {
   test("the bar's line names the stop and counts the stations, from the content module", async ({ page }) => {
     await goTo(page, MEDIASAFE);
     const s = stations[MEDIASAFE - 1];
-    const line = fill(ui.stopLine, { label: `${s.worldLine}: ${s.name}`, n: MEDIASAFE, total: stations.length });
+    const line = fill(ui.stopLine, { station: s.name, n: MEDIASAFE, total: stations.length });
     await expect(page.locator("[data-meter-bar]").getByText(line, { exact: true })).toBeVisible();
     await expect(page.getByRole("img", { name: fill(ui.meterReading, { digits: formatReading(s.reading) }) })).toBeVisible();
   });

@@ -20,7 +20,7 @@ export async function openTour(page: Page) {
 
 /** The HUD's link for `stop` (0 is Room, the overview). */
 export const hudLink = (page: Page, stop: number) =>
-  page.getByRole("navigation", { name: ui.hud }).getByRole("link", { name: stop === 0 ? ui.room : stations[stop - 1].name, exact: true });
+  page.getByRole("navigation", { name: ui.hudLabel }).getByRole("link", { name: stop === 0 ? ui.room : stations[stop - 1].name, exact: true });
 
 /** The meter bar's keys, by the word that names them in the content module. */
 const KEY_NAMES = { prev: ui.prevStation, room: ui.backToRoom, next: ui.nextStation, start: ui.startTour };

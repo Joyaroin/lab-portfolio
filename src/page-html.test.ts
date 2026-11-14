@@ -40,22 +40,41 @@ describe("#root before boot", () => {
   });
   it.each(stations.map((s) => [s.id, s] as const))("%s: heading, lead and bullets are in the block, escaped", (_id, s) => {
     expect(root).toContain(`<h2>${esc(s.heading)}</h2>`);
-    if (s.lead) expect(root).toContain(`<p>${esc(s.lead)}</p>`);
-    for (const b of s.pages ? s.pages.flatMap((p) => p.body) : s.body) expect(root).toContain(`<li>${esc(b)}</li>`);
+    for (const p of s.pages) {
+      expect(root).toContain(`<p>${esc(p.lead)}</p>`);
+      for (const b of p.body) expect(root).toContain(`<li>${esc(b)}</li>`);
+    }
+  });
+  it("writes a station with one page without a page heading, and Work's two with theirs", () => {
+    for (const s of stations) for (const p of s.pages) expect(root.includes(`<h3>${esc(p.label)}</h3>`)).toBe(s.pages.length > 1);
+  });
+  it("writes a page with no bullets without an empty list", () => {
+    const c: Content = structuredClone(content);
+    c.stations[1].pages[0].body = [];
+    const html = rootHtml(c);
+    expect(html).not.toContain("<ul></ul>");
+    expect(html).toContain(`<p>${esc(c.stations[1].pages[0].lead)}</p>`);
   });
   it("writes Work's pages: label, dates, lead and body", () => {
-    for (const p of stations.find((s) => s.id === "work")!.pages!) {
+    for (const p of stations.find((s) => s.id === "work")!.pages) {
       expect(root).toContain(`<h3>${esc(p.label)}</h3>`);
-      expect(root).toContain(`<p>${esc(p.dates)}</p>`);
+      expect(root).toContain(`<p>${esc(p.dates!)}</p>`);
       expect(root).toContain(`<p>${esc(p.lead)}</p>`);
     }
   });
   it("writes Work's bullets once", () => {
-    for (const b of stations.find((s) => s.id === "work")!.body) expect(root.split(`<li>${esc(b)}</li>`)).toHaveLength(2);
+    for (const b of stations.find((s) => s.id === "work")!.body!) expect(root.split(`<li>${esc(b)}</li>`)).toHaveLength(2);
   });
   it("puts every station link in as a link that keyboard focus skips", () => {
-    for (const l of stations.flatMap((s) => s.links)) expect(root).toContain(`<a href="${esc(l.href)}" tabindex="-1">${esc(l.label)}</a>`);
+    for (const l of stations.flatMap((s) => s.pages.flatMap((p) => p.links))) expect(root).toContain(`<a href="${esc(l.href)}" tabindex="-1">${esc(l.label)}</a>`);
     for (const a of root.match(/<a [^>]*>/g) ?? []) expect(a).toContain('tabindex="-1"');
+  });
+  it("writes a link that two of a station's pages share once", () => {
+    const c: Content = structuredClone(content);
+    c.stations = [c.stations[0]];
+    const shared = c.stations[0].pages[0].links[0];
+    expect(c.stations[0].pages.every((p) => p.links.some((l) => l.href === shared.href))).toBe(true);
+    expect(rootHtml(c).split(`<a href="${esc(shared.href)}"`)).toHaveLength(2);
   });
   it("escapes the text it writes", () => {
     const c: Content = structuredClone(content);

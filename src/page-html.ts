@@ -40,15 +40,17 @@ const link = (l: { label: string; href: string }) => `<a href="${e(l.href)}" tab
 
 function stationHtml(s: Station): string {
   const parts = [`<h2>${e(s.heading)}</h2>`];
-  if (s.pages) {
-    // Work's body repeats its pages' bullets, so it is written through its pages only.
-    if (s.lead) parts.push(`<p>${e(s.lead)}</p>`);
-    for (const p of s.pages) parts.push(`<h3>${e(p.label)}</h3>`, `<p>${e(p.dates)}</p>`, `<p>${e(p.lead)}</p>`, list(p.body));
-  } else {
-    if (s.lead) parts.push(`<p>${e(s.lead)}</p>`);
-    parts.push(list(s.body));
+  // Every station is written through its pages (Work's body repeats its pages' bullets). A station with
+  // one page needs no page heading. A link several pages share is written once, after the last page.
+  const several = s.pages.length > 1;
+  for (const p of s.pages) {
+    if (several) parts.push(`<h3>${e(p.label)}</h3>`);
+    if (p.dates) parts.push(`<p>${e(p.dates)}</p>`);
+    parts.push(`<p>${e(p.lead)}</p>`);
+    if (p.body.length) parts.push(list(p.body));
   }
-  if (s.links.length) parts.push(`<p>${s.links.map(link).join(" ")}</p>`);
+  const links = s.pages.flatMap((p) => p.links).filter((l, i, all) => all.findIndex((m) => m.label === l.label && m.href === l.href) === i);
+  if (links.length) parts.push(`<p>${links.map(link).join(" ")}</p>`);
   return `<section>${parts.join("")}</section>`;
 }
 

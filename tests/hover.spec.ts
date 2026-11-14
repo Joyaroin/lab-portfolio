@@ -8,14 +8,14 @@ import { formatReading } from "../src/gap";
 import { hudLink, landedAt, openTour, waitForCamera } from "./lib/page";
 
 // The hover preview (#228): at the overview, the pointer resting on a lit TV or a station's HUD link makes the meter bar
-// show that station's world line and name before the click, and moving off puts the gap's sentence back. Keyboard focus
+// show that station's name before the click, and moving off puts the gap's sentence back. Keyboard focus
 // never previews. These specs read the line's text (and the reading it settles on), never the 150 ms rest or the scramble:
 // the timing is src/bar.test.ts's, with a fake clock.
 
 /** The gap's sentence, as the bar shows it at the overview with no preview: set once the page has read it (the saved gap's,
  *  as the live call is refused), so a spec doesn't hold the build's own copy of the number. */
 let gapLine = "";
-const line = (stop: number) => `${stations[stop - 1].worldLine}: ${stations[stop - 1].name}`;
+const line = (stop: number) => stations[stop - 1].name;
 
 /** The line under the meter bar's digits: the one span in the bar that isn't the digits or a key. */
 const barLine = (page: Page) => page.locator("[data-meter-bar] > span[data-live]");
@@ -51,7 +51,7 @@ test.describe("the hover preview at the overview (1440 x 900)", () => {
     await expect(barLine(page)).not.toHaveText(ui.readingPending);
     gapLine = (await barLine(page).textContent())!;
     expect(gapLine, "the gap's sentence names the project").toContain("MediaSafe");
-    expect(gapLine).not.toContain(stations[1].worldLine);
+    expect(gapLine).not.toBe(line(2));
   });
 
   const canvasNeverFiltered = async (page: Page) => {
@@ -59,9 +59,9 @@ test.describe("the hover preview at the overview (1440 x 900)", () => {
     await expect(page.locator("canvas").first()).toHaveCSS("filter", "none");
   };
 
-  test("the pointer on the MediaSafe link shows its world line and name under the meter bar; moving off shows the gap's sentence", async ({ page }) => {
+  test("the pointer on the MediaSafe link shows its name under the meter bar; moving off shows the gap's sentence", async ({ page }) => {
     await hudLink(page, 2).hover();
-    await expect(barLine(page)).toHaveText("World line 02: MediaSafe");
+    await expect(barLine(page)).toHaveText("MediaSafe");
     expect(await barLine(page).textContent(), "no count in a preview").not.toContain(" of ");
     // the digits follow the line once the pointer has rested
     await expect(page.locator("[data-meter-bar] [role=img]")).toHaveAttribute("aria-label", fill(ui.meterReading, { digits: formatReading(stations[1].reading) }));
@@ -114,6 +114,6 @@ test.describe("the hover preview at the overview (1440 x 900)", () => {
     // moving off the link and back on is a new rest: the preview works again
     await page.mouse.move(720, 2);
     await hudLink(page, 2).hover();
-    await expect(barLine(page)).toHaveText("World line 02: MediaSafe");
+    await expect(barLine(page)).toHaveText("MediaSafe");
   });
 });

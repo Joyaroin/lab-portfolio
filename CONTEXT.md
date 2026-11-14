@@ -5,7 +5,7 @@ The language of this project: its terms, what each one means, and what it doesn'
 - **Lab**: the whole site. A 3D late-night home lab that hiring teams tour to learn what Adham does.
   Not a page with a 3D header: the room is the site.
 - **Room**: the 3D scene itself, its models and baked lighting.
-- **Station**: a stop on the tour, with its own place in the room, world line and reading.
+- **Station**: a stop on the tour, with its own place in the room, its reading and its pages (every station has at least one).
 - **Tour**: visiting the stations by clicking and stepping. The site opens on the overview; the HUD's links, the
   **keys** on the meter bar, the arrow keys and Esc move the visitor, as does clicking a TV (see **TV click**), and
   the camera follows the visit. Right is `next()` and Left is `prev()` (at the overview Right goes to Work and Left
@@ -27,8 +27,8 @@ The language of this project: its terms, what each one means, and what it doesn'
   station, so the rule is given `visit.moving()`). Resting the pointer on a lit TV also previews its station on the meter
   (see **Hover preview**): `TvTargets` tells the tour which TV the pointer is on, through the meter link's `tvHover`.
 - **Hover preview**: at the overview, resting the pointer on a lit TV or on a station's HUD link makes the meter show
-  that station before the click. The bar's line changes at once to the station's world line and name only ("World line
-  02: MediaSafe", no count); after the pointer has rested `PREVIEW_REST_MS` (150 ms) the digits play the short scramble
+  that station before the click. The bar's line changes at once to the station's name only ("MediaSafe",
+  no count); after the pointer has rested `PREVIEW_REST_MS` (150 ms) the digits play the short scramble
   (`SHIFT_SECONDS.short`, 0.25 s) onto the station's reading, or change with no scramble under reduced motion. Leaving,
   or moving to another station before the 150 ms (which starts the rest again), puts the gap's line and digits back at
   once with no animation. A visit ends the pointer's claim on a HUD link (it has not moved since), so back at the overview a
@@ -60,13 +60,10 @@ The language of this project: its terms, what each one means, and what it doesn'
   (`/#work`) lands there with no flight and no shift, with an overview entry under it so Back goes to the overview.
   The tab title follows the same stop (`titleForStop` in `src/visit/route.ts`): "Work · Adham Sedik" at a station,
   the page title at the overview, set after each history call so every entry keeps its own title.
-- **World line**: a station's themed label, such as "World line 03". A label only: the copy beside it
-  stays plain.
-- **Title card**: the big label on the glass of a TV you aren't at: its station's world line over its
-  name, such as "World line 03 / Home lab", readable from across the room. The name is the large part:
-  as big as the glass allows, wrapped onto two lines at a space when that makes it larger; the world
-  line is small, above a rule. The words come from the
-  station's `worldLine` and `name` in the content module, nothing else. It clears when that station's
+- **Title card**: the big label on the glass of a TV you aren't at: its station's name,
+  such as "Home lab", readable from across the room: as big as the glass allows, wrapped onto two lines at a
+  space when that makes it larger. The words come from the
+  station's `name` in the content module, nothing else. It clears when that station's
   text is on its glass, which happens only in the Square framing (`textOnGlass`); on a portrait window
   the text is pinned beside the CRT and the card stays. It never moves and never reads as a live status
   or result.
@@ -77,12 +74,16 @@ The language of this project: its terms, what each one means, and what it doesn'
   "HALDEN HX-101". One per TV.
 - **Sticky note**: the small coloured note at a bezel's top left, with a few words of its own and a tilt
   that differs on each TV, pinned to its station by id (`noteStyleFor` in `src/notes.ts`).
-- **Diagram**: a station's line drawing on its glass. It redraws facts already in that station's copy
+- **Diagram**: a page's line drawing on its glass. It redraws facts already in that page's copy
   and adds none, and never reads as a live status or result. Contact has none. Most are a left-to-right
   chain of steps joined by hops; Work's is its timeline, made of segments, with no steps or hops.
-- **Page**: one of the parts a station's text is split into, shown one at a time (only Work has pages:
-  Solace and Barracuda). Together the pages hold exactly the station's text, in order. The station
-  opens on its first page and scrolling never changes it.
+- **Page**: one part of a station's text, shown one at a time. Every station has at least one. A page has a
+  lead, up to three bullets (none is allowed), and its diagram and links. Only Work has more than one so far
+  (Solace and Barracuda), and only its job pages have dates and months. Where a station keeps a whole text
+  (Work's `body`), its pages hold exactly that text, in order; the other stations keep theirs on their page
+  only. The station opens on its first page and scrolling never changes it. The **walk order** (`src/walk.ts`,
+  not called yet) puts every page in one sequence after the overview, and `up` goes back up (a station with
+  `upToFirstPage` goes from a later page to its first page, otherwise to the overview).
 - **Timeline**: Work's diagram, and the switch between its pages. A row of segments drawn on the TV,
   oldest job on the left, and the only way to turn a page.
 - **Segment**: one job on the timeline, a real button as wide as the months the job ran. It names the
@@ -102,7 +103,7 @@ The language of this project: its terms, what each one means, and what it doesn'
 - **Meter bar**: the bar under the room, drawn as the **device**: the meter layers put together (below) at the size
   `deviceSize(win)` in `src/pin.ts` gives (420 px wide at 1920 x 1080, 417.6 at 1440 x 900, 280 on a phone), with the
   reading's digits as lit numerals over the tubes, the keys over their drawn keys, and the line under it (its height is `lineHeight(win)` in `src/pin.ts`, part of the bottom clearance, and the bottom clearance's `hudTier` test uses it too). The line is 14.4 px type, 12.8 px on a portrait window and on a short landscape window (the compact HUD). On a compact window its box may run wider than the device, up to the HUD's side margins (`HUD_MARGIN`; `lineMaxWidth(win)`), and it shows the **short form** of the gap sentence (`ui.gapBehindShort`, `ui.gapBehindAtLeastShort`: "MediaSafe: 9 deploys ahead of prod", "MediaSafe: 9+ deploys ahead of prod"; `gapLabel(gap, true)` in `src/gap.ts`, chosen by `isCompact(win)`), so the line is always one line there, from 560 px wide up (the saved form, `ui.gapSaved` around it, is 60 characters at a count of 100). The height is worked out from the real longest text of the form the window shows, at a count of 100 (what `countGap` returns at most and the save script stores; `lineTexts` in `src/pin.ts`). Elsewhere the box is at most the window less 1 rem. The line is the
-  gap's sentence at the overview and, at a station, `ui.stopLine` filled in ("World line 02: MediaSafe · 2 of 5"; the
+  gap's sentence at the overview and, at a station, `ui.stopLine` filled in ("MediaSafe · 2 of 5"; the
   total is the number of stations in the content module). The bar itself takes no click: only the keys do. In a flight
   it shows the stop being flown to (keys, line and digits). What it shows is one pure rule, `barFor(where, framing)` in
   `src/bar.ts`; `deviceLayers` in `src/meter-device.ts` maps a reading and the keys to the layers shown (a digit change

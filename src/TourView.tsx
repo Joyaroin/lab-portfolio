@@ -121,12 +121,12 @@ export function Tour({ gap, visit, meter, shift: shifts }: { gap: Gap | null; vi
   const win = useWin();
   const gapLine = gap ? gapLabel(gap, isCompact(win)) : ui.readingPending;
   // The bar shows the stop being flown to, not the camera's place on the way: its keys, its line and its digits. Through a preview
-  // the line is the station's world line and name at once (no count), and the digits follow once the pointer has rested.
+  // the line is the station's name alone (no count), and the digits follow once the pointer has rested.
   const portrait = usePortrait();
   const bar = barFor(here, portrait ? "portrait" : "square");
   const previewed = previewStop(here, preview);
   const shown = meterDigits({ who: "bar", where: here, preview, deploys, now: performance.now(), playing: barShift, reduced });
-  const barLine = previewed !== null ? stationLabel(previewed) : bar.stop === 0 ? gapLine : fill(ui.stopLine, { label: stationLabel(bar.stop), n: bar.stop, total: stations.length });
+  const barLine = previewed !== null ? stationLabel(previewed) : bar.stop === 0 ? gapLine : fill(ui.stopLine, { station: stationLabel(bar.stop), n: bar.stop, total: stations.length });
   const press = (key: BarKey) => {
     if (key === "prev") visit.prev();
     else if (key === "room") visit.back();
@@ -152,4 +152,4 @@ export function Tour({ gap, visit, meter, shift: shifts }: { gap: Gap | null; vi
   );
 }
 
-const stationLabel = (i: number) => `${stations[i - 1].worldLine}: ${stations[i - 1].name}`;
+const stationLabel = (i: number) => stations[i - 1].name;
