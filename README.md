@@ -2,7 +2,7 @@
 
 **A portfolio you walk through: a 3D late-night home lab where each lit monitor is a stop on the tour.**
 
-**Live:** https://lab.mediasafe.space · **Résumé:** [`public/resume.pdf`](public/resume.pdf)
+**[Visit the live site](https://lab.mediasafe.space)** · **[Résumé (PDF)](public/resume.pdf)**
 
 [![The overview of the room: a dark desk with five lit CRT monitors and a nixie-tube meter](public/og-image.png)](https://lab.mediasafe.space)
 
@@ -14,9 +14,12 @@ promotion to production.
 I'm Adham Sedik, a software and platform engineer. This repo is the site's full source, and an AI software factory
 I run built it.
 
+> This GitHub repo is a read-only mirror of `main`. Pull requests, reviews and CI run on my self-hosted
+> Forgejo, so you won't see them here, but every commit is.
+
 ## Highlights
 
-- **The room is made from code.** A Python script builds every object from primitives in headless Blender and bakes
+- **The room is made from code.** A Python script ([`tools/room/build.py`](tools/room/build.py)) builds every object from primitives in headless Blender and bakes
   the lighting into textures, so the scene is reproducible and reviewable in a diff.
 - **It works on phones.** Phones get the same scene as desktop. Textures ship at 2048 px to fit phone GPU memory,
   and every build fails if the first screen goes over about 100 KB or the whole site over 15 MB (gzip).
@@ -50,7 +53,7 @@ pull request ──► CI ──► merge to main ──► release: full browse
   path, command or test tag that no longer exists.
 - **Release:** after each merge, the full Playwright suite runs, including timing and rendering tests, with WebGL
   drawn in software on a runner with no GPU. Staging moves only if it passes.
-- **Hosting:** a Docker image, deployed by Argo CD from the Helm chart in `deploy/` to a single-node k3s cluster on
+- **Hosting:** a Docker image, deployed by Argo CD from the Helm chart in [`deploy/`](deploy) to a single-node k3s cluster on
   a Proxmox host at home. Traffic comes in through a Cloudflare Tunnel, so no ports are open.
 
 ## Stack
@@ -66,12 +69,13 @@ pull request ──► CI ──► merge to main ──► release: full browse
 
 | Path | What's there |
 |---|---|
-| `src/` | The site: the room, the tour, the HUD and the meter, with unit tests beside the code |
-| `tests/` | Playwright browser specs and the integration test |
-| `tools/` | Scripts that make the committed assets: the room, the meter's images, the preview image and the favicon |
-| `deploy/` | The Helm chart and values that Argo CD runs |
-| `docs/adr/` | Architecture decisions, one file each |
-| `CONTEXT.md` | The project's terms and the rules behind them |
+| [`src/`](src) | The site: the room, the tour, the HUD and the meter, with unit tests beside the code |
+| [`tests/`](tests) | Playwright browser specs and the integration test |
+| [`tools/`](tools) | Scripts that make the committed assets: the room, the meter's images, the preview image and the favicon |
+| [`deploy/`](deploy) | The Helm chart and values that Argo CD runs |
+| [`.forgejo/workflows/`](.forgejo/workflows) | CI, release and promotion pipelines |
+| [`docs/adr/`](docs/adr) | Architecture decisions, one file each |
+| [`CONTEXT.md`](CONTEXT.md) | The project's terms and the rules behind them |
 
 ## Run it
 
