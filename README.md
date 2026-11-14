@@ -112,7 +112,7 @@ Where each CRT sits is in `src/room-layout.json`, which the script and the site 
 also holds the overview and the pulled-back portrait (phone) views. The desktop stops are
 not in it: `src/stop.ts` works them out from each CRT's place and the window. To check composition
 without baking, run `blender -b -P tools/room/build.py -- --preview /tmp/shots` to render a camera
-view of each of the six TVs (the three stations, the bench TV among them, and the three spare CRTs) and of the overview at 16:9 and 16:10 (the desktop stops are not among them). For a quick
+view of each of the six TVs (the three stations, the bench TV among them, and the three spare CRTs; all six are lit, and only the stations carry a sticky note) and of the overview at 16:9 and 16:10 (the desktop stops are not among them). For a quick
 test bake, pass `--size 1024 --light-size 512 --samples 64` after `--`. Draco mesh compression isn't
 used, because this Blender build lacks the library.
 
