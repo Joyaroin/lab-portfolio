@@ -112,8 +112,15 @@ export const ui = {
   pins: {} as Record<string, string>,
   /** #287: the photo */
   photo: {} as Record<string, string>,
-  /** #290: the ambient screens */
-  ambient: {} as Record<string, string>,
+  /** #290: the ambient screens on the spare CRTs. Drawn on a canvas, so not in the page's HTML.
+   *  The commit lines come from src/commits-saved.json, not from here. */
+  ambient: {
+    gitlogCommand: "$ git log --oneline",
+    tunnel: "Tunnel", proxmox: "Proxmox", k3s: "k3s",
+    trafficCaption: "internet → home lab",
+    wordReliable: "RELIABLE", wordMaintainable: "MAINTAINABLE", wordSecure: "SECURE",
+    puzzleDecoding: "[ decoding… ]", puzzleSolved: "[ solved ]",
+  } as Record<string, string>,
 };
 /** The placeholders each template must keep. */
 const PLACEHOLDERS: Record<string, string[]> = {
@@ -369,13 +376,14 @@ export function validateContent(c: Content): string[] {
   // Every shipped key must be present, and a key added to the given content is checked too.
   // A word is a string; a group (the marked, empty ones later tickets fill) is an object of words, walked the same way.
   const isGroup = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+  // The ambient screens are drawn on a TV, so their words must not read as live data (the commit lines aren't here).
   const walkWords = (path: string, given: unknown, shipped: unknown) => {
     if (isGroup(shipped)) {
       if (!isGroup(given)) return void problems.push(`${path}: missing`);
       for (const k of new Set([...Object.keys(shipped), ...Object.keys(given)])) walkWords(`${path}.${k}`, given[k], shipped[k]);
       return;
     }
-    text(path, given);
+    if (path.startsWith("ui.ambient.")) tvText(path, given); else text(path, given);
     const key = path.split(".").pop()!;
     if (typeof given === "string") for (const ph of PLACEHOLDERS[key] ?? []) if (!given.includes(`{${ph}}`)) problems.push(`${path}: must contain {${ph}}`);
   };
