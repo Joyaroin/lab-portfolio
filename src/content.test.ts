@@ -483,7 +483,8 @@ describe("timeline words", () => {
 // Every other word the app shows or announces: the HUD, the meter's labels, the boot log, the signal
 // lost screen, the gap's sentence. They move here from the components, so validation covers them.
 describe("interface words", () => {
-  const GROUPS = ["pageControls", "hud", "pins", "photo", "ambient"];
+  const EMPTY_GROUPS = ["pageControls", "hud", "pins", "photo"];
+  const GROUPS = [...EMPTY_GROUPS, "ambient"];
   const keys = Object.keys(ui).filter((k) => !GROUPS.includes(k));
   it("accepts the shipped words", () => {
     expect(validateContent(content)).toEqual([]);
@@ -495,7 +496,7 @@ describe("interface words", () => {
     (c.ui as unknown as Record<string, string>)[k] = " ";
     expect(validateContent(c).join("\n")).toContain(`ui.${k}: missing`);
   });
-  it.each(GROUPS)("has an empty %s group for a later ticket, which validateContent walks", (g) => {
+  it.each(EMPTY_GROUPS)("has an empty %s group for a later ticket, which validateContent walks", (g) => {
     const group = (ui as Record<string, unknown>)[g];
     expect(group).toEqual({});
     const c = good();
@@ -505,6 +506,38 @@ describe("interface words", () => {
     const problems = validateContent(c).join("\n");
     expect(problems).toContain(`ui.${g}.added: missing`);
     expect(problems).toContain(`ui.${g}.phone: looks like a phone number`);
+  });
+  describe("the ambient screens' words (#290)", () => {
+    const ambient = ui.ambient as Record<string, string>;
+    const withAmbient = (f: (a: Record<string, string>) => void) => {
+      const c = good();
+      f(c.ui.ambient as Record<string, string>);
+      return validateContent(c).join("\n");
+    };
+    it("are the approved words", () => {
+      expect(ambient).toEqual({
+        gitlogCommand: "$ git log --oneline",
+        tunnel: "Tunnel", proxmox: "Proxmox", k3s: "k3s",
+        trafficCaption: "internet → home lab",
+        wordReliable: "RELIABLE", wordMaintainable: "MAINTAINABLE", wordSecure: "SECURE",
+        puzzleDecoding: "[ decoding… ]", puzzleSolved: "[ solved ]",
+      });
+    });
+    it.each(Object.keys(ambient))("rejects %s when it is removed, empty or reads as a live status", (k) => {
+      expect(withAmbient((a) => { delete a[k]; })).toContain(`ui.ambient.${k}: missing`);
+      expect(withAmbient((a) => { a[k] = " "; })).toContain(`ui.ambient.${k}: missing`);
+      expect(withAmbient((a) => { a[k] = "Healthy"; })).toContain(`ui.ambient.${k}: reads as a live status`);
+    });
+    it("checks a word added to the group, for a phone number too", () => {
+      const problems = withAmbient((a) => { a.added = "42 passing"; a.phone = "Call 613-555-0142"; });
+      expect(problems).toContain("ui.ambient.added: reads as a live status");
+      expect(problems).toContain("ui.ambient.phone: looks like a phone number");
+    });
+    it("rejects a missing group", () => {
+      const c = good();
+      delete (c.ui as Record<string, unknown>).ambient;
+      expect(validateContent(c).join("\n")).toContain("ui.ambient: missing");
+    });
   });
   it("exports hasPrivateAddress", () => {
     expect(hasPrivateAddress("10.0.0.5")).toBe(true);
