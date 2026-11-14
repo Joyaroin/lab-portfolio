@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { fill, stations, ui } from "../src/content";
+import { stations, stopLineText } from "../src/content";
 import { clearances, SIDE } from "../src/pin";
 import { boxOf, panelOf, meanBrightness, goTo, landedAt, openTour, stationIds, waitForCamera, waitForPanel, waitUntilStill } from "./lib/page";
 
@@ -40,7 +40,7 @@ test("on a phone, Work frames lit parts of the room", async ({ page }) => {
     await goTo(page, stop);
     // The station's line is on the meter bar, as the content module builds it (station, n and total).
     const s = stations[stop - 1];
-    const line = fill(ui.stopLine, { station: s.name, n: stop, total: stations.length });
+    const line = stopLineText(s, s.pages[0], stop, stations.length);
     await expect(page.locator("[data-meter-bar]").getByText(line, { exact: true })).toBeVisible();
     // The first visit's tear plays after the landing, and the text comes out of it: measure once it is over.
     await expect(panelOf(page, name)).toHaveCSS("opacity", "1");

@@ -3,7 +3,7 @@ import { fill, stations, ui } from "./content";
 import { gapLabel } from "./gap";
 import {
   BUTTON_PX, clearances, COMPACT_GAP, COMPACT_LINE_H, COMPACT_MIN_W, COMPACT_SLACK, COMPACT_TOP_W, deviceSize, fitPanel, glassFontSize, HUD_GAP, HUD_MARGIN,
-  hudTier, lineHeight, lineMaxWidth, lineTexts, lineType, LINK_ROW_H, LINK_ROW_W, MIN_PANEL_H, NAME_BLOCK_H, NAME_BLOCK_W, ONE_ROW_MIN_W, PHONE_MENU_H, TWO_LINE_MIN_W,
+  hudTier, lineHeight, lineMaxWidth, lineTexts, lineType, LINK_ROW_H, stopLines, LINK_ROW_W, MIN_PANEL_H, NAME_BLOCK_H, NAME_BLOCK_W, ONE_ROW_MIN_W, PHONE_MENU_H, TWO_LINE_MIN_W,
 } from "./pin";
 
 // fitPanel only places text pinned beside the CRT, which only a portrait window does (src/framing).
@@ -127,7 +127,14 @@ describe("clearances", () => {
     expect(compact).not.toContain(gapLabel({ deploys: 100, live: false, complete: true }));
     expect(full).toContain(gapLabel({ deploys: 100, live: false, complete: true }));
     expect(Math.max(...compact.map((t) => t.length))).toBe(60);
-    for (const t of stations.map((s, i) => fill(ui.stopLine, { station: s.name, n: i + 1, total: stations.length }))) expect(compact).toContain(t);
+    for (const t of stopLines) expect(compact).toContain(t);
+    // every page of every station has its line, the Projects list's without a page name, and the longest is the real one
+    expect(stopLines).toHaveLength(stations.reduce((n, s) => n + s.pages.length, 0));
+    expect(stopLines).toContain("Work · Solace · 1 of 3");
+    expect(stopLines).toContain("Projects · 2 of 3");
+    expect(stopLines).toContain("Projects · Software factory · 2 of 3");
+    expect(stopLines).toContain("About me · Off the keyboard · 3 of 3");
+    expect(Math.max(...stopLines.map((t) => t.length))).toBe("About me · Off the keyboard · 3 of 3".length);
   });
   it("every short landscape window has the line under the device on one line and the panel at least MIN_PANEL_H, down to the height the compact HUD can give", () => {
     // 560 to 960 wide, 320 to 480 tall. The compact HUD's top (76 px two lines from COMPACT_MIN_W, 107 px three) plus the panel's floor

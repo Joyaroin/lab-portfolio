@@ -1,7 +1,9 @@
 import type { Framing } from "./framing";
+import { stations, stopLineText } from "./content";
 import { formatReading } from "./gap";
 import type { ShiftKind } from "./nixie";
 import { readingAt } from "./tour";
+import { stepAt, stopOf, type Step } from "./walk";
 import type { Where } from "./where";
 
 /** A key on the meter bar. */
@@ -17,6 +19,15 @@ export function barFor(where: Where, framing: Framing["name"]): Bar {
   const stop = where.kind === "at" ? where.stop : where.to;
   if (stop === 0) return { keys: ["start"], stop };
   return { keys: framing === "portrait" ? ["prev", "next"] : ["prev", "room", "next"], stop };
+}
+
+/** The line under the device at station `stop` (1..): "Work · Solace · 1 of 3", or "Projects · 2 of 3" on the list. It names `step`'s
+ *  page when the visit is on that station, and the station's first page when it is elsewhere (a flight to it, a fade's first half). */
+export function stopLineFor(stop: number, step: Step): string {
+  const at = stopOf(step) === stop ? step : stepAt(stop);
+  const s = stations[stop - 1];
+  const page = (at.kind === "page" && s.pages.find((p) => p.id === at.page)) || s.pages[0];
+  return stopLineText(s, page, stop, stations.length);
 }
 
 // ---- the hover preview (#228)

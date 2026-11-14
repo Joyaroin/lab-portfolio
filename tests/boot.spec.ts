@@ -156,7 +156,14 @@ test("HUD links and the meter jump to stations; the HUD stays reachable", async 
   await goTo(page, stationIds.indexOf("projects") + 1);
   await expect(reading).toHaveAttribute("aria-label", stationReading("projects"));
   await page.screenshot({ path: "test-results/tour-projects.png" });
-  await barKey(page, "next").click(); // next station
+  // NEXT walks pages: Projects has four (the list, then three projects), so the reading holds through three presses and
+  // changes on the fourth, which flies to the next station.
+  for (let i = 0; i < 3; i++) {
+    await barKey(page, "next").click();
+    await expect(reading).toHaveAttribute("aria-label", stationReading("projects"));
+  }
+  await expect.poll(() => new URL(page.url()).hash).toBe("#projects/home-lab");
+  await barKey(page, "next").click(); // the next station's first page
   const next = stationIds[stationIds.indexOf("projects") + 1];
   await expect(reading).toHaveAttribute("aria-label", stationReading(next));
   await page.screenshot({ path: `test-results/tour-${next}.png` });
@@ -167,6 +174,9 @@ test("HUD links and the meter jump to stations; the HUD stays reachable", async 
   }
   await expect(reading).toHaveAttribute("aria-label", stationReading("about"));
   await page.screenshot({ path: "test-results/tour-about.png" });
+  for (let i = 0; i < 2; i++) await barKey(page, "next").click(); // About me's other two pages: still at About me
+  await expect.poll(() => new URL(page.url()).hash).toBe("#about/contact");
+  await expect(reading).toHaveAttribute("aria-label", stationReading("about"));
   await barKey(page, "next").click(); // wraps to the overview
   await expect(reading).toHaveAttribute("aria-label", gapReading(9));
   await landedAt(page, 0);

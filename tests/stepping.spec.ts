@@ -1,15 +1,21 @@
 import { test, expect, type Page } from "@playwright/test";
-import { fill, stations, ui } from "../src/content";
+import { fill, stations, stopLineText, ui } from "../src/content";
 import { formatReading } from "../src/gap";
 import { stopForHash } from "../src/visit/route";
 import { barKey, goTo, landedAt, openTour, stationIds } from "./lib/page";
 
-// The meter bar's keys and the arrow keys (#223): PREV, ROOM, NEXT and START step the visitor through the stations.
+// The meter bar's keys and the arrow keys (#223, pages #283): PREV, ROOM, NEXT and START step the visitor through the
+// pages of the stations (Work has 2, Projects 4, About me 3), one page a press.
 // Each waits for the HUD link's aria-current (set at a landing) and reads the URL's hash for where the visitor is.
 // A move is a quick fade, so the specs run under reduced motion.
 
 const stopOf = (id: string) => stationIds.indexOf(id) + 1;
 const WORK = stopOf("work"), PROJECTS = stopOf("projects"), ABOUT = stopOf("about");
+
+const hashOf = (page: Page) => new URL(page.url()).hash;
+const waitHash = (page: Page, hash: string) => expect.poll(() => hashOf(page)).toBe(hash);
+const press = async (page: Page, key: "next" | "prev", times = 1) => { for (let i = 0; i < times; i++) await barKey(page, key).click(); };
+const right = async (page: Page, times = 1) => { for (let i = 0; i < times; i++) await page.keyboard.press("ArrowRight"); };
 
 /** The stop the URL names: 0 for the overview. */
 const urlStop = (page: Page) => stopForHash(new URL(page.url()).hash);
@@ -22,11 +28,26 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.describe("the keys", () => {
-  test("NEXT at Work goes to Projects", async ({ page }) => {
+  test("NEXT at Work goes to Work's second page, then to Projects' list", async ({ page }) => {
     await goTo(page, WORK);
     await barKey(page, "next").click();
+    await waitHash(page, "#work/barracuda");
+    await landedAt(page, WORK);
+    await barKey(page, "next").click();
     await landedAt(page, PROJECTS);
-    expect(new URL(page.url()).hash).toBe("#projects");
+    expect(hashOf(page)).toBe("#projects");
+  });
+
+  test("NEXT walks every page of Projects, then About me", async ({ page }) => {
+    await goTo(page, PROJECTS);
+    for (const hash of ["#projects/software-factory", "#projects/mediasafe", "#projects/home-lab"]) {
+      await barKey(page, "next").click();
+      await waitHash(page, hash);
+      await landedAt(page, PROJECTS);
+    }
+    await barKey(page, "next").click();
+    await landedAt(page, ABOUT);
+    expect(hashOf(page)).toBe("#about");
   });
 
   test("PREV at Work goes to the overview", async ({ page }) => {
@@ -36,10 +57,13 @@ test.describe("the keys", () => {
     expect(urlStop(page)).toBe(0);
   });
 
-  test("PREV at Projects goes to Work", async ({ page }) => {
+  test("PREV at Projects' list goes to Work's last page, and from there to its first", async ({ page }) => {
     await goTo(page, PROJECTS);
     await barKey(page, "prev").click();
     await landedAt(page, WORK);
+    await waitHash(page, "#work/barracuda");
+    await barKey(page, "prev").click();
+    await waitHash(page, "#work");
   });
 
   test("ROOM at any station goes to the overview", async ({ page }) => {
@@ -57,41 +81,79 @@ test.describe("the keys", () => {
     expect(new URL(page.url()).hash).toBe("#work");
   });
 
-  test("NEXT at About me goes to the overview", async ({ page }) => {
+  test("NEXT at About me walks its three pages, then goes to the overview", async ({ page }) => {
     await goTo(page, ABOUT);
-    await barKey(page, "next").click();
+    await press(page, "next", 2);
+    await waitHash(page, "#about/contact");
+    await landedAt(page, ABOUT);
+    await press(page, "next");
     await landedAt(page, 0);
     expect(urlStop(page)).toBe(0);
   });
 
-  test("the bar's line names the stop and counts the stations, from the content module", async ({ page }) => {
+  test("the bar's line names the station, the page and the station's number, from the content module, and follows a page move", async ({ page }) => {
     await goTo(page, PROJECTS);
     const s = stations[PROJECTS - 1];
-    const line = fill(ui.stopLine, { station: s.name, n: PROJECTS, total: stations.length });
-    await expect(page.locator("[data-meter-bar]").getByText(line, { exact: true })).toBeVisible();
-    await expect(page.getByRole("img", { name: fill(ui.meterReading, { digits: formatReading(s.reading) }) })).toBeVisible();
+    const bar = page.locator("[data-meter-bar]");
+    const reading = page.getByRole("img", { name: fill(ui.meterReading, { digits: formatReading(s.reading) }) });
+    await expect(bar.getByText(stopLineText(s, s.pages[0], PROJECTS, stations.length), { exact: true })).toBeVisible(); // "Projects · 2 of 3"
+    await expect(reading).toBeVisible();
+    await barKey(page, "next").click();
+    await expect(bar.getByText(stopLineText(s, s.pages[1], PROJECTS, stations.length), { exact: true })).toBeVisible(); // "Projects · Software factory · 2 of 3"
+    await expect(reading, "a page move does not change the reading").toBeVisible();
   });
 });
 
 test.describe("the arrow keys", () => {
-  test("Right at Work goes to Projects, Left goes back", async ({ page }) => {
+  test("Right at Work goes through Work's two pages to Projects, Left goes back", async ({ page }) => {
     await goTo(page, WORK);
-    await page.keyboard.press("ArrowRight");
+    await right(page);
+    await waitHash(page, "#work/barracuda");
+    await right(page);
     await landedAt(page, PROJECTS);
-    expect(new URL(page.url()).hash).toBe("#projects");
+    expect(hashOf(page)).toBe("#projects");
     await page.keyboard.press("ArrowLeft");
     await landedAt(page, WORK);
+    await waitHash(page, "#work/barracuda");
   });
 
-  test("Left at Work goes to the overview", async ({ page }) => {
+  test("Esc on a project page goes to the Projects list, and from the list to the overview", async ({ page }) => {
+    await page.goto("/#projects/mediasafe");
+    await expect(page.getByLabel("Boot log")).toBeHidden();
+    await landedAt(page, PROJECTS);
+    await page.keyboard.press("Escape");
+    await waitHash(page, "#projects");
+    await landedAt(page, PROJECTS);
+    await page.keyboard.press("Escape");
+    await landedAt(page, 0);
+    expect(urlStop(page)).toBe(0);
+  });
+
+  // A plain functional check (untagged): the flash-limit @timing test for holding → is #284's. Holding sends keydowns with
+  // no keyup between, as a held key repeats; a press during a fade is held and applied when it lands.
+  test("holding Right across a page and a station boundary ends where the presses lead", async ({ page }) => {
+    await goTo(page, WORK);
+    for (let i = 0; i < 3; i++) await page.keyboard.down("ArrowRight"); // Barracuda, then Projects, then its first project
+    await page.keyboard.up("ArrowRight");
+    await landedAt(page, PROJECTS);
+    await waitHash(page, "#projects/software-factory");
+    for (let i = 0; i < 4; i++) await page.keyboard.down("ArrowRight"); // MediaSafe, Home lab, About me, Off the keyboard
+    await page.keyboard.up("ArrowRight");
+    await landedAt(page, ABOUT);
+    await waitHash(page, "#about/off-the-keyboard");
+  });
+
+  test("Left at Work's first page goes to the overview", async ({ page }) => {
     await goTo(page, WORK);
     await page.keyboard.press("ArrowLeft");
     await landedAt(page, 0);
   });
 
-  test("Right at About me goes to the overview", async ({ page }) => {
+  test("Right through About me's three pages goes to the overview", async ({ page }) => {
     await goTo(page, ABOUT);
-    await page.keyboard.press("ArrowRight");
+    await right(page, 2);
+    await waitHash(page, "#about/contact");
+    await right(page);
     await landedAt(page, 0);
   });
 

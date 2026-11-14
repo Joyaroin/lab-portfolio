@@ -193,7 +193,10 @@ test.describe("with the images blocked", () => {
   test("the keys still move the visit", async ({ page }) => {
     await barKey(page, "start").click();
     await landedAt(page, 1);
-    await barKey(page, "next").click();
+    await barKey(page, "next").click(); // Work's second page: the visit stays at Work
+    await expect.poll(() => new URL(page.url()).hash).toBe("#work/barracuda");
+    await landedAt(page, 1);
+    await barKey(page, "next").click(); // Projects
     await landedAt(page, 2);
     await barKey(page, "room").click();
     await landedAt(page, 0);

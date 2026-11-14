@@ -8,9 +8,11 @@ The language of this project: its terms, what each one means, and what it doesn'
 - **Station**: one of the three monitors on the tour, with its own place in the room, its reading and its pages (every station has at least one). Visitors see "Monitor 1 · Work", "Monitor 2 · Projects" and "Monitor 3 · About me"; the code says station, with ids `work`, `projects` and `about`. Work is on the CRT that was MediaSafe's, Projects on the bench TV, About me on the CRT that was Contact's. A TV's place in `crts` (`src/crts.ts`, from `src/room-layout.json`) is its station's place in the content module, so the two lists change together.
 - **Tour**: visiting the stations by clicking and stepping. The site opens on the overview; the HUD's links, the
   **keys** on the meter bar, the arrow keys and Esc move the visitor, as does clicking a TV (see **TV click**), and
-  the camera follows the visit. Right is `next()` and Left is `prev()` (at the overview Right goes to Work and Left
-  does nothing; in a flight they act on the stop being flown to; a key with a modifier is ignored). Nothing scrolls:
-  the wheel never moves the camera (ADR 0005, spec #170).
+  the camera follows the visit. Right is `next()` and Left is `prev()`: they walk the **walk order** one page at a time,
+  across the stations (at the overview Right goes to Work's first page and Left does nothing; after About me's last page
+  Right goes to the overview; during a move they act on the step being moved to; a key with a modifier is ignored).
+  Esc is `up()`: from a project page it goes to the Projects list, from anywhere else to the overview. The meter bar's PREV and NEXT and the desk meter's click go
+  through `prev()` and `next()` too. Nothing scrolls: the wheel never moves the camera (ADR 0005, spec #170).
 - **Bench TV**: the TV on the workbench, once Order Tracker's, and now the Projects station: the second entry in `crts` (`projects` in `src/room-layout.json`), drawn like any station (title card, bezel layer, hover glow, click, text on the glass) with the plate "HALDEN HX-418". Its glass is the same 0.46 x 0.36 m as the others, so `squareStop` gives its desktop stop, and its portrait stop comes from its `camera`, `look` and `portrait` entries. Until the re-bake ticket (#286) the bake still has it switched off (`is_off()` in `tools/room/build.py` finds the `projects` entry): dark baked glass, dark LED and no light on its surroundings, with the site's phosphor drawn over the glass.
 - **Spare CRT**: one of the three CRTs that are no station: the old Work CRT, the Home lab CRT and the Software factory CRT (`spares` in `src/crts.ts`, `spares` in `src/room-layout.json`). It shows the clear phosphor glass and nothing else: no title card, no bezel layer, no hover glow and no click, so a click on one is a click on the room. It is in no list the tour reads. The Home lab spare keeps `keyboard: false`. `bakeOrder` in `src/room-layout.json` is the six TVs' ids in the order `tools/room/build.py` bakes them (old Work CRT, MediaSafe CRT, Home lab CRT, bench TV, Software factory CRT, Contact CRT), whatever order `crts` and `spares` list them in, so the random draws (note colours, keyboard tilts) don't move; `src/crts.test.ts` checks it.
 - **TV click**: at the overview only, a station's TV (not a spare CRT) takes a click and flies the visitor to its station, and a hover glow shows which
@@ -42,20 +44,32 @@ The language of this project: its terms, what each one means, and what it doesn'
   portrait window. `src/visit/flight.test.ts` projects the TVs and the meter through the real camera to check this; if the
   HUD's boxes in `src/pin.ts` change, the pose may need to change with them. It is where the site opens and where Back (the HUD's Room link, Esc, the ROOM key) goes. The meter shows
   the gap there. It is not a station.
-- **Visit**: where the visitor is and is going: at a stop, or flying to one. `src/visit/` owns it.
+- **Visit**: where the visitor is and is going: a stop (the overview or a station) and, at a station, the page. `src/visit/`
+  owns both. `visit.step()` is the stop and page (a `Step` from `src/walk.ts`) the visitor is at or going to; `visit.target()` is just its stop.
+  `next()`, `prev()` and `up()` follow the walk order. A move to another stop flies (or fades) and emits `move` then `land`;
+  a move to another page of the same station emits `page` and nothing else: no flight, no fade, no scramble. A page
+  press during a flight changes the page the flight lands on; during a reduced-motion fade it waits like any press.
+  `go(stop)` opens a station's first page, `go(step)` a given page, and `go` to the stop the visitor is on keeps its page.
 - **Cover**: the dark layer over the room that hides the cut of a reduced-motion fade. It rises at once but falls no faster
   than `COVER_MAX_FALL_PER_SEC` (`nextCover` in `src/visit/cover.ts`), so it never snaps off.
 - **Flight**: the camera's move from where it is to a station (or to the overview): one smooth curve of
   0.9 s (`FLIGHT_MS`) that passes no other station (`flightPose` in `src/visit/flight.ts`). A move started mid-flight starts
   from where the camera really is. Under reduced motion a move is a quick fade, out, cut, in, about 300 ms, with
   no tear. A press during a fade waits until the fade ends, and the latest waiting press wins: it replaces any
-  earlier one, and one for the stop just reached does nothing. `visit.target()` is the stop the last press asked for.
-- **History**: the browser's history tracks the stop the URL shows (`linkHistory` in `src/visit/history.ts`): a move
-  pushes an entry for its stop, a Back or Forward press moves the visit, and wherever the visitor lands that the URL
-  doesn't show (a press that waited, or one dropped), an entry is pushed to correct it. Opening a direct link
-  (`/#work`) lands there with no flight and no shift, with an overview entry under it so Back goes to the overview.
-  The tab title follows the same stop (`titleForStop` in `src/visit/route.ts`): "Work · Adham Sedik" at a station,
-  the page title at the overview, set after each history call so every entry keeps its own title.
+  earlier one, and one for the place just reached (stop and page) does nothing. A waiting press for another page of the
+  station just reached is a page move on landing. `visit.step()` is the stop and page the last press asked for.
+- **History**: the browser's history tracks the step (stop and page) the URL shows (`linkHistory` in `src/visit/history.ts`): a move
+  to another stop pushes an entry, a move to another page of the same station replaces the current entry (so Back goes to
+  the previous monitor or the overview, not through every page), a Back or Forward press moves the visit (stop and
+  page), and wherever the visitor lands that the URL doesn't show (a press that waited, or one dropped), the URL is
+  corrected the same way. URLs are hashes (`src/visit/route.ts`): a station's first page is `#work`, `#projects`,
+  `#about`, and a later page `#work/barracuda`, `#projects/software-factory`, `#projects/mediasafe`,
+  `#projects/home-lab`, `#about/off-the-keyboard`, `#about/contact` (`stepForHash`, `hashForStep`). Old links map to their new place:
+  `#mediasafe`, `#home-lab`, `#software-factory` to `#projects/...`, `#contact` to `#about/contact`. Opening a direct link, old or
+  new, lands there with no flight and no shift, replaces with `./` and pushes the (new) hash, so Back goes to the overview.
+  An unknown hash opens the overview and touches no history.
+  The tab title follows the same step (`titleForStep`): "Solace · Work · Adham Sedik" on a named page, "Projects · Adham Sedik"
+  on the Projects list (the page with a `list`), the page title at the overview, set after each history call so every entry keeps its own title.
 - **Title card**: the big label on the glass of a station's TV you aren't at: its number over its name
   ("1" over "Work"), readable from across the room: as big as the glass allows, wrapped onto two lines at a
   space when that makes it larger. The name comes from the
@@ -81,9 +95,9 @@ The language of this project: its terms, what each one means, and what it doesn'
   page has one stat line, and the list page has a `list`: a prompt, a row for each project with its tag and its
   stat, and a foot. A station may have a `line` under its heading (Work's, About me's). Where a station keeps a
   whole text (Work's `body`), its pages hold exactly that text, in order; the other stations keep theirs on their
-  pages only. The glass shows only each station's first page for now, and scrolling never changes it. The **walk order** (`src/walk.ts`,
-  not called yet) puts every page in one sequence after the overview, and `up` goes back up (a station with
-  `upToFirstPage` goes from a later page to its first page, otherwise to the overview).
+  pages only. The glass shows only each station's first page for now (until the glass ticket, #284), and scrolling never changes it. The **walk order** (`src/walk.ts`)
+  puts every page in one sequence after the overview, and `up` goes back up (a station with
+  `upToFirstPage` goes from a later page to its first page, otherwise to the overview). The visit holds the page and moves it with `next`, `prev` and `up`.
 - **Timeline**: Work's diagram, and the switch between its pages. A row of segments drawn on the TV,
   oldest job on the left, and the only way to turn a page.
 - **Segment**: one job on the timeline, a real button as wide as the months the job ran. It names the
@@ -103,8 +117,9 @@ The language of this project: its terms, what each one means, and what it doesn'
 - **Meter bar**: the bar under the room, drawn as the **device**: the meter layers put together (below) at the size
   `deviceSize(win)` in `src/pin.ts` gives (420 px wide at 1920 x 1080, 417.6 at 1440 x 900, 280 on a phone), with the
   reading's digits as lit numerals over the tubes, the keys over their drawn keys, and the line under it (its height is `lineHeight(win)` in `src/pin.ts`, part of the bottom clearance, and the bottom clearance's `hudTier` test uses it too). The line is 14.4 px type, 12.8 px on a portrait window and on a short landscape window (the compact HUD). On a compact window its box may run wider than the device, up to the HUD's side margins (`HUD_MARGIN`; `lineMaxWidth(win)`), and it shows the **short form** of the gap sentence (`ui.gapBehindShort`, `ui.gapBehindAtLeastShort`: "MediaSafe: 9 deploys ahead of prod", "MediaSafe: 9+ deploys ahead of prod"; `gapLabel(gap, true)` in `src/gap.ts`, chosen by `isCompact(win)`), so the line is always one line there, from 560 px wide up (the saved form, `ui.gapSaved` around it, is 60 characters at a count of 100). The height is worked out from the real longest text of the form the window shows, at a count of 100 (what `countGap` returns at most and the save script stores; `lineTexts` in `src/pin.ts`). Elsewhere the box is at most the window less 1 rem. The line is the
-  gap's sentence at the overview and, at a station, `ui.stopLine` filled in ("Projects · 2 of 3"; the
-  total is the number of stations in the content module). The bar itself takes no click: only the keys do. In a flight
+  gap's sentence at the overview and, at a station, the page's line (`stopLineFor` in `src/bar.ts`, from `stopLineText` in the content module): `ui.stopLine`,
+  "{station} · {page} · {n} of {total}" ("Work · Solace · 1 of 3", "Projects · MediaSafe · 2 of 3"), or `ui.listStopLine`, "Projects · 2 of 3", on the Projects list;
+  `n` is the station's number and the total the number of stations. A move inside a station changes the line but not the reading and plays no scramble. `lineTexts` includes every page's line. The bar itself takes no click: only the keys do. In a flight
   it shows the stop being flown to (keys, line and digits). What it shows is one pure rule, `barFor(where, framing)` in
   `src/bar.ts`; `deviceLayers` in `src/meter-device.ts` maps a reading and the keys to the layers shown (a digit change
   changes one tube's image); `src/Meter.tsx` draws it. The device plays the power-on, as
@@ -120,8 +135,8 @@ The language of this project: its terms, what each one means, and what it doesn'
 - **Keys**: the buttons on the meter bar, with their words in `ui` (`keyPrev`, `keyRoom`, `keyNext`, `keyStart`) and
   their accessible names (`prevStation`, `backToRoom`, `nextStation`, `startTour`), each at least 44 x 44 px. On the device each is a transparent button over its drawn key (the drawn key already has the word, so the button's text is not painted); it brightens on hover and focus and shows a press, in CSS. At a
   station on a landscape window they are PREV, ROOM, NEXT; on a portrait window PREV and NEXT (the phone menu has the
-  way back to the room); at the overview START alone. PREV is `visit.prev()` (the first station goes to the overview),
-  NEXT is `visit.next()` (the last station goes to the overview), ROOM is `back()`, START goes to Work.
+  way back to the room); at the overview START alone. PREV is `visit.prev()` (one page back along the walk order; Work's first page goes to the overview),
+  NEXT is `visit.next()` (one page on; About me's last page goes to the overview), ROOM is `back()`, START goes to Work.
 - **Meter layers**: the rendered images the meter bar's device is built from (ADR-0006): the case and tubes unlit, the
   tubes' light on the case, ten lit numerals all seven tubes share, the decimal point and the four keys (PREV, ROOM,
   NEXT, START), each with a clear background. `make meter` renders them from `tools/meter/` into `src/assets/meter/`, and
@@ -182,13 +197,13 @@ Where the code for each concept lives. Tests sit beside their code. Only modules
 get a folder; the rest are still flat files in `src/`.
 
 - **`src/visit/`**: the visit. `createVisit({ reduced })` makes the one visit object; the app creates it and gives it to
-  the room and the tour. `go(stop)`, `back()` and `next()` start a flight from wherever the camera is, mid-flight
-  included; `land(stop)` puts the visitor at a stop with no flight. `where(nowMs)`, `fade(nowMs)` and `moving(nowMs)` (a flight or a fade is running) read it, and
+  the room and the tour. `go(stop | step)`, `back()`, `next()`, `prev()` and `up()` start a flight from wherever the camera is, mid-flight
+  included, when they change the stop, and just move the page (a `page` event) when they don't; `land(stop | step)` puts the visitor there with no flight. `step()` reads the stop and page. `where(nowMs)`, `fade(nowMs)` and `moving(nowMs)` (a flight or a fade is running) read it, and
   `launch(nowMs)` gives where the current flight began (a chain of re-targets), which `framing.cameraAt` resolves with
   `flightPose`. The visit has no timer: the room's per-frame read (`CameraRig`) is what notices a landing and fires
   `land`. `flight.ts` is the pure path (`flightPose`, with its field of view) and is tested without a browser. `history.ts` holds
-  `linkHistory`, which ties the browser's history to the visit. `route.ts` holds `stopForHash` and `hashForStop`, which turn a URL
-  hash into a stop and back. `cover.ts` holds `nextCover`, the cover limiter.
+  `linkHistory`, which ties the browser's history to the visit. `route.ts` holds `stepForHash`, `hashForStep` and `titleForStep` (and `stopForHash`, `hashForStop`), which turn a URL
+  hash into a stop and page and back, and name the tab. `cover.ts` holds `nextCover`, the cover limiter.
 - **`src/shift/`**: the shift, start to finish. `createShift(reduced)` makes the one shift object; the app
   creates it and passes it to the room and the tour as a prop. Views read `shift.playing` (the shift the
   bar and the desk meter play; null once the visitor leaves its station) and hear changes with

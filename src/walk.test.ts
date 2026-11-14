@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { content, type Content } from "./content";
-import { OVERVIEW, next, prev, up, walk, type Step } from "./walk";
+import { OVERVIEW, next, prev, sameStep, stepAt, stopOf, up, walk, type Step } from "./walk";
 
 const page = (station: string, p: string): Step => ({ kind: "page", station, page: p });
 // Every page of the shipped content, in order, written out from the content itself.
@@ -74,5 +74,29 @@ describe("going up", () => {
   });
   it("stays at the overview", () => {
     expect(up(OVERVIEW)).toEqual(OVERVIEW);
+  });
+});
+
+describe("stops and steps", () => {
+  it("a step's stop is its station's place in the content, 0 for the overview", () => {
+    expect(stopOf(OVERVIEW)).toBe(0);
+    expect(stopOf(page("work", "barracuda"))).toBe(1);
+    expect(stopOf(page("projects", "mediasafe"))).toBe(2);
+    expect(stopOf(page("about", "contact"))).toBe(3);
+    expect(() => stopOf(page("nowhere", "x"))).toThrow(/no such step/);
+  });
+  it("a stop opens on its first page, and the overview on the overview", () => {
+    expect(stepAt(0)).toEqual(OVERVIEW);
+    expect(stepAt(1)).toEqual(page("work", "solace"));
+    expect(stepAt(2)).toEqual(page("projects", "list"));
+    expect(stepAt(3)).toEqual(page("about", "why-i-do-this"));
+    expect(stepAt(9)).toEqual(stepAt(3));
+    expect(stepAt(-1)).toEqual(OVERVIEW);
+  });
+  it("two steps are the same only on the same station and page", () => {
+    expect(sameStep(OVERVIEW, OVERVIEW)).toBe(true);
+    expect(sameStep(OVERVIEW, page("work", "solace"))).toBe(false);
+    expect(sameStep(page("work", "solace"), page("work", "solace"))).toBe(true);
+    expect(sameStep(page("work", "solace"), page("work", "barracuda"))).toBe(false);
   });
 });

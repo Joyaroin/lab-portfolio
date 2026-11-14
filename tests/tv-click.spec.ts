@@ -4,7 +4,7 @@ import { crts, spares } from "../src/crts";
 import { boxAround, glassBox } from "../src/glass";
 import { BEZEL } from "../src/draw";
 import { framingFor } from "../src/framing";
-import { goTo, landedAt, openTour, stationIds, waitForCamera, clickLink, boxOf, waitForPanel, panelOf } from "./lib/page";
+import { barKey, goTo, landedAt, openTour, stationIds, waitForCamera, clickLink, boxOf, waitForPanel, panelOf } from "./lib/page";
 
 // Clicking the TVs on the overview (#176): a pointer cursor and an eased glow (its target is the canvas's data-hover)
 // under the pointer, a click flies there, and at a station a TV takes no click of its own. Under reduced motion a move is a
@@ -275,14 +275,20 @@ test.describe("reduced motion", () => {
     await goTo(page, 2);
     await waitForCamera(page);
     const p = await roomPoint(page, 2, page.viewportSize()!);
-    await goTo(page, 1);
-    await waitForCamera(page);
+    // NEXT crosses to Projects only from Work's last page: go to Work and press NEXT once for its second page (no fade).
+    const toWorkLastPage = async () => {
+      await goTo(page, 1);
+      await barKey(page, "next").click();
+      await expect.poll(() => new URL(page.url()).hash).toBe("#work/barracuda");
+      await waitForCamera(page);
+    };
+    await toWorkLastPage();
     let clickedAt = -1;
     for (let attempt = 0; attempt < 5 && clickedAt < 0; attempt++) {
       const at = await page.evaluate(([x, y]) => new Promise<number>((done) => {
         const next = document.querySelector<HTMLElement>('[data-meter-bar] [data-key="next"]')!, canvas = document.querySelector("canvas")!;
         const t0 = performance.now();
-        next.click(); // NEXT: Work to Projects, a 300 ms fade
+        next.click(); // NEXT: from Work's last page to Projects, a 300 ms fade
         const tick = () => {
           const elapsed = performance.now() - t0;
           if (elapsed < 170) return void requestAnimationFrame(tick);
@@ -296,8 +302,7 @@ test.describe("reduced motion", () => {
       clickedAt = at;
       if (at < 0) { // too late to count: let it settle, put the visitor back at Work and go again
         await landedAt(page, 2);
-        await goTo(page, 1);
-        await waitForCamera(page);
+        await toWorkLastPage();
       }
     }
     expect(clickedAt, "a click was made inside the fade").toBeGreaterThan(0);

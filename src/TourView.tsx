@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState, useSyncExternalStore } from "react";
 import type { MeterLink } from "./nixie";
 import { Tear, type PageTurn } from "./TearView";
-import { fill, stations, ui } from "./content";
+import { stations, ui } from "./content";
 import { Hud, usePortrait } from "./Hud";
-import { barFor, createHover, meterDigits, PREVIEW_REST_MS, previewStop, type BarKey } from "./bar";
+import { barFor, createHover, stopLineFor, meterDigits, PREVIEW_REST_MS, previewStop, type BarKey } from "./bar";
 import { ScreenPanels } from "./text/ScreenPanels";
 import { Meter } from "./Meter";
 import { gapLabel, type Gap } from "./gap";
@@ -40,7 +40,7 @@ function useFocusFollowsVisit(visit: Visit) {
         cancelAnimationFrame(frame);
         // leaving the overview: remember what started it (the page body when a click on a TV did)
         if (e.from.kind === "at" && e.from.stop === 0 && !origin && document.activeElement !== document.body) origin = document.activeElement;
-      } else land(e.stop);
+      } else if (e.type === "land") land(e.stop);
     });
     if (visit.target() >= 1) land(visit.target()); // opened on a station by a direct link
     return off;
@@ -53,6 +53,8 @@ export const prefersReducedMotion = () => window.matchMedia("(prefers-reduced-mo
 // visitor is to the shift and the HUD as it changes. The page does not scroll.
 export function Tour({ gap, visit, meter, shift: shifts }: { gap: Gap | null; visit: Visit; meter: MeterLink; shift: Shift }) {
   const [here, setHere] = useState<Where>(() => visit.where(performance.now()));
+  // The stop and page the visitor is going to: a page move changes it with no change of `here`.
+  const [step, setStep] = useState(() => visit.step());
   // The first landing at a station: the hint (#177) fades after it.
   const [visited, setVisited] = useState(() => visit.target() >= 1);
   // The tour mounts as the meter starts its power-on, and tells the shift so (below). It reports where
@@ -78,10 +80,11 @@ export function Tour({ gap, visit, meter, shift: shifts }: { gap: Gap | null; vi
     const report = () => setHere(visit.where(performance.now()));
     const off = visit.subscribe((e) => {
       if (e.type === "land" && e.stop >= 1) setVisited(true);
-      report();
+      setStep(visit.step());
+      if (e.type !== "page") report(); // a page move is not a move of the camera: the shift has nothing to hear
     });
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && visit.target() >= 1) visit.back();
+      if (e.key === "Escape") visit.up();
       if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
       if (e.key === "ArrowLeft") visit.prev();
       else if (e.key === "ArrowRight") visit.next();
@@ -126,7 +129,7 @@ export function Tour({ gap, visit, meter, shift: shifts }: { gap: Gap | null; vi
   const bar = barFor(here, portrait ? "portrait" : "square");
   const previewed = previewStop(here, preview);
   const shown = meterDigits({ who: "bar", where: here, preview, deploys, now: performance.now(), playing: barShift, reduced });
-  const barLine = previewed !== null ? stationLabel(previewed) : bar.stop === 0 ? gapLine : fill(ui.stopLine, { station: stationLabel(bar.stop), n: bar.stop, total: stations.length });
+  const barLine = previewed !== null ? stationLabel(previewed) : bar.stop === 0 ? gapLine : stopLineFor(bar.stop, step);
   const press = (key: BarKey) => {
     if (key === "prev") visit.prev();
     else if (key === "room") visit.back();
@@ -153,3 +156,4 @@ export function Tour({ gap, visit, meter, shift: shifts }: { gap: Gap | null; vi
 }
 
 const stationLabel = (i: number) => stations[i - 1].name;
+

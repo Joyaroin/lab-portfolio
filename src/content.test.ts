@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { identity } from "./content";
 import { readdirSync } from "node:fs";
 
-import { validateContent, content, pageSwitch, ui, fill, hasPrivateAddress, MAX_BULLETS, type Diagram, type Page } from "./content";
+import { validateContent, content, pageSwitch, ui, fill, hasPrivateAddress, stopLineText, MAX_BULLETS, type Diagram, type Page } from "./content";
 import { WORK_COPY, WORK_LEADS } from "../tests/fixtures/work-copy";
 
 const good = () => structuredClone(content);
@@ -524,12 +524,26 @@ describe("interface words", () => {
     expect([ui.keyPrev, ui.keyRoom, ui.keyNext, ui.keyStart]).toEqual(["PREV", "ROOM", "NEXT", "START"]);
     expect([ui.prevStation, ui.backToRoom, ui.nextStation, ui.startTour]).toEqual(
       ["Previous station", "Back to the room", "Next station", "Start the tour"]);
-    expect(fill(ui.stopLine, { station: "Work", n: 1, total: 5 })).toBe("Work · 1 of 5");
+    expect(fill(ui.stopLine, { station: "Work", page: "Solace", n: 1, total: 3 })).toBe("Work · Solace · 1 of 3");
+    expect(fill(ui.listStopLine, { station: "Projects", n: 2, total: 3 })).toBe("Projects · 2 of 3");
+    expect(fill(ui.stationTitle, { page: "Solace", station: "Work", name: "Adham Sedik" })).toBe("Solace · Work · Adham Sedik");
+    expect(fill(ui.listTitle, { station: "Projects", name: "Adham Sedik" })).toBe("Projects · Adham Sedik");
   });
-  it.each(["station", "n", "total"])("rejects stopLine without {%s}", (ph) => {
-    const c = good();
-    c.ui.stopLine = c.ui.stopLine.replace(`{${ph}}`, "x");
-    expect(validateContent(c).join("\n")).toContain(`ui.stopLine: must contain {${ph}}`);
+  it("the line under the meter names the page, and the Projects list has none", () => {
+    const [work, projects] = content.stations;
+    expect(stopLineText(work, work.pages[0], 1, 3)).toBe("Work · Solace · 1 of 3");
+    expect(stopLineText(projects, projects.pages[0], 2, 3)).toBe("Projects · 2 of 3");
+    expect(stopLineText(projects, projects.pages[2], 2, 3)).toBe("Projects · MediaSafe · 2 of 3");
+  });
+  it.each([
+    ["stopLine", ["station", "page", "n", "total"]], ["listStopLine", ["station", "n", "total"]],
+    ["stationTitle", ["page", "station", "name"]], ["listTitle", ["station", "name"]],
+  ] as const)("rejects %s without a placeholder", (key, phs) => {
+    for (const ph of phs) {
+      const c = good();
+      c.ui[key] = c.ui[key].replace(`{${ph}}`, "x");
+      expect(validateContent(c).join("\n")).toContain(`ui.${key}: must contain {${ph}}`);
+    }
   });
   it("says the gap in the new sentence", () => {
     expect(fill(ui.gapBehind, { n: 9, noun: "deploys" })).toBe("MediaSafe: 9 staging deploys since the last prod release");

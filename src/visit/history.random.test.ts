@@ -2,13 +2,14 @@ import { describe, it, expect } from "vitest";
 import { createVisit, FADE_MS, FLIGHT_MS } from "./visit";
 import { linkHistory, type HistoryHost } from "./history";
 import { STATION_COUNT } from "../hold";
-import { hashForStop, stopForHash, titleForStop } from "./route";
+import { hashForStep, stepForHash, titleForStep } from "./route";
+import { sameStep, stopOf, walk } from "../walk";
 
 /** The visit and history modules over a fake clock and a fake history stack, driven by presses. */
 type Op =
-  | ["go", number] | ["next"] | ["prev"] | ["back"] // the visitor's presses: a TV or HUD link, the keys, Esc / Room
+  | ["go", number] | ["next"] | ["prev"] | ["up"] | ["back"] // the visitor's presses: a TV or HUD link, the keys, Esc, Room
   | ["Back"] | ["Fwd"]; // the browser's buttons
-type Step = [dtMs: number, op: Op];
+type Move = [dtMs: number, op: Op];
 
 function rig(reduced: boolean, startHash = "") {
   const stack = ["./"];
@@ -32,14 +33,15 @@ function rig(reduced: boolean, startHash = "") {
   linkHistory(visit, host);
   const stops: number[] = []; // each fade or flight start, in ms, to check the rate
   visit.subscribe((e) => { if (e.type === "move" && e.from.kind === "at" && e.from.stop !== e.to) stops.push(clock); });
-  const urlStop = () => stopForHash(stack[i] === "./" ? "" : stack[i]);
+  const urlStep = () => stepForHash(stack[i] === "./" ? "" : stack[i]);
   return {
-    visit, stack, stops, urlStop, title: () => doc.title, index: () => i,
+    visit, stack, stops, urlStep, title: () => doc.title, index: () => i,
     advance(ms: number) { clock += ms; visit.where(clock); },
     press(op: Op) {
       if (op[0] === "go") visit.go(op[1]);
       else if (op[0] === "next") visit.next();
       else if (op[0] === "prev") visit.prev();
+      else if (op[0] === "up") visit.up();
       else if (op[0] === "back") visit.back();
       else if (op[0] === "Back") { if (i > 0) { i--; pop(); } }
       else if (i < stack.length - 1) { i++; pop(); }
@@ -49,17 +51,17 @@ function rig(reduced: boolean, startHash = "") {
 }
 
 /** Runs a sequence; returns a description of what is wrong, or null. */
-function check(steps: Step[], reduced: boolean, startHash = ""): string | null {
+function check(steps: Move[], reduced: boolean, startHash = ""): string | null {
   const r = rig(reduced, startHash);
-  let asked = r.visit.target(); // the stop the last press asked for: what the visit's target became right after it
-  for (const [dt, op] of steps) { r.advance(dt); r.press(op); asked = r.visit.target(); }
+  let asked = r.visit.step(); // the step the last press asked for: what the visit's target became right after it
+  for (const [dt, op] of steps) { r.advance(dt); r.press(op); asked = r.visit.step(); }
   r.settle();
   const where = r.visit.where(1e9);
   const at = where.kind === "at" ? where.stop : -1;
-  if (at !== asked) return `visitor ${at}, the last press asked for ${asked}`;
-  if (at !== r.visit.target()) return `visitor ${at} vs target ${r.visit.target()}`;
-  if (r.urlStop() !== at) return `URL shows ${r.urlStop()} (${r.stack[r.index()]}), visitor at ${at}`;
-  if (r.title() !== titleForStop(at)) return `title "${r.title()}", visitor at ${at}`;
+  if (at !== stopOf(asked)) return `visitor ${at}, the last press asked for ${JSON.stringify(asked)}`;
+  if (!sameStep(r.visit.step(), asked)) return `visitor ${at} vs step ${JSON.stringify(r.visit.step())}`;
+  if (!sameStep(r.urlStep(), asked)) return `URL shows ${JSON.stringify(r.urlStep())} (${r.stack[r.index()]}), visitor at ${JSON.stringify(asked)}`;
+  if (r.title() !== titleForStep(asked)) return `title "${r.title()}", visitor at ${JSON.stringify(asked)}`;
   if (r.stack[0] !== "./" && !startHash) return `entry 0 is ${r.stack[0]}`;
   // Back from here reaches the overview without leaving the site, whatever happened.
   let guard = 0;
@@ -70,12 +72,12 @@ function check(steps: Step[], reduced: boolean, startHash = ""): string | null {
 }
 
 /** The reviewer's notation: `x@+N` = advance N ms, then act. Back is the browser's button; back is visit.back(). */
-function parse(text: string): Step[] {
+function parse(text: string): Move[] {
   return text.split(",").map((s) => {
     const [a, d] = s.trim().split("@+");
-    const op: Op = a === "Back" ? ["Back"] : a === "Fwd" ? ["Fwd"] : a === "back" ? ["back"] : a === "next" ? ["next"] : a === "prev" ? ["prev"]
+    const op: Op = a === "Back" ? ["Back"] : a === "Fwd" ? ["Fwd"] : a === "back" ? ["back"] : a === "next" ? ["next"] : a === "prev" ? ["prev"] : a === "up" ? ["up"]
       : ["go", Number(a.slice(3, -1))];
-    return [Number(d), op] as Step;
+    return [Number(d), op] as Move;
   });
 }
 
@@ -88,14 +90,14 @@ function rng(seed: number) {
   };
 }
 
-function randomSteps(rand: () => number): Step[] {
+function randomSteps(rand: () => number): Move[] {
   const n = 3 + Math.floor(rand() * 12);
   const gaps = [0, 10, 20, 100, 120, 200, 350, 1300];
-  return Array.from({ length: n }, (): Step => {
+  return Array.from({ length: n }, (): Move => {
     const dt = gaps[Math.floor(rand() * gaps.length)];
     const k = rand();
-    const op: Op = k < 0.25 ? ["go", 1 + Math.floor(rand() * STATION_COUNT)] : k < 0.4 ? ["next"] : k < 0.5 ? ["prev"] : k < 0.6 ? ["back"]
-      : k < 0.7 ? ["go", 0] : k < 0.85 ? ["Back"] : ["Fwd"];
+    const op: Op = k < 0.25 ? ["go", 1 + Math.floor(rand() * STATION_COUNT)] : k < 0.45 ? ["next"] : k < 0.6 ? ["prev"] : k < 0.65 ? ["up"] : k < 0.7 ? ["back"]
+      : k < 0.75 ? ["go", 0] : k < 0.88 ? ["Back"] : ["Fwd"];
     return [dt, op];
   });
 }
@@ -111,6 +113,9 @@ const FIXED: [string, string][] = [
   ["reviewer 5", "Fwd@+0, go(3)@+350, go(2)@+200, Back@+1300, go(2)@+200, go(2)@+0"],
   ["prev, next and prev mid-move", "go(3)@+1300, prev@+100, next@+20, prev@+20, prev@+500"],
   ["Work, Back mid-fade, Room", "go(1)@+0, Back@+100, go(0)@+20"],
+  ["pages, then a station, then Back", "next@+1300, next@+1300, next@+1300, Back@+0, Back@+0"],
+  ["page moves mid-flight and mid-fade", "next@+0, next@+20, next@+20, next@+400, prev@+10, up@+10"],
+  ["walk into Projects, Esc, Back", "go(2)@+1300, next@+1300, next@+1300, up@+1300, Back@+0, Back@+0"],
 ];
 
 describe("the URL shows where the visitor is", () => {
@@ -127,7 +132,7 @@ describe("the URL shows where the visitor is", () => {
       const r = rig(reduced, "#work");
       expect(r.stack).toEqual(["./", "#work"]);
       r.press(["Back"]);
-      expect(r.urlStop()).toBe(0);
+      expect(r.urlStep()).toEqual({ kind: "overview" });
       expect(r.visit.target()).toBe(0);
     }
   });
@@ -138,7 +143,8 @@ describe("the URL shows where the visitor is", () => {
     for (let seed = 1; seed <= N; seed++) {
       const rand = rng(seed);
       const reduced = seed % 2 === 0;
-      const hash = rand() < 0.2 ? hashForStop(1 + Math.floor(rand() * STATION_COUNT)) : "";
+      const pages = walk().slice(1);
+      const hash = rand() < 0.2 ? hashForStep(pages[Math.floor(rand() * pages.length)]) : "";
       const steps = randomSteps(rand);
       const bad = check(steps, reduced, hash);
       if (bad) failures.push(`seed ${seed} reduced=${reduced} hash=${hash || "-"}: ${bad}`);

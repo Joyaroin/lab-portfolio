@@ -1,4 +1,4 @@
-import { fill, stations, ui } from "./content";
+import { stations, stopLineText, ui } from "./content";
 import { gapLabel } from "./gap";
 
 // How much room the HUD takes at the top and the meter bar at the bottom: one pure rule of the window's
@@ -72,7 +72,7 @@ export function deviceSize(win: Win): { width: number; height: number } {
 // The line under the device (the stop's line, or the gap's sentence at the overview): a line is 18 px of 14.4 px type
 // (16 px of 12.8 px type on a portrait window and on a compact-HUD window, which are short of room), with 4 px of padding
 // above and below and 10 px each side. How many lines it wraps to is worked out from its texts, a monospace character
-// taken as 0.602 of the type's size, wrapped at spaces. The texts are the real ones, built by `gapLabel` and `ui.stopLine`,
+// taken as 0.602 of the type's size, wrapped at spaces. The texts are the real ones, built by `gapLabel` and `stopLineText` (every page of every station),
 // with a count of 100, the most `countGap` returns and the most the save script stores: the longest is the saved gap's
 // sentence (82 characters; a saved gap is always complete, so it never carries "at least"). A compact-HUD window (a short
 // landscape one) shows the short form of the gap's sentence (`ui.gapBehindShort`), 60 characters when saved, which with the
@@ -80,7 +80,8 @@ export function deviceSize(win: Win): { width: number; height: number } {
 // (Adham's decision on #246). The box is never wider than the window less 1 rem, or, in a compact-HUD window, less the HUD's
 // side margins: there the line may run wider than the device.
 const LINE_PAD = 8, LINE_SIDE = 20, LINE_MARGIN = 16, CHAR_EM = 0.602, MOST_DEPLOYS = 100;
-const stopLines = stations.map((s, i) => fill(ui.stopLine, { station: s.name, n: i + 1, total: stations.length }));
+/** The line under the device at every page of every station. */
+export const stopLines = stations.flatMap((s, i) => s.pages.map((p) => stopLineText(s, p, i + 1, stations.length)));
 /** The gap's sentences a window can show (live, live but incomplete, saved), at the largest count. */
 const gapLines = (short: boolean) => [
   { live: true, complete: true }, { live: true, complete: false }, { live: false, complete: true },

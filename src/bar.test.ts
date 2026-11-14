@@ -1,10 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { barFor, createHover, meterDigits, previewStop, PREVIEW_REST_MS, type Preview } from "./bar";
+import { barFor, createHover, meterDigits, previewStop, PREVIEW_REST_MS, stopLineFor, type Preview } from "./bar";
 import { stations } from "./content";
 import { formatReading } from "./gap";
 import { STATION_COUNT } from "./hold";
 import { SHIFT_SECONDS } from "./nixie";
 import { readingAt } from "./tour";
+import { OVERVIEW, type Step } from "./walk";
 import type { Where } from "./where";
 
 const at = (stop: number): Where => ({ kind: "at", stop });
@@ -171,5 +172,32 @@ describe("what the meters show outside a preview", () => {
 
   it("at a stop both show that stop's reading", () => {
     for (let s = 0; s <= STATION_COUNT; s++) for (const who of ["bar", "desk"] as const) expect(digitsOf(who, at(s), null, 0).reading).toBe(Math.round(readingAt(at(s), DEPLOYS)));
+  });
+});
+
+describe("the line under the device", () => {
+  const page = (station: string, p: string): Step => ({ kind: "page", station, page: p });
+  it("names the station, the page and the station's number at a station", () => {
+    expect(stopLineFor(1, page("work", "solace"))).toBe("Work · Solace · 1 of 3");
+    expect(stopLineFor(1, page("work", "barracuda"))).toBe("Work · Barracuda · 1 of 3");
+    expect(stopLineFor(2, page("projects", "mediasafe"))).toBe("Projects · MediaSafe · 2 of 3");
+    expect(stopLineFor(3, page("about", "contact"))).toBe("About me · Contact · 3 of 3");
+  });
+  it("is the station and its number alone on the Projects list", () => {
+    expect(stopLineFor(2, page("projects", "list"))).toBe("Projects · 2 of 3");
+  });
+  it("follows a page move: the same station, another page, another line", () => {
+    expect(stopLineFor(1, page("work", "solace"))).not.toBe(stopLineFor(1, page("work", "barracuda")));
+  });
+  it("shows the station's first page when the visit is on another station (a flight to it)", () => {
+    expect(stopLineFor(3, page("work", "barracuda"))).toBe("About me · Why I do this · 3 of 3");
+    expect(stopLineFor(2, OVERVIEW)).toBe("Projects · 2 of 3");
+  });
+  it("a move inside a station changes neither the reading nor the scramble", () => {
+    const before = meterDigits({ who: "bar", where: at(1), preview: null, deploys: 5, now: 5000, playing: null, reduced: false });
+    const after = meterDigits({ who: "bar", where: at(1), preview: null, deploys: 5, now: 6000, playing: null, reduced: false });
+    expect(after).toEqual(before);
+    expect(after.scramble).toBeNull();
+    expect(after.reading).toBe(stations[0].reading);
   });
 });
