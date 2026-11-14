@@ -12,6 +12,7 @@ Checked against the code on 2026-11-10, at 9e73ff7: each line confirmed against 
 
 ## Commands
 - `make frontend`: `npm ci`, the typecheck, `npm test` and the build
+- `npm run build`: runs `scripts/save-gap.mjs` and `scripts/save-commits.mjs` before the type check. Each reads GitHub anonymously with a 5 s timeout and writes a gitignored `src/*-saved.local.json`. A failed call keeps the saved file: the newer of the local and committed files by `savedAt`, so a build offline or past the rate limit still leaves a valid file. `COMMITS_API=<url>` replaces the commits URL, for the offline run: `COMMITS_API=https://invalid.example heavy npm run build`. Run builds through `heavy`
 - `make integration`: `make frontend`, then the integration test
 - `make browser`: the full Playwright suite. Installs browsers and system packages only in CI
 - `make browser-light`: the `browser` recipe without `@timing` and `@render`. Passes `PW_ARGS` through

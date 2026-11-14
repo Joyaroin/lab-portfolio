@@ -1,0 +1,105 @@
+{
+  "savedAt": "2026-11-14T22:08:15.371Z",
+  "commits": [
+    {
+      "sha7": "6a9fac2",
+      "subject": "Every station has pages, the walk order is a pure module, and the world lines go"
+    },
+    {
+      "sha7": "a942160",
+      "subject": "Photo: prepare the About me photo and test it has no metadata"
+    },
+    {
+      "sha7": "bff4c24",
+      "subject": "Docs: README is set up for the GitHub mirror"
+    },
+    {
+      "sha7": "067229f",
+      "subject": "Docs: README's release step no longer names screenshots"
+    },
+    {
+      "sha7": "5a41730",
+      "subject": "Docs: README leads with what a hiring reader needs"
+    },
+    {
+      "sha7": "c10e318",
+      "subject": "Release: no screenshots job; staging waits for the image and the browser suite"
+    },
+    {
+      "sha7": "92d800a",
+      "subject": "Copy: the home lab is one host and one k3s node, and PR CI isn't the full suite"
+    },
+    {
+      "sha7": "a8b8e7c",
+      "subject": "Docs: no PR browser specs but the screenshots; README, Makefile and ci.yml comments say where the full suite runs"
+    },
+    {
+      "sha7": "0285fed",
+      "subject": "CI: run the full browser suite before staging, not on every PR"
+    },
+    {
+      "sha7": "3665c71",
+      "subject": "Test: the glass check waits for the hint to go before sampling"
+    },
+    {
+      "sha7": "37d0f4d",
+      "subject": "CI: run again to check boot.spec:462 under llvmpipe"
+    },
+    {
+      "sha7": "5d2a68d",
+      "subject": "CI: draw WebGL on Mesa's llvmpipe instead of SwiftShader"
+    },
+    {
+      "sha7": "19d3455",
+      "subject": "Config test: CI runs 3 workers, a Mac without TEST_PORT keeps the default"
+    },
+    {
+      "sha7": "4e05bef",
+      "subject": "Lighter browser suite: one speed per flash-limit path, 3 CI workers"
+    },
+    {
+      "sha7": "6fa0007",
+      "subject": "Tests: two timing races that only show on a CPU-drawing runner"
+    },
+    {
+      "sha7": "1027f5b",
+      "subject": "CI: draw on the CPU now that echoes has no GPU"
+    },
+    {
+      "sha7": "e319fcc",
+      "subject": "Crop the 48 px favicon close on the lit numeral; the touch icon stays the whole tube"
+    },
+    {
+      "sha7": "d2c0df9",
+      "subject": "Add make favicon: a lit nixie 0 on the tab, with an Apple touch icon"
+    },
+    {
+      "sha7": "c07124d",
+      "subject": "Commit the link preview image (1200x630, 831 KB)"
+    },
+    {
+      "sha7": "92008a5",
+      "subject": "Add make og-image and the og:image head tags (image not committed yet: framing question open)"
+    },
+    {
+      "sha7": "f226d61",
+      "subject": "Drop two line numbers from CONTEXT.md; restamp testing facts at 9e73ff7"
+    },
+    {
+      "sha7": "fbc79a6",
+      "subject": "The tab title names the station; Software factory says 100+ merged pull requests"
+    },
+    {
+      "sha7": "7ebf754",
+      "subject": "Put the résumé's source in the repo, built by make resume, and list the software factory (#260)"
+    },
+    {
+      "sha7": "24232f6",
+      "subject": "Write the page's head tags and every station's text into the HTML from the content module (#259)"
+    },
+    {
+      "sha7": "82aeddf",
+      "subject": "README opens for visitors; delete unused docs/screenshots (#261)"
+    }
+  ]
+}

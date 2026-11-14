@@ -3,5 +3,6 @@ dist
 test-results
 playwright-report
 src/gap-saved.local.json
+src/commits-saved.local.json
 shots-out
 __pycache__/
