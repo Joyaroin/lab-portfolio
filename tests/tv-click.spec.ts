@@ -136,6 +136,45 @@ test.describe("desktop window", () => {
   });
 });
 
+// The pins (#293) and the TVs light together: the TV's glow is `data-lit` on the canvas (the id of the TV whose glow is rising), the pin's its own `data-lit`.
+test.describe("the pins and the TVs together (1440 x 900)", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+  const pinOf = (page: Page, i: number) => page.locator(`[data-pin="${stationIds[i]}"]`);
+  const lit = (page: Page) => page.locator("canvas").first().getAttribute("data-lit");
+
+  test("hovering a TV lights its pin, and hovering a pin lights its TV; both go out when the pointer leaves", async ({ page }) => {
+    await openTour(page);
+    await landedAt(page, 0);
+    await waitForCamera(page);
+    const size = page.viewportSize()!;
+    for (const i of [0, 1, 2]) {
+      const g = glassAt(i, 0, size);
+      await page.mouse.move(g.x, g.y);
+      await expect.poll(() => lit(page)).toBe(stationIds[i]);
+      await expect(pinOf(page, i), "the pin is lit with its TV").toHaveAttribute("data-lit", "");
+      await page.mouse.move(720, 2);
+      await expect.poll(() => lit(page)).toBeNull();
+      await expect(pinOf(page, i)).not.toHaveAttribute("data-lit", "");
+      await pinOf(page, i).hover();
+      await expect.poll(() => lit(page), "the TV glows with its pin").toBe(stationIds[i]);
+      await expect(pinOf(page, i)).toHaveAttribute("data-lit", "");
+      expect(await hover(page), "the pointer is on the pin, not on the TV").toBeNull();
+      await page.mouse.move(720, 2);
+      await expect.poll(() => lit(page)).toBeNull();
+    }
+  });
+
+  test("a click on a pin does what a click on its TV does: lands on its station with its text showing", async ({ page }) => {
+    await openTour(page);
+    await landedAt(page, 0);
+    await waitForCamera(page);
+    await pinOf(page, 0).click();
+    await landedAt(page, 1);
+    await expect(page.locator(`[data-screen="${stationIds[0]}"]`)).toBeVisible();
+    await expect.poll(() => lit(page), "nothing glows at a station").toBeNull();
+  });
+});
+
 test.describe("a click on the room at a station (1440 x 900)", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
