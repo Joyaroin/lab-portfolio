@@ -16,10 +16,12 @@ They are decoration, with no click and no hover.
 - **Otherwise they stop.** At a station, in a flight, in the portrait framing and under reduced motion the timer is
   off and nothing draws: the idle rule (a room at rest draws no frames) still holds everywhere but the landscape
   overview, where it gives way to the screens. A flight and the camera's easing draw frames as before.
-- **A still frame on phones and under reduced motion.** Where the screens don't redraw, each holds one still frame,
+- **A still frame in the portrait framing and under reduced motion.** Where the screens don't redraw, each holds one still frame,
   drawn at `STILL_T` (`src/ambient/still.ts`): the newest commits at the top, the dots in place, "SECURE" solved. When
   the timer stops it puts that frame back, so a screen never freezes half-way through a move.
 
 The cost, and why it is accepted: the landscape overview draws about 12 frames a second for as long as the visitor
-rests there, on a desktop. A phone, where the battery matters most, gets the still frame. If that cost turns out too
-high, lower the rate in `REDRAW_MS` before removing the screens.
+rests there, on a desktop. A phone held upright (portrait framing), where the battery matters most, gets the still
+frame; a phone held sideways uses the landscape framing and redraws at about 12 frames a second too. If that cost turns
+out too high, raise `REDRAW_MS` (the milliseconds between redraws, so a larger value redraws less often and costs less)
+before removing the screens.
