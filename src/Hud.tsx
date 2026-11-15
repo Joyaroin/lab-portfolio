@@ -1,8 +1,8 @@
 import { useEffect, useState, useSyncExternalStore, type CSSProperties } from "react";
-import { identity, links, stations, ui } from "./content";
+import { identity, links, RESUME, stations, ui } from "./content";
 import {
   BUTTON_PX, clearances, COMPACT_GAP, COMPACT_LINE_H, HUD_GAP, HUD_MARGIN, hudTier, LINK_ROW_H, LINK_ROW_W, NAME_BLOCK_W, PHONE_COLS, PHONE_GAP_PX,
-  PHONE_MENU_H, PHONE_PAD_PX,
+  PHONE_MENU_H, PHONE_PAD_PX, resumeIsButton,
 } from "./pin";
 import { useWin } from "./useWin";
 import type { Visit } from "./visit";
@@ -22,18 +22,19 @@ export function usePortrait() {
 }
 
 // The always-on overlay (#222). On a landscape window: a name block at the top left (name, title, availability)
-// and a row of links: Room and the stations, a divider, then the outside links. From ONE_ROW_MIN_W (src/pin.ts)
-// the two share a line; narrower, the row has its own line under the name block, and from under TWO_LINE_MIN_W (the row's box plus both margins)
+// and a row of links: Overview and the stations, a divider, then the outside links, with Résumé as a button. From ONE_ROW_MIN_W (src/pin.ts, 1060 px)
+// the two share a line; narrower, the row has its own line under the name block, and from under TWO_LINE_MIN_W (616 px: the row's box plus both margins)
 // it wraps as two whole groups, so the HUD has three lines. On a short landscape window (`hudTier`, src/pin.ts) the HUD is compact: name, title
-// and outside links on one line and the stops under it, or from under COMPACT_MIN_W three short lines. On a portrait window the name block spans the top with the outside links (no
-// availability line) and Room and the stations are a bottom menu, three to a row. Fixed, so it is reachable at every
-// point. The station links are real #id links that fly to that station; Room flies back to the overview.
+// and outside links on one line (Résumé a link there) and the stops under it, or from under COMPACT_MIN_W three short lines. On a portrait window the name block
+// spans the top with the outside links (no availability line) and Overview and the stations are a one-row bottom bar of four buttons. Fixed, so it is
+// reachable at every point. The station links are real #id links that fly to that station; Overview flies back to the overview.
+// On the overview, until the first landing, the Start button (and "or click a monitor" under it) stands above the meter bar.
 // `onPoint` tells the tour which station link the pointer is on (by number, null off them): the hover preview (#228). It is
 // pointer events only, never focus, and never touch.
 // It owns what #177 changes: the parts that depend on where the visitor is and on whether they have
 // visited a station yet (`visited`, set on the first landing at one), and the meter bar's bottom offset
 // (the CSS variable --meter-bottom, which the bar's wrapper reads). The sizes that matter (the boxes, the
-// clearances, the hint's height) come from src/pin.ts, so the fitting rule and the HUD can't drift apart.
+// clearances, the Start button's height) come from src/pin.ts, so the fitting rule and the HUD can't drift apart.
 export function Hud({ where, visited, visit, onPoint }: { where: Where; visited: boolean; visit: Visit; onPoint?: (stop: number | null) => void }) {
   const win = useWin();
   const tier = hudTier(win); // the same rule the clearances follow (src/pin.ts)
@@ -43,14 +44,14 @@ export function Hud({ where, visited, visit, onPoint }: { where: Where; visited:
   useEffect(() => {
     document.documentElement.style.setProperty("--meter-bottom", portrait ? PHONE_METER_BOTTOM : METER_BOTTOM);
   }, [portrait]);
-  // The hint shows on the overview until the first landing at a station, then fades and stays gone (in memory).
-  const [hintGone, setHintGone] = useState(false);
+  // The Start button shows on the overview until the first landing at a station, then fades and stays gone (in memory).
+  const [startGone, setStartGone] = useState(false);
   useEffect(() => {
     if (!visited) return;
-    const t = setTimeout(() => setHintGone(true), 600); // after the fade
+    const t = setTimeout(() => setStartGone(true), 600); // after the fade
     return () => clearTimeout(t);
   }, [visited]);
-  const hintShown = !hintGone;
+  const startShown = !startGone;
   const stop = where.kind === "at" ? where.stop : -1; // during a flight no link is current
   const look = (i: number, base: CSSProperties, current: CSSProperties) => (stop === i ? { ...base, ...current } : base);
   const stopLink = portrait ? button : compact ? linkCompact : link;
@@ -67,12 +68,22 @@ export function Hud({ where, visited, visit, onPoint }: { where: Where; visited:
     </>
   );
   // The outside links open a new tab; the mark is decoration, so it is out of the link's name.
+  // Résumé is a button where the tier has room for it (`resumeIsButton`, src/pin.ts), and a link in the compact HUD.
   const outside = links.map((l) => (
-    <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer" style={compact ? linkTight : link}>{l.label}<span aria-hidden="true" style={compact ? undefined : { marginLeft: 4 }}>↗</span></a>
+    <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer"
+      style={l.href === RESUME.href && resumeIsButton(tier) ? resumeButton : compact ? linkTight : link}>{l.label}<span aria-hidden="true" style={compact ? undefined : { marginLeft: 4 }}>↗</span></a>
   ));
   return (
     <>
-    {hintShown && <div role="status" data-hint style={{ ...hint, bottom: clearances(win).bottom + HINT_GAP, opacity: visited ? 0 : 1 }}>{portrait ? ui.hintPortrait : ui.hintLandscape}</div>}
+    {startShown && (
+      // Gone after the first landing: faded, then out of the tab order (visibility) at once the fade ends, then removed.
+      <div data-start style={{ ...startBox, bottom: clearances(win).bottom + START_GAP, opacity: visited ? 0 : 1, visibility: visited ? "hidden" : "visible" }}>
+        <button type="button" style={portrait ? startButtonPhone : startButton} onClick={() => visit.go(1)}>
+          {ui.hud.start} <small style={startCount}>{ui.hud.startCount}</small>
+        </button>
+        <div style={startOr}>{portrait ? ui.hud.startOrPortrait : ui.hud.startOrLandscape}</div>
+      </div>
+    )}
     <nav aria-label={ui.hudLabel} style={portrait ? hudPhone : oneRow ? hudOneRow : compact ? hudCompact : hudTwoLines}>
       {compact ? (
         // Two lines: name, title and the outside links, then the stops. Three (under COMPACT_MIN_W): the outside links get a line.
@@ -113,8 +124,8 @@ export function Hud({ where, visited, visit, onPoint }: { where: Where; visited:
   );
 }
 
-/** The hint line stands this far above the bottom clearance, so it clears the meter device. */
-const HINT_GAP = 8;
+/** The Start button's box stands this far above the bottom clearance, so it clears the meter device. */
+const START_GAP = 8;
 /** The HUD's text is never under this (px). */
 const HUD_FONT = 14;
 const INK = "#05080a", GREEN = "#7dffb0", AMBER = "#ffb347";
@@ -143,7 +154,7 @@ const linkRowOne: CSSProperties = { ...linkRowBase, flexWrap: "nowrap", maxWidth
 const linkRowOwnLine: CSSProperties = { ...linkRowBase, maxWidth: "100%" };
 const groupStyle: CSSProperties = { display: "flex", flexWrap: "wrap", alignItems: "center", columnGap: 8, rowGap: 4 };
 // A landscape group never wraps inside itself: when the row is too narrow for both it wraps between the groups, so
-// no line holds a single link. Narrower than the stations group plus both margins (about 540 px) it overflows instead.
+// no line holds a single link. Narrower than the stations group plus both margins (about 335 px) it overflows instead.
 const groupWhole: CSSProperties = { ...groupStyle, flexWrap: "nowrap", flex: "none" };
 const divider: CSSProperties = { width: 1, height: "1.1em", background: "#2f7a4d", margin: "0 6px" };
 const menuBar: CSSProperties = {
@@ -153,7 +164,7 @@ const menuBar: CSSProperties = {
 const button: CSSProperties = {
   color: GREEN, border: `1px solid ${GREEN}`, borderRadius: 4, display: "flex", alignItems: "center",
   justifyContent: "center", textAlign: "center", fontSize: HUD_FONT, lineHeight: 1.1, minHeight: BUTTON_PX, boxSizing: "border-box",
-  fontWeight: "normal", background: "transparent",
+  fontWeight: "normal", background: "transparent", textDecoration: "none",
 };
 // The current stop: heavier and filled, not only a different colour.
 const here: CSSProperties = { color: INK, background: GREEN, fontWeight: "bold" };
@@ -164,7 +175,21 @@ const linkCompact: CSSProperties = { color: GREEN, padding: "4px 5px", fontWeigh
 // links leave COMPACT_SLACK of room at COMPACT_MIN_W (src/pin.ts).
 const linkTight: CSSProperties = { ...linkCompact, padding: "4px" };
 const link: CSSProperties = { color: GREEN, padding: "5px 5px", fontWeight: "normal", background: "transparent", whiteSpace: "nowrap" };
-const hint: CSSProperties = {
-  position: "fixed", left: 0, right: 0, zIndex: 15, textAlign: "center",
-  color: AMBER, fontSize: "0.9rem", pointerEvents: "none", transition: "opacity 0.5s",
+// The Start button: the filled green the current stop has, so it reads as the main thing on the overview. The box round it ignores
+// the pointer (the room's monitors stay clickable beside it); only the button takes it.
+const startBox: CSSProperties = {
+  position: "fixed", left: 0, right: 0, zIndex: 15, display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+  pointerEvents: "none", transition: "opacity 0.5s, visibility 0s 0.5s",
+};
+const startButton: CSSProperties = {
+  pointerEvents: "auto", cursor: "pointer", background: GREEN, color: INK, border: 0, borderRadius: 8, padding: "10px 18px", minHeight: BUTTON_PX,
+  fontFamily: "inherit", fontWeight: 700, fontSize: 16, lineHeight: 1.3, boxShadow: "0 0 22px rgba(125,255,176,0.35)",
+};
+const startButtonPhone: CSSProperties = { ...startButton, padding: "8px 14px", fontSize: HUD_FONT };
+const startCount: CSSProperties = { fontWeight: 400, fontSize: HUD_FONT, opacity: 0.75 };
+const startOr: CSSProperties = { color: AMBER, fontSize: "0.9rem", textShadow: "0 0 6px #05080a, 0 0 2px #05080a" };
+// Résumé as a button: an amber outline round the link. Its box is as tall as a link's (a 1 px border and 4 px of padding for a link's 5),
+// so the HUD's lines and the phone top (PHONE_TOP) keep their heights; it is wider, which is why the compact HUD keeps a link.
+const resumeButton: CSSProperties = {
+  ...link, color: AMBER, border: `1px solid ${AMBER}`, borderRadius: 4, padding: "4px 8px", boxSizing: "border-box",
 };

@@ -212,8 +212,8 @@ const css = `
 .crt-panel { display: flex; flex-direction: column; }
 .crt-panel > * { flex: none; }
 .crt-foot { position: sticky; bottom: -0.9em; margin: auto -1em -0.9em; padding: 0.5em 1em 0.9em; display: flex; flex-wrap: wrap; gap: 0.5em; z-index: 1;
-  border-top: 1px solid rgba(125,255,176,0.2); background: rgba(4,20,11,0.97); }
-.crt-panel[data-glass="true"] .crt-foot { bottom: -0.6em; margin: auto -1.2em -0.6em; padding: 0.5em 1.2em 0.6em; background: rgba(2,10,5,0.95); }
+  border-top: 1px solid rgba(125,255,176,0.2); background: #04140b; }
+.crt-panel[data-glass="true"] .crt-foot { bottom: -0.6em; margin: auto -1.2em -0.6em; padding: 0.5em 1.2em 0.6em; background: #020a05; }
 .crt-more { bottom: calc(var(--foot-h, 0px) - 0.9em); }
 .crt-panel[data-glass="true"] .crt-more { bottom: calc(var(--foot-h, 0px) - 0.6em); }
 .crt-tab, .crt-btn, .crt-row { font: inherit; color: #b4ffd0; text-shadow: inherit; cursor: pointer; text-align: left;

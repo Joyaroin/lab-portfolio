@@ -3,7 +3,7 @@ import { fill, stations, ui } from "./content";
 import { gapLabel } from "./gap";
 import {
   BUTTON_PX, clearances, COMPACT_GAP, COMPACT_LINE_H, COMPACT_MIN_W, COMPACT_SLACK, COMPACT_TOP_W, deviceSize, fitPanel, glassFontSize, HUD_GAP, HUD_MARGIN,
-  hudTier, lineHeight, lineMaxWidth, lineTexts, lineType, LINK_ROW_H, stopLines, LINK_ROW_W, MIN_PANEL_H, NAME_BLOCK_H, NAME_BLOCK_W, ONE_ROW_MIN_W, PHONE_MENU_H, TWO_LINE_MIN_W,
+  hudTier, lineHeight, lineMaxWidth, lineTexts, lineType, LINK_ROW_H, stopLines, LINK_ROW_W, MIN_PANEL_H, NAME_BLOCK_H, NAME_BLOCK_W, ONE_ROW_MIN_W, PHONE_MENU_H, PHONE_ROWS, resumeIsButton, TWO_LINE_MIN_W,
 } from "./pin";
 
 // fitPanel only places text pinned beside the CRT, which only a portrait window does (src/framing).
@@ -167,7 +167,7 @@ describe("clearances", () => {
         if (height - c.top - c.bottom < MIN_PANEL_H) dips++;
       }
     }
-    expect(checked).toBeGreaterThan(10000);
+    expect(checked).toBeGreaterThan(8000); // the two-line HUD (126 px) now holds from 616 px wide, so fewer short windows are compact
     expect(dips).toBe(0);
     for (const [width, height] of [[680, 360], [660, 365]]) {
       const c = clearances({ width, height });
@@ -176,11 +176,12 @@ describe("clearances", () => {
   });
   it("on portrait the bottom is the menu, 16, the device and the line", () => {
     const win = { width: 390, height: 844 };
-    const rows = Math.ceil((stations.length + 1) / 3); // Room and one button per station, three to a row
+    const rows = Math.ceil((stations.length + 1) / 4); // Overview and one button per station, four to a row
     const menu = rows * 44 + (rows - 1) * 4.8 + 2 * 6.4; // 44 px buttons, the gaps and the padding
     expect(PHONE_MENU_H).toBeCloseTo(menu, 6);
-    expect(stations.length, "three stations and Room: two rows of three, 105.6 px (the phone bar ticket makes it one row)").toBe(3);
-    expect(PHONE_MENU_H).toBeCloseTo(105.6, 6);
+    expect(stations.length, "three stations and Overview: one row of four, 56.8 px").toBe(3);
+    expect(PHONE_ROWS).toBe(1);
+    expect(PHONE_MENU_H).toBeCloseTo(56.8, 6);
     expect(clearances(win).bottom).toBeCloseTo(menu + 16 + 118.8 + lineHeight(win), 1);
     expect(clearances(win).top).toBe(96);
   });
@@ -193,21 +194,29 @@ describe("clearances", () => {
     expect(clearances({ width: 1920, height: 1080 }).top).toBe(oneRow);
     expect(clearances({ width: ONE_ROW_MIN_W - 1, height: 900 }).top).toBe(twoLine);
     expect(clearances({ width: 1280, height: 800 }).top).toBe(oneRow); // 1280 x 800 keeps the one-row HUD
-    expect(clearances({ width: 1279, height: 800 }).top).toBe(twoLine);
+    expect(clearances({ width: 1059, height: 800 }).top).toBe(twoLine);
     expect(clearances({ width: 1024, height: 768 }).top).toBe(twoLine);
     expect(clearances({ width: TWO_LINE_MIN_W, height: 600 }).top).toBe(twoLine);
     expect(clearances({ width: TWO_LINE_MIN_W - 1, height: 600 }).top).toBe(threeLine);
-    expect(clearances({ width: 800, height: 600 }).top).toBe(threeLine);
-    expect(clearances({ width: 700, height: 500 }).top).toBe(threeLine);
+    // the real row is on one line down to 608 px, so there is no third line between 616 and 836 px to reserve room for
+    expect(clearances({ width: 800, height: 600 }).top).toBe(twoLine);
+    expect(clearances({ width: 700, height: 500 }).top).toBe(twoLine);
+    expect(clearances({ width: 600, height: 600 }).top).toBe(threeLine);
     expect(clearances({ width: 390, height: 844 }).top).toBe(96);
   });
   it("ONE_ROW_MIN_W is worked out from the HUD's boxes: name block, link row, the gap and both margins", () => {
     expect(ONE_ROW_MIN_W).toBe(NAME_BLOCK_W + HUD_GAP + LINK_ROW_W + 2 * HUD_MARGIN);
+    expect(ONE_ROW_MIN_W).toBe(1060);
     expect(ONE_ROW_MIN_W).toBeLessThanOrEqual(1280); // so a 1280 x 800 window gets the one-row HUD
   });
   it("TWO_LINE_MIN_W is worked out from the link row's box and both margins: under it the row wraps as two whole groups", () => {
     expect(TWO_LINE_MIN_W).toBe(LINK_ROW_W + 2 * HUD_MARGIN);
+    expect(TWO_LINE_MIN_W).toBe(616);
     expect(TWO_LINE_MIN_W).toBeLessThan(1024); // so 1024 x 768 keeps the two-line HUD
+    // The row as the browser measured it (Mac, 14 px): Overview, Work, Projects, About me (299.27), the divider (13), then Résumé as a button,
+    // LinkedIn and GitHub (259.38) is 571.64 px, so the box has 8 px for a wider font, and the margins on both sides fit in 616 px.
+    expect(LINK_ROW_W).toBeGreaterThanOrEqual(571.64);
+    expect(LINK_ROW_W - 571.64).toBeLessThan(10);
   });
   it("on a short landscape window the HUD is compact: two lines from COMPACT_MIN_W wide, three under it, with the top clearance they need", () => {
     const two = HUD_MARGIN + 2 * COMPACT_LINE_H + COMPACT_GAP, three = HUD_MARGIN + 3 * COMPACT_LINE_H + 2 * COMPACT_GAP;
@@ -223,16 +232,17 @@ describe("clearances", () => {
     }
   });
   it("the compact HUD is picked when the width's tier would leave the panel under its floor, and not before", () => {
-    const tiers = [[1440, 900], [1280, 800], [1024, 768], [800, 600], [700, 500], [835, 470], [896, 414], [640, 480]];
+    const tiers = [[1440, 900], [1280, 800], [1024, 768], [800, 600], [700, 500], [835, 470], [896, 414], [640, 480], [600, 520]];
     for (const [width, height] of tiers) expect(hudTier({ width, height }), `${width}x${height}`).not.toMatch(/compact/);
     // the limit for each width's tier: its top, the panel's floor and the bottom clearance
     // and the line under the device as the full HUD has it: 44 px (two lines) at 700 wide, 26 px (one) at 1024 and 1440
-    for (const [width, top, line] of [[700, 162, 44], [1024, 126, 26], [1440, 90, 26]]) {
+    for (const [width, top, line] of [[600, 162, 44], [700, 126, 44], [1024, 126, 26], [1440, 90, 26]]) {
       const limit = top + MIN_PANEL_H + deviceSize({ width, height: 300 }).height + 16 + line; // landscape at any height
       expect(hudTier({ width, height: Math.ceil(limit) }), `${width} at ${limit}`).not.toMatch(/compact/);
       expect(hudTier({ width, height: Math.ceil(limit) - 1 }), `${width} at ${limit - 1}`).toMatch(/compact/);
     }
-    expect(hudTier({ width: 700, height: 500 })).toBe("threeLine");
+    expect(hudTier({ width: 700, height: 500 })).toBe("twoLine");
+    expect(hudTier({ width: 600, height: 520 })).toBe("threeLine");
     expect(hudTier({ width: 390, height: 844 })).toBe("phone"); // a portrait window never goes compact
   });
   it("the compact tiers leave the panel at least its floor at the sizes they are for, and the glass above the device", () => {
@@ -250,5 +260,9 @@ describe("clearances", () => {
   });
   it("the phone menu's height comes from the button, gap, padding and rows", () => {
     expect(BUTTON_PX).toBe(44);
+  });
+  it("Résumé is a button in every tier but the compact two, where its box would eat the first line's slack", () => {
+    for (const tier of ["phone", "oneRow", "twoLine", "threeLine"] as const) expect(resumeIsButton(tier), tier).toBe(true);
+    for (const tier of ["compactTwo", "compactThree"] as const) expect(resumeIsButton(tier), tier).toBe(false);
   });
 });
