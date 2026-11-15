@@ -496,8 +496,8 @@ describe("page controls words", () => {
 // Every other word the app shows or announces: the HUD, the meter's labels, the boot log, the signal
 // lost screen, the gap's sentence. They move here from the components, so validation covers them.
 describe("interface words", () => {
-  const EMPTY_GROUPS = ["photo"];
-  const GROUPS = [...EMPTY_GROUPS, "pageControls", "hud", "pins", "ambient"];
+  const EMPTY_GROUPS: string[] = [];
+  const GROUPS = [...EMPTY_GROUPS, "photo", "pageControls", "hud", "pins", "ambient"];
   const keys = Object.keys(ui).filter((k) => !GROUPS.includes(k));
   it("accepts the shipped words", () => {
     expect(validateContent(content)).toEqual([]);
@@ -508,6 +508,14 @@ describe("interface words", () => {
     expect(validateContent(c).join("\n")).toContain(`ui.${k}: missing`);
     (c.ui as unknown as Record<string, string>)[k] = " ";
     expect(validateContent(c).join("\n")).toContain(`ui.${k}: missing`);
+  });
+  it("has the photo's alt text (#287), and validateContent walks the group", () => {
+    expect(ui.photo).toEqual({ alt: "Adham Sedik, smiling, in glasses and a black polo" });
+    const c = good();
+    delete (c.ui as Record<string, unknown>).photo;
+    expect(validateContent(c).join("\n")).toContain("ui.photo: missing");
+    (c.ui.photo as Record<string, string>) = { alt: " " };
+    expect(validateContent(c).join("\n")).toContain("ui.photo.alt: missing");
   });
   it.each(EMPTY_GROUPS)("has an empty %s group for a later ticket, which validateContent walks", (g) => {
     const group = (ui as Record<string, unknown>)[g];
