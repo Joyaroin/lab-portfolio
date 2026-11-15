@@ -96,7 +96,8 @@ test("desktop 1280x800: the About me pages have no diagram", async ({ page }) =>
   for (const id of ["why-i-do-this", "off-the-keyboard", "contact"]) {
     await tab(page, "about", id).click();
     await expect(tab(page, "about", id)).toHaveAttribute("aria-current", "page");
-    await expect(panelOf(page, "about").locator("figure")).toHaveCount(0);
+    // a diagram is the `data-diagram` figure; the photo on the first page is a figure too (#287), so `figure` alone would catch it
+    await expect(panelOf(page, "about").locator("[data-diagram]")).toHaveCount(0);
   }
   await page.screenshot({ path: "test-results/diagram-1280x800-contact.png" });
 });
