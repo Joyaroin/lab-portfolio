@@ -14,6 +14,18 @@ describe("the words", () => {
 });
 
 describe("puzzleFrame", () => {
+  it("gives a frame for a negative t, the word before time zero going round the other way", () => {
+    const f = puzzleFrame(-1);
+    expect(f.word).toBe("SECURE");
+    expect(f.text).toHaveLength(f.word.length);
+    expect(puzzleFrame(-CYCLE_MS).word).toBe("SECURE");
+    expect(puzzleFrame(-CYCLE_MS - 1).word).toBe("MAINTAINABLE");
+    for (const t of [-1, -77, -3 * CYCLE_MS, -12345, -1e6]) {
+      const g = puzzleFrame(t);
+      expect(g.text).toHaveLength(g.word.length);
+      expect(g.text).not.toContain("undefined"); // a glyph looked up at a negative index
+    }
+  });
   const turn = (i: number, local: number) => puzzleFrame(i * CYCLE_MS + local);
   it("starts each turn scrambled, with the decoding status", () => {
     WORDS.forEach((w, i) => {

@@ -27,14 +27,14 @@ export type PuzzleFrame = {
 };
 
 export function puzzleFrame(t: number): PuzzleFrame {
-  const word = WORDS[Math.floor(t / CYCLE_MS) % WORDS.length];
+  const word = WORDS[wrap(Math.floor(t / CYCLE_MS), WORDS.length)];
   const local = wrap(t, CYCLE_MS);
   const decoded = Math.min(word.length, Math.floor(Math.max(0, local - LEAD_MS) / LETTER_MS));
   const scrambling = local > CYCLE_MS - SCRAMBLE_MS;
   let text = "";
   for (let i = 0; i < word.length; i++) {
     if (!scrambling && i < decoded) { text += word[i]; continue; }
-    let g = GLYPHS[(Math.floor(t / 60) + i * 7) % GLYPHS.length];
+    let g = GLYPHS[wrap(Math.floor(t / 60) + i * 7, GLYPHS.length)];
     if (g === word[i]) g = GLYPHS[(GLYPHS.indexOf(g) + 1) % GLYPHS.length]; // a letter is never decoded by chance
     text += g;
   }
