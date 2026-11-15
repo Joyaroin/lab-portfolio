@@ -51,8 +51,9 @@ const PLAIN_GLASS_BEST = 0.3;
  *  lit and seen at an angle, so what is left after taking the plain glass away is shading, not a card: it scored
  *  0.12 to 0.33 on the three spares when sampled on the phosphor plane (0.12 to 0.29 when sampled on the baked
  *  glass's corners, the sampling this replaced, which put the spares just under 0.3 and the bench TV's card at 0.21).
- *  The stations' own cards score 0.58 or more, so 0.45 sits between the two. */
-const SPARE_GLASS_BEST = 0.45;
+ *  On CI's renderer (Mesa llvmpipe) the spares score 0.28 to 0.29 and the weakest station card 0.49; on the Mac
+ *  the weakest spare (spare-work) scores 0.33. So 0.4 leaves about 0.1 on both sides on CI and still passes on the Mac. */
+const SPARE_GLASS_BEST = 0.4;
 
 /** The map from the glass's own (u, v) in 0..1 to window pixels, as nine numbers (a homography). */
 function homography(c: { x: number; y: number }[]) {
