@@ -3,10 +3,10 @@ import { createRef, useEffect, useMemo, useRef, type MutableRefObject } from "re
 import type { Mesh, MeshBasicMaterial } from "three";
 import { framingFor } from "./framing";
 import type { Where } from "./where";
-import { crts, spares, CRT_GLASS, type Crt } from "./crts";
+import { crts, spares, CRT_GLASS, PLANE_INSET, phosphorFrame } from "./crts";
 import { stations } from "./content";
 import { CARD_PX, drawPhosphor } from "./card";
-import { SCREEN_LAYER, canvas, texture } from "./draw";
+import { canvas, texture } from "./draw";
 
 // ---------------------------------------------------------------- CRT phosphor
 // The baked glass is a flat green block. Each CRT gets a phosphor screen over it: a dark glass
@@ -18,14 +18,6 @@ import { SCREEN_LAYER, canvas, texture } from "./draw";
 // The bench TV is the Projects station's, drawn like any other station: a card, then the text on the glass.
 // The three spare CRTs get the clear phosphor glass and nothing else: no card, no bezel layer, no hover glow and no click
 // (a click on one is a click on the room), and it never changes.
-
-/** How much smaller than the glass the phosphor plane is, so it stays inside the bezel. */
-const PLANE_INSET = 0.012;
-
-function phosphorFrame(crt: Crt) {
-  const a = (crt.yaw * Math.PI) / 180, d = SCREEN_LAYER; // just in front of the baked glass
-  return { position: [crt.screen[0] + Math.sin(a) * d, crt.screen[1], crt.screen[2] + Math.cos(a) * d] as const, yaw: a };
-}
 
 export function Phosphor({ where }: { where: MutableRefObject<Where> }) {
   const invalidate = useThree((s) => s.invalidate);
