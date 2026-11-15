@@ -1,12 +1,22 @@
 import { Vector3, type Camera } from "three";
-import { glassCorners, type Crt } from "./crts";
+import { glassCorners, phosphorCorners, type Crt } from "./crts";
 
 /** The glass's four corners in window pixels, as `camera` sees them now (call `updateMatrixWorld`
  *  first if it just moved). The one projection the app uses to lay a station's text over its
  *  glass (Room.tsx), so tests of the alignment run the same code. */
 export function glassOnScreen(crt: Crt, camera: Camera, size: { width: number; height: number }) {
+  return onScreen(glassCorners(crt), camera, size);
+}
+
+/** The phosphor plane's four corners in window pixels (see `phosphorCorners` for `inset`): where the card
+ *  or clear phosphor is drawn, which at an angle is off the glass's own corners. */
+export function phosphorOnScreen(crt: Crt, camera: Camera, size: { width: number; height: number }, inset = 0) {
+  return onScreen(phosphorCorners(crt, inset), camera, size);
+}
+
+function onScreen(points: [number, number, number][], camera: Camera, size: { width: number; height: number }) {
   const v = new Vector3();
-  return glassCorners(crt).map((c) => {
+  return points.map((c) => {
     v.set(...c).project(camera);
     return { x: (v.x * 0.5 + 0.5) * size.width, y: (-v.y * 0.5 + 0.5) * size.height };
   });

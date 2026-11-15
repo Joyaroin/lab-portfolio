@@ -78,6 +78,27 @@ export function glassCorners(crt: Crt): V3[] {
   return [-1, 1].flatMap((sx) => [-1, 1].map((sy): V3 => [crt.screen[0] + Math.cos(a) * hw * sx, crt.screen[1] + hh * sy, crt.screen[2] - Math.sin(a) * hw * sx]));
 }
 
+/** How far in front of the baked glass the phosphor (screen) layer stands (metres). The bezel layer and
+ *  its edge are measured from this (draw.ts re-exports it for them). */
+export const SCREEN_LAYER = 0.0062;
+/** How much smaller than the glass the phosphor plane is while it carries a card, so it stays inside the bezel. */
+export const PLANE_INSET = 0.012;
+
+/** Where a CRT's phosphor plane stands: its centre, SCREEN_LAYER in front of the baked glass, and its yaw in radians. */
+export function phosphorFrame(crt: Crt) {
+  const a = (crt.yaw * Math.PI) / 180;
+  return { position: [crt.screen[0] + Math.sin(a) * SCREEN_LAYER, crt.screen[1], crt.screen[2] + Math.cos(a) * SCREEN_LAYER] as V3, yaw: a };
+}
+
+/** The four corners of the phosphor plane in room coordinates, in glassCorners' order. `inset` is how much
+ *  smaller than the glass the plane is (PLANE_INSET with a card on it, 0 for the clear glass). The plane
+ *  stands SCREEN_LAYER in front of the glass, so seen at an angle it lies off the glass's own corners:
+ *  to find what the plane shows, use these, not glassCorners. */
+export function phosphorCorners(crt: Crt, inset = 0): V3[] {
+  const { position: p, yaw: a } = phosphorFrame(crt), hw = (CRT_GLASS.width - inset) / 2, hh = (CRT_GLASS.height - inset) / 2;
+  return [-1, 1].flatMap((sx) => [-1, 1].map((sy): V3 => [p[0] + Math.cos(a) * hw * sx, p[1] + hh * sy, p[2] - Math.sin(a) * hw * sx]));
+}
+
 /** The overview: where the camera stands to see every TV on a landscape window, and what it looks
  *  at. `fov` is its own vertical field of view, wider than CAMERA_FOV. `exit` is where flights leave it and arrive through. `portrait` is the pose for a portrait window: a good shot of lit parts of the room (not every TV). */
 export const OVERVIEW = {
