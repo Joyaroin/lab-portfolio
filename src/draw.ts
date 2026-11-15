@@ -25,9 +25,9 @@ export function pointGlowTexture(inner: string, mid: string) {
   return texture(c);
 }
 
-/** How far in front of the baked glass the screen layer stands (metres). The bezel layer and its
- *  edge are measured from this. */
-export const SCREEN_LAYER = 0.0062;
+/** How far in front of the baked glass the screen layer stands (metres): defined in crts.ts, where the
+ *  phosphor plane's corners are worked out. The bezel layer and its edge are measured from it. */
+export { SCREEN_LAYER } from "./crts";
 /** How far in front of the screen layer the bezel layer stands. */
 export const BEZEL_GAP = 0.0016;
 export const BEZEL = { width: 0.58, height: 0.48 }; // the baked bezel's face, from tools/room/build.py

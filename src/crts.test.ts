@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import layout from "./room-layout.json" with { type: "json" };
-import { crts, spares, CRT_GLASS } from "./crts";
+import { crts, spares, CRT_GLASS, SCREEN_LAYER, PLANE_INSET, glassCorners, phosphorCorners } from "./crts";
 import { stations } from "./content";
 
 describe("the TV list", () => {
@@ -24,6 +24,26 @@ describe("the TV list", () => {
   });
   it("gives every TV the same glass", () => {
     expect(CRT_GLASS).toEqual({ width: 0.46, height: 0.36 });
+  });
+});
+
+describe("the phosphor plane's corners", () => {
+  const all = [...crts, ...spares];
+  it("are the glass's corners moved SCREEN_LAYER out along the glass's normal, which faces the room", () => {
+    for (const c of all) {
+      const a = (c.yaw * Math.PI) / 180, n = [Math.sin(a), 0, Math.cos(a)];
+      phosphorCorners(c).forEach((p, k) => {
+        const g = glassCorners(c)[k];
+        expect(p[0] - g[0], c.id).toBeCloseTo(n[0] * SCREEN_LAYER, 9);
+        expect(p[1] - g[1], c.id).toBeCloseTo(0, 9);
+        expect(p[2] - g[2], c.id).toBeCloseTo(n[2] * SCREEN_LAYER, 9);
+      });
+    }
+  });
+  it("with an inset, are that much narrower and shorter than the glass, still centred on the plane", () => {
+    const c = crts[1], [bl, tl, br] = phosphorCorners(c, PLANE_INSET);
+    expect(Math.hypot(br[0] - bl[0], br[2] - bl[2])).toBeCloseTo(CRT_GLASS.width - PLANE_INSET, 9);
+    expect(tl[1] - bl[1]).toBeCloseTo(CRT_GLASS.height - PLANE_INSET, 9);
   });
 });
 
