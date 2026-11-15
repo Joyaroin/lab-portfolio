@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import { stations, ui } from "./content";
 import { SIDE, hudTier } from "./pin";
 import { PerspectiveCamera, Vector3 } from "three";
-import { hudBoxes, overviewPose, PIN_H, pinAt, pinPlaces, pinWidth, pinWords, reach, type PinPlace } from "./pins";
+import { parallax } from "./tour";
+import { hudBoxes, overviewPose, PIN_H, pinAt, pinPlaces, pinWidth, pinWords, type PinPlace } from "./pins";
 
 const places = (win: { width: number; height: number }) => pinPlaces(overviewPose(win), win);
 const boxOf = (p: PinPlace) => ({ left: p.x - p.width / 2, top: p.y - p.height, width: p.width, height: p.height });
@@ -66,25 +67,45 @@ describe("where the pins stand", () => {
   });
 
   // The overview's camera slides with the pointer (src/tour.ts), so a pin that shows is clear of the HUD and the device wherever the pointer is.
-  it("keeps every pin that shows clear of the HUD and the window's edge with the pointer at each corner of the window", () => {
+  // The corner cameras are worked out here from the resting pose and `parallax` (as src/Room.tsx moves the camera: pointer at +-1, strength 1 at
+  // the overview), not taken from src/pins.ts, so the test fails if the rule stops counting parallax.
+  const cornerCameras = (win: { width: number; height: number }) => {
+    const pose = overviewPose(win);
+    return [[-1, -1], [-1, 1], [1, -1], [1, 1]].map(([x, y]) => {
+      const [dx, dy, dz] = parallax(pose.camera, pose.look, { x, y }, 1);
+      const cam = new PerspectiveCamera(pose.fov, win.width / win.height, 0.01, 50);
+      cam.position.set(pose.camera[0] + dx, pose.camera[1] + dy, pose.camera[2] + dz);
+      cam.lookAt(new Vector3(...pose.look)); cam.updateMatrixWorld();
+      return cam;
+    });
+  };
+
+  it("keeps every pin that shows clear of the HUD, the device, the window's edge and each other with the pointer at each corner of the window", () => {
     const bad: string[] = [];
     let checked = 0;
-    for (let width = 1060; width <= 1920; width += 20) for (const height of [Math.round((width * 9) / 16), Math.round((width * 10) / 16)]) {
-      const win = { width, height }, pose = overviewPose(win);
-      if (!pinPlaces(pose, win)) continue;
+    for (let width = 1060; width <= 1920; width += 10) for (const height of [Math.round((width * 9) / 16), Math.round((width * 10) / 16)]) {
+      const win = { width, height };
+      if (!places(win)) continue;
       checked++;
-      for (const p of reach(pose)) {
-        const cam = new PerspectiveCamera(p.fov, width / height, 0.01, 50);
-        cam.position.set(...p.camera); cam.lookAt(new Vector3(...p.look)); cam.updateMatrixWorld();
-        for (let i = 0; i < stations.length; i++) {
-          const pin = pinAt(i, cam, win), b = boxOf(pin);
-          if (b.left < SIDE || b.left + b.width > width - SIDE) bad.push(`${width}x${height}: pin ${pin.stop} leaves the window`);
-          for (const h of hudBoxes(win)) if (meets(b, h)) bad.push(`${width}x${height}: pin ${pin.stop} meets a HUD box`);
-        }
+      for (const cam of cornerCameras(win)) {
+        const boxes = stations.map((_, i) => boxOf(pinAt(i, cam, win)));
+        boxes.forEach((b, i) => {
+          if (b.left < SIDE || b.left + b.width > width - SIDE || b.top < SIDE) bad.push(`${width}x${height}: pin ${i + 1} leaves the window`);
+          for (const h of hudBoxes(win)) if (meets(b, h)) bad.push(`${width}x${height}: pin ${i + 1} meets a HUD box`);
+          boxes.forEach((o, j) => { if (j > i && meets(b, o)) bad.push(`${width}x${height}: pins ${i + 1} and ${j + 1} meet`); });
+        });
       }
     }
     expect(bad).toEqual([]);
-    expect(checked).toBeGreaterThan(20);
+    expect(checked).toBeGreaterThan(50);
+  });
+
+  // The limit with parallax counted, fixed: at 16:9 the pins show from 1380 px wide, not from where they first clear the HUD at the camera's rest
+  // (they show at 1360 and 1370 without parallax; with the pointer at a corner they would meet the HUD or leave the window there).
+  it("hides all three just below 1380 px wide at 16:9 and shows them from 1380", () => {
+    const at = (width: number) => places({ width, height: Math.round((width * 9) / 16) });
+    for (const width of [1340, 1360, 1370]) expect(at(width), `${width} wide`).toBeNull();
+    for (const width of [1380, 1400, 1440]) expect(at(width), `${width} wide`).not.toBeNull();
   });
 
   it("shows pins only from the one-row HUD up, so none under the two-line and compact HUDs", () => {
