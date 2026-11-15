@@ -27,6 +27,6 @@ Spec #280 amended the design in these ways. The rules above that it doesn't ment
   and Back goes to the overview. The links from before the three monitors (`#mediasafe`, `#home-lab`,
   `#software-factory`, `#contact`) redirect to their new place in the same way. An unknown hash opens the overview.
 - **The overview's pins and Start button.** On a landscape window the overview carries a numbered pin over each monitor,
-  a link that visits it, shown only where all three clear the HUD (from about 1350 px wide with today's pose). It
+  a link that visits it, shown only where all three clear the HUD (from about 1380 px wide with today's pose). It
   also carries a "Start the tour" button above the meter bar until the first landing. A phone has no pins: its bottom
   bar of four buttons (Overview and the three stations) is the way in.

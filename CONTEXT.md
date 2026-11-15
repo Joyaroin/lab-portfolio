@@ -49,7 +49,7 @@ The language of this project: its terms, what each one means, and what it doesn'
   link that visits its station, after the HUD's links in the tab order, in tour order. The rule is in `src/pins.ts` (`pinPlaces`),
   a pure function of the camera and the window: all three pins or none, none when any pin would meet the HUD's boxes (`src/pin.ts`) or the meter
   device, leave the window or touch another pin, at the camera's rest or anywhere the mouse parallax takes it (so with today's pose pins show
-  from about 1350 px wide up, at 1440 x 900 and 1920 x 1080, and not under the two-line or compact HUD or on a portrait window).
+  from about 1380 px wide up, at 1440 x 900 and 1920 x 1080, and not under the two-line or compact HUD or on a portrait window).
   `PinPlacer` (in the room's canvas) puts each pin over its glass every frame; they hide in a flight and at a station, and show without easing
   under reduced motion. Hovering a pin lights its TV's glow (the meter link's `pinHover`), and hovering the TV lights the pin.
 - **Visit**: where the visitor is and is going: a stop (the overview or a station) and, at a station, the page. `src/visit/`
