@@ -118,13 +118,19 @@ const watchLevels = () => {
   requestAnimationFrame(frame);
 };
 const levels = (page: Page) => page.evaluate(() => (window as unknown as { __levels: { light: number; key: number; numeral: number }[] }).__levels);
+// The samples, once there is at least one: a sample is taken in an animation frame after the three layers exist, and a frame
+// can come late when the CPU is busy (#319), so a read straight after the device shows can find the list empty.
+const sampled = async (page: Page) => {
+  await expect.poll(async () => (await levels(page)).length, { message: "a levels sample" }).toBeGreaterThan(0);
+  return levels(page);
+};
 
 test("the device comes up from dark: tubes' light, numerals and keys rise together to fully lit", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.addInitScript(watchLevels);
   await openTour(page);
   await expect.poll(async () => (await levels(page)).at(-1)?.light).toBe(1);
-  const seen = await levels(page);
+  const seen = await sampled(page);
   expect(seen[0].light, "dark when the device first shows").toBeLessThan(0.5);
   for (const s of seen) {
     expect(s.key, "the keys carry the tubes' light").toBeCloseTo(s.light, 1);
@@ -137,8 +143,7 @@ test("under reduced motion the device is lit from its first frame, keys too", as
   await page.addInitScript(watchLevels);
   await openTour(page);
   await expect(device(page)).toBeVisible();
-  const seen = await levels(page);
-  expect(seen.length).toBeGreaterThan(0);
+  const seen = await sampled(page);
   expect(seen.every((s) => s.light === 1 && s.key === 1 && s.numeral === 1)).toBe(true);
 });
 
@@ -154,8 +159,7 @@ test("a device whose images arrive after the power-on is lit when it appears, wi
   release();
   await expect(device(page)).toBeVisible();
   await expect(page.locator('[data-meter-bar] img[data-layer="light"]')).toBeVisible();
-  const seen = await levels(page);
-  expect(seen.length).toBeGreaterThan(0);
+  const seen = await sampled(page);
   expect(seen.every((s) => s.light === 1 && s.key === 1 && s.numeral === 1), JSON.stringify(seen.slice(0, 3))).toBe(true);
 });
 
