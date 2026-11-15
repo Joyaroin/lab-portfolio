@@ -212,9 +212,14 @@ for (const [name, size, atStation] of [
 }
 
 // The Start button stands above the bar, so the bar's keys and line grow it upward and the button must clear it.
+// The window is set before the page loads, not by resizing the open one (#314): the app reads the new size on its resize
+// event, which can arrive after `setViewportSize` returns, and until then the Start button is placed for the old window
+// while the bar's line wraps at the new one. That left the button 10 px over the bar (1440 x 900 clearances, 390 px wide line).
 for (const [name, size] of [["1440 x 900", { width: 1440, height: 900 }], ["390 x 844", { width: 390, height: 844 }]] as const) {
   test(`at the overview the Start button is clear of the bar (${name})`, async ({ page }) => {
     await page.setViewportSize(size);
+    await openTour(page);
+    await expect(page.locator("[data-device]")).toBeVisible();
     const start = (await page.locator("[data-start]").boundingBox())!;
     const bar = (await page.locator("[data-meter-bar]").boundingBox())!;
     expect(start.y + start.height, `the Start button's box ends above the bar (${bar.y})`).toBeLessThanOrEqual(bar.y);
