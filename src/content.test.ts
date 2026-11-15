@@ -483,8 +483,8 @@ describe("timeline words", () => {
 // Every other word the app shows or announces: the HUD, the meter's labels, the boot log, the signal
 // lost screen, the gap's sentence. They move here from the components, so validation covers them.
 describe("interface words", () => {
-  const EMPTY_GROUPS = ["pageControls", "hud", "pins", "photo"];
-  const GROUPS = [...EMPTY_GROUPS, "ambient"];
+  const EMPTY_GROUPS = ["pageControls", "pins", "photo"];
+  const GROUPS = [...EMPTY_GROUPS, "hud", "ambient"];
   const keys = Object.keys(ui).filter((k) => !GROUPS.includes(k));
   it("accepts the shipped words", () => {
     expect(validateContent(content)).toEqual([]);
@@ -506,6 +506,25 @@ describe("interface words", () => {
     const problems = validateContent(c).join("\n");
     expect(problems).toContain(`ui.${g}.added: missing`);
     expect(problems).toContain(`ui.${g}.phone: looks like a phone number`);
+  });
+  describe("the Start button's words (#285)", () => {
+    it("are the approved words", () => {
+      expect(ui.hud).toEqual({
+        start: "Start the tour", startCount: "· 3 monitors", startOrLandscape: "or click a monitor", startOrPortrait: "or pick one below",
+      });
+    });
+    it.each(Object.keys(ui.hud))("rejects %s when it is removed or empty", (k) => {
+      const c = good();
+      delete (c.ui.hud as Record<string, string>)[k];
+      expect(validateContent(c).join("\n")).toContain(`ui.hud.${k}: missing`);
+      (c.ui.hud as Record<string, string>)[k] = " ";
+      expect(validateContent(c).join("\n")).toContain(`ui.hud.${k}: missing`);
+    });
+    it("is walked by validateContent: removed, it is missing", () => {
+      const c = good();
+      delete (c.ui as Record<string, unknown>).hud;
+      expect(validateContent(c).join("\n")).toContain("ui.hud: missing");
+    });
   });
   describe("the ambient screens' words (#290)", () => {
     const ambient = ui.ambient as Record<string, string>;
@@ -556,7 +575,7 @@ describe("interface words", () => {
   it("has the words the stop controls use", () => {
     expect([ui.keyPrev, ui.keyRoom, ui.keyNext, ui.keyStart]).toEqual(["PREV", "ROOM", "NEXT", "START"]);
     expect([ui.prevStation, ui.backToRoom, ui.nextStation, ui.startTour]).toEqual(
-      ["Previous station", "Back to the room", "Next station", "Start the tour"]);
+      ["Previous page", "Back to the overview", "Next page", "Start the tour"]);
     expect(fill(ui.stopLine, { station: "Work", page: "Solace", n: 1, total: 3 })).toBe("Work · Solace · 1 of 3");
     expect(fill(ui.listStopLine, { station: "Projects", n: 2, total: 3 })).toBe("Projects · 2 of 3");
     expect(fill(ui.stationTitle, { page: "Solace", station: "Work", name: "Adham Sedik" })).toBe("Solace · Work · Adham Sedik");
@@ -602,7 +621,7 @@ describe("interface words", () => {
     expect(fill("a {x} b {y}", { x: "1", y: "2" })).toBe("a 1 b 2");
   });
   it("keeps the words visitors saw before", () => {
-    expect(ui.room).toBe("Room");
+    expect(ui.room).toBe("Overview");
     expect(ui.more).toBe("more ▾");
     expect(ui.readingPending).toBe("reading prod and staging…");
     expect(fill(ui.meterReading, { digits: "0.000214" })).toBe("Reading 0.000214");

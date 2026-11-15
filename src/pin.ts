@@ -9,10 +9,10 @@ import { gapLabel } from "./gap";
 // between them, and scrolls.
 export const SIDE = 8;
 
-// The phone's bottom menu (src/Hud.tsx builds it from these): Room and one button per station, in rows
-// of PHONE_COLS (three), each BUTTON_PX tall; the clearance follows.
+// The phone's bottom bar (src/Hud.tsx builds it from these): Overview and one button per station, in rows
+// of PHONE_COLS (four, so one row), each BUTTON_PX tall; the clearance follows.
 export const BUTTON_PX = 44;
-export const PHONE_COLS = 3;
+export const PHONE_COLS = 4;
 export const PHONE_GAP_PX = 4.8; // 0.3rem
 export const PHONE_PAD_PX = 6.4; // 0.4rem
 export const PHONE_ROWS = Math.ceil((stations.length + 1) / PHONE_COLS);
@@ -21,16 +21,20 @@ export const PHONE_MENU_H = PHONE_ROWS * BUTTON_PX + (PHONE_ROWS - 1) * PHONE_GA
 
 // The landscape HUD's boxes (px): the name block at the top left, the link row at the top right. The
 // threshold for one row is worked out from them. #222 asserts the real HUD fits them; #226 tests the
-// overview against them. If the HUD needs more room, change a box here and the rest follows. The boxes
-// are sized so ONE_ROW_MIN_W is 1280: a 1280 x 800 window keeps the one-row HUD (420 + 24 + 800 + 2 x 18).
+// overview against them. If the HUD needs more room, change a box here and the rest follows.
+// LINK_ROW_W is the link row's real width on one line (#285): Overview, Work, Projects, About me, the divider, then the Résumé button,
+// LinkedIn and GitHub, measured in Chromium at 14 px on the Mac (ui-monospace) as 571.64 (the stations 299.27, the divider 13, the outside
+// links 259.38), rounded up to 580 for a font a little wider. The row has no wider box than that. Add a link or a longer word to the row
+// and this number is the one to change; the tiers below follow.
 export const NAME_BLOCK_W = 420, NAME_BLOCK_H = 72;
-export const LINK_ROW_W = 800, LINK_ROW_H = 36;
+export const LINK_ROW_W = 580, LINK_ROW_H = 36;
 export const HUD_MARGIN = 18; // round the boxes: the window's top and sides
 export const HUD_GAP = 24; // between the name block and the link row when they share a line
-/** From this width (landscape) the name block and the link row share the top of the window. */
+/** From this width (landscape) the name block and the link row share the top of the window: 1060. */
 export const ONE_ROW_MIN_W = NAME_BLOCK_W + HUD_GAP + LINK_ROW_W + 2 * HUD_MARGIN;
-/** From this width (landscape) the link row fits on its own line under the name block. Narrower, it wraps as two
- *  whole groups (the stations, then the outside links), so the HUD has three lines. */
+/** From this width (landscape) the link row fits on its own line under the name block: 616. Narrower, it wraps as two
+ *  whole groups (the stations, then the outside links), so the HUD has three lines. Each group fits down to its own width
+ *  (the stations' 299 px) plus both margins, about 335 px: under that, a landscape window is always short, so compact. */
 export const TWO_LINE_MIN_W = LINK_ROW_W + 2 * HUD_MARGIN;
 const ONE_ROW_H = HUD_MARGIN + NAME_BLOCK_H; // about 90
 const TWO_LINE_H = ONE_ROW_H + LINK_ROW_H; // about 126
@@ -127,6 +131,10 @@ export function hudTier(win: Win): HudTier {
   if (win.height >= h + MIN_PANEL_H + deviceSize(win).height + 16 + lineMetrics(win, false).height) return tier;
   return win.width >= COMPACT_MIN_W ? "compactTwo" : "compactThree";
 }
+
+/** Whether Résumé is a button at this tier. The compact HUD's first line has only COMPACT_SLACK to spare and a button is wider than a link,
+ *  so there it stays a link; elsewhere the button is as tall as a link, so no line and not the phone top (PHONE_TOP) grows. */
+export const resumeIsButton = (tier: HudTier) => !tier.startsWith("compact");
 
 const TOP: Record<HudTier, number> = {
   phone: PHONE_TOP, oneRow: ONE_ROW_H, twoLine: TWO_LINE_H, threeLine: THREE_LINE_H, compactTwo: COMPACT_TWO_H, compactThree: COMPACT_THREE_H,

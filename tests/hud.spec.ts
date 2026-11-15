@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { identity, links, stations, ui } from "../src/content";
 import { clearances, COMPACT_MIN_W, COMPACT_SLACK, HUD_MARGIN, hudTier, LINK_ROW_H, LINK_ROW_W, NAME_BLOCK_W, ONE_ROW_MIN_W, TWO_LINE_MIN_W } from "../src/pin";
-import { clickLink, goTo, hudLink, landedAt, openTour } from "./lib/page";
+import { barKey, clickLink, goTo, hudLink, landedAt, openTour } from "./lib/page";
 
 // The HUD (#222): a name block, one row of links, the current stop marked, all inside the boxes and clearances
 // src/pin.ts gives. Light: it only reads the page's layout, so no station's render is waited for beyond the landing.
@@ -9,7 +9,8 @@ import { clickLink, goTo, hudLink, landedAt, openTour } from "./lib/page";
 const hud = (page: Page) => page.getByRole("navigation", { name: ui.hudLabel });
 const nameBlock = (page: Page) => page.locator("[data-name-block]");
 const linkRow = (page: Page) => page.locator("[data-link-row]");
-const hint = (page: Page) => page.locator("[data-hint]");
+const start = (page: Page) => page.locator("[data-start]");
+const startButton = (page: Page) => start(page).getByRole("button", { name: `${ui.hud.start} ${ui.hud.startCount}` });
 
 type Box = { x: number; y: number; width: number; height: number };
 const box = async (l: Locator) => (await l.boundingBox())! as Box;
@@ -21,9 +22,9 @@ async function open(page: Page, width: number, height: number) {
   await expect(nameBlock(page)).toBeVisible();
 }
 
-// Landscape windows: the one-row HUD where the window is at least ONE_ROW_MIN_W wide, the row on its own line below,
-// and under TWO_LINE_MIN_W the row wrapped as two whole groups (a third line, the third clearance tier).
-for (const [width, height] of [[1440, 900], [1280, 800], [1024, 768], [800, 600], [700, 500]]) {
+// Landscape windows: the one-row HUD where the window is at least ONE_ROW_MIN_W wide (1060), the row on its own line below it
+// (one line of links down to TWO_LINE_MIN_W, 616), and under that the row wrapped as two whole groups (a third line, the third clearance tier).
+for (const [width, height] of [[1440, 900], [1280, 800], [1060, 700], [1024, 768], [800, 600], [700, 500], [616, 560], [600, 560]]) {
   const oneRow = width >= ONE_ROW_MIN_W;
   test(`${width}x${height}: name block and link row, ${oneRow ? "on one line" : "the row under the name block"}, inside the boxes and clearances`, async ({ page }) => {
     await open(page, width, height);
@@ -51,10 +52,9 @@ for (const [width, height] of [[1440, 900], [1280, 800], [1024, 768], [800, 600]
         const ys = await linkRow(page).locator("a").evaluateAll((as) => as.map((a) => Math.round(a.getBoundingClientRect().y)));
         const perLine = [...new Set(ys)].map((y) => ys.filter((v) => v === y).length);
         expect(Math.min(...perLine), `links per line ${perLine}`).toBeGreaterThan(1);
-        // Under TWO_LINE_MIN_W the row may wrap, as two whole groups. With three stations it can still fit on one line
-        // down to 700 px, so under it one line is as good (the HUD ticket, #285, works out the tiers again).
-        if (wrapped) expect([1, 2], `lines of links ${perLine}`).toContain(perLine.length);
-        else expect(perLine.length, `lines of links ${perLine}`).toBe(1);
+        // The row is on one line from TWO_LINE_MIN_W (the real row is 572 px, so it holds down to about 608), and under it
+        // it wraps as two whole groups, with the third line the clearance reserves.
+        expect(perLine.length, `lines of links ${perLine}`).toBe(wrapped ? 2 : 1);
         if (perLine.length === 2) expect(perLine, "the stations, then the outside links").toEqual([1 + stations.length, links.length]);
       }
       const bottom = Math.max(name.y + name.height, row.y + row.height);
@@ -124,9 +124,66 @@ test(`${COMPACT_MIN_W}x375: every link sits inside the HUD's backdrop and inside
   expect(await nameBlock(page).evaluate((e) => e.scrollWidth <= e.clientWidth), "the first line fits its box with no overflow").toBe(true);
 });
 
-test("1024x768: the row holds Room, the stations and the outside links as whole groups", async ({ page }) => {
+test("1024x768: the row holds Overview, the stations and the outside links as whole groups", async ({ page }) => {
   await open(page, 1024, 768);
   expect(await linkRow(page).locator("a").count()).toBe(1 + stations.length + links.length);
+  const names = await linkRow(page).locator("a").evaluateAll((as) => as.map((a) => a.textContent));
+  expect(names, "in order: Overview, the stations, then Résumé, LinkedIn, GitHub").toEqual([ui.room, ...stations.map((s) => s.name), ...links.map((l) => `${l.label}↗`)]);
+  expect(await linkRow(page).locator('span[aria-hidden="true"]:empty').count(), "one divider between the groups").toBe(1);
+});
+
+// Résumé is a button (an outline, as tall as a link) where the tier has room, and a plain link in the compact HUD (resumeIsButton, src/pin.ts).
+for (const [width, height, button] of [[1440, 900, true], [1024, 768, true], [600, 560, true], [390, 844, true], [667, 375, false], [560, 400, false]] as const) {
+  test(`${width}x${height}: Résumé is ${button ? "a button" : "a link"}`, async ({ page }) => {
+    await open(page, width, height);
+    const resume = hud(page).getByRole("link", { name: "Résumé" });
+    const other = hud(page).getByRole("link", { name: "GitHub" });
+    const look = (l: Locator) => l.evaluate((el) => { const s = getComputedStyle(el); return { border: s.borderTopWidth, style: s.borderTopStyle }; });
+    expect((await look(resume)).border, "Résumé's outline").toBe(button ? "1px" : "0px");
+    expect((await look(other)).border, "another outside link has none").toBe("0px");
+    if (button) expect((await box(resume)).height, "as tall as a link, so no line grows").toBeCloseTo((await box(other)).height, 0);
+    await expect(resume).toHaveAttribute("href", "/resume.pdf");
+  });
+}
+
+// The links do what they say: each lands at its place, Overview comes back, and the current one is marked.
+test("1280x800: every HUD link takes the visitor to its place, and Overview back", async ({ page }) => {
+  await open(page, 1280, 800);
+  await expect(hudLink(page, 0)).toHaveText(ui.room);
+  for (const stop of [3, 1, 2, 0, 2, 0]) {
+    await clickLink(page, stop);
+    await landedAt(page, stop);
+    await expect(page).toHaveURL(stop === 0 ? /\/$/ : new RegExp(`#${stations[stop - 1].id}$`));
+  }
+});
+
+// The Start button (the hint line's place): it shows on the overview until the first landing. A click on it, and the START key, both start
+// the tour at Work.
+test("1440x900: clicking Start the tour flies to Work, and the button goes after the landing", async ({ page }) => {
+  await open(page, 1440, 900);
+  await expect(startButton(page)).toBeVisible();
+  await expect(start(page)).toContainText(ui.hud.startOrLandscape);
+  await startButton(page).click();
+  await landedAt(page, 1);
+  await expect(page).toHaveURL(/#work$/);
+  await expect(start(page)).toHaveCount(0);
+  await goTo(page, 0);
+  await expect(start(page), "and it stays gone back at the overview").toHaveCount(0);
+});
+
+test("1440x900: the START key does what the Start button does", async ({ page }) => {
+  await open(page, 1440, 900);
+  await expect(startButton(page)).toBeVisible();
+  await barKey(page, "start").click();
+  await landedAt(page, 1);
+  await expect(start(page)).toHaveCount(0);
+});
+
+test("1440x900: the Start button can be reached and pressed with the keyboard", async ({ page }) => {
+  await open(page, 1440, 900);
+  await startButton(page).focus();
+  await page.keyboard.press("Enter");
+  await landedAt(page, 1);
 });
 
 test("390x844: the name block has the name, the title and the three outside links, and no availability line", async ({ page }) => {
@@ -144,24 +201,28 @@ test("390x844: the name block has the name, the title and the three outside link
   expect(await page.locator("[data-menu]").count()).toBe(1);
 });
 
-// The hint line stands 8 px above the bottom clearance, so it clears the meter device, and it clears the meter bar
-// (the digits, the line and the keys) too, which is the room the clearance leaves.
+// The Start button's box stands 8 px above the bottom clearance, so it clears the meter device, and it clears the meter bar
+// (the digits, the line and the keys) too, which is the room the clearance leaves. Its button is at least 44 px tall.
 for (const [width, height] of [[1440, 900], [1280, 800], [1024, 768], [800, 600], [700, 500], [667, 375], [740, 360], [560, 400], [390, 844]]) {
-  test(`${width}x${height}: the hint line's bottom edge is above the bottom clearance and the meter bar`, async ({ page }) => {
+  test(`${width}x${height}: the Start button's bottom edge is above the bottom clearance and the meter bar`, async ({ page }) => {
     await open(page, width, height);
-    await expect(hint(page)).toBeVisible();
-    const h = await box(hint(page)), bar = await box(page.locator("[data-meter-bar]"));
+    await expect(startButton(page)).toBeVisible();
+    const h = await box(start(page)), b = await box(startButton(page)), bar = await box(page.locator("[data-meter-bar]"));
     expect(h.y + h.height).toBeLessThanOrEqual(height - clearances({ width, height }).bottom);
-    expect(h.y + h.height, "the hint is above the meter bar's keys").toBeLessThanOrEqual(bar.y);
+    expect(h.y + h.height, "the Start button is above the meter bar's keys").toBeLessThanOrEqual(bar.y);
+    expect(b.height, "the button is at least 44 px tall").toBeGreaterThanOrEqual(44);
+    expect(b.x >= 0 && b.x + b.width <= width, "the button is inside the window").toBe(true);
+    const top = clearances({ width, height }).top;
+    expect(h.y, "and below the HUD").toBeGreaterThanOrEqual(top);
   });
 }
 
-// Every piece of HUD text is at least 14 px: the name block, the links, the phone menu and the hint.
+// Every piece of HUD text is at least 14 px: the name block, the links, the phone bar and the Start button.
 for (const [width, height] of [[1280, 800], [1024, 768], [667, 375], [560, 400], [390, 844]]) {
   test(`${width}x${height}: every piece of HUD text is at least 14 px`, async ({ page }) => {
     await open(page, width, height);
     const sizes = await page.evaluate(() => {
-      const roots = [...document.querySelectorAll('nav[aria-label="HUD"], [data-menu], [data-hint]')];
+      const roots = [...document.querySelectorAll('nav[aria-label="HUD"], [data-menu], [data-start]')];
       const out: { text: string; px: number }[] = [];
       for (const root of roots)
         for (const el of [root, ...root.querySelectorAll("*")]) {
