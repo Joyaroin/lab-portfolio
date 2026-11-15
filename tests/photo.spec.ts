@@ -73,3 +73,16 @@ test("the photo sits beside the heading on desktop and above it in portrait", as
   const tall = { photo: (await img(page).boundingBox())!, heading: (await heading.boundingBox())! };
   expect(tall.photo.y + tall.photo.height, "the photo ends above the heading").toBeLessThanOrEqual(tall.heading.y + 1);
 });
+
+test("on a short landscape phone (667x375) the photo is not shown, nor fetched, on About's first page", async ({ page }) => {
+  const urls = photoRequests(page);
+  await page.setViewportSize({ width: 667, height: 375 });
+  await openTour(page);
+  await goTo(page, ABOUT);
+  await waitForPanel(page, "about");
+  await expect(panelOf(page, "about").locator("[data-heading]")).toBeVisible();
+  await expect(img(page)).toHaveCount(0);
+  await expect(panelOf(page, "about").locator("[data-photo]")).toHaveCount(0);
+  expect(urls).toEqual([]);
+  await page.screenshot({ path: process.env.PHOTO_SHOT ?? test.info().outputPath("about-667x375.png") });
+});

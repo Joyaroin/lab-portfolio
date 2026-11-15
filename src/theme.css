@@ -35,10 +35,7 @@ progress {
 .crt-photo img { display: block; width: 100%; height: auto; mix-blend-mode: multiply; filter: contrast(1.05) brightness(0.95); }
 .crt-photo::after { content: ""; position: absolute; inset: 0; pointer-events: none;
   background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.28) 2px 3px); }
-/* A phone on its side has a short panel: a small photo, so the heading beside it isn't squeezed. */
-@media (orientation: landscape) and (max-height: 520px) {
-  .crt-photo { width: 4.5em; }
-}
+/* A phone on its side has a short panel: ScreenPanels.tsx doesn't mount the photo there (so it isn't fetched), and the text gets the space. */
 @media (orientation: portrait) {
   .crt-top { flex-direction: column; gap: 0; }
   .crt-photo { order: -1; width: 5.5em; margin: 0.4em auto; }
