@@ -4,6 +4,7 @@ import { controlsFor, headingFor, type Button, type Controls, type PageStep } fr
 import { stations, ui, type Diagram, type PageList, type Station } from "../content";
 import type { Step } from "../walk";
 import type { Visit } from "../visit";
+import photoUrl from "../assets/adham.jpg";
 
 // Each station's text as real HTML. place.ts (run per frame by TextPins, which the room mounts)
 // pins each panel to its CRT screen and sets its position, size and opacity; this file holds how it looks: green phosphor with
@@ -33,6 +34,11 @@ function StationPanel({ s, visit, step }: { s: Station; visit: Visit; step: Step
   const page = s.pages.find((p) => p.id === pageId) ?? s.pages[0];
   const at: PageStep = { kind: "page", station: s.id, page: page.id };
   const controls = controlsFor(at);
+  // The photo is on About me's first page only. Its <img> is mounted once that page has been shown, and not before: every panel mounts at
+  // boot, and the picture must not be fetched then. It stays while the panel fades out, and goes when the panel turns to another page.
+  const photoPage = s.id === "about" && page.id === s.pages[0].id;
+  const [photoOn, setPhotoOn] = useState(false);
+  if (photoOn !== (photoPage && (photoOn || here !== null))) setPhotoOn(!photoOn);
   // A new page starts at its top, and the "more" cue is worked out for the new text.
   useLayoutEffect(() => { if (ref.current) { ref.current.scrollTop = 0; markMore(ref.current); } }, [page.id]);
   // After a tab, a row or a button the visitor's focus goes to the new page's heading, so a screen reader says where it landed.
@@ -60,8 +66,14 @@ function StationPanel({ s, visit, step }: { s: Station; visit: Visit; step: Step
     <section ref={ref} tabIndex={-1} data-screen={s.id} aria-label={s.name} className="crt-panel" style={{ ...panel, visibility: "hidden" }}
       onScroll={(e) => markMore(e.currentTarget)}>
       <Crumb c={controls.crumb} go={go} />
-      <h2 ref={headingRef} tabIndex={-1} data-heading style={heading}>{headingFor(at)}</h2>
-      {s.line && <p data-line style={lead}>{s.line}</p>}
+      {/* the heading and the station's line, with the photo beside them (above them in portrait; see theme.css) */}
+      <div className="crt-top">
+        <div className="crt-top-text">
+          <h2 ref={headingRef} tabIndex={-1} data-heading style={heading}>{headingFor(at)}</h2>
+          {s.line && <p data-line style={lead}>{s.line}</p>}
+        </div>
+        {photoOn && <figure className="crt-photo" data-photo><img src={photoUrl} alt={ui.photo.alt} width={480} height={600} decoding="async" /></figure>}
+      </div>
       {controls.tabs && <Tabs tabs={controls.tabs} station={s} go={go} />}
       {/* the open page's lead: it changes when the page turns */}
       {page.lead && <p data-lead style={lead}>{page.lead}</p>}

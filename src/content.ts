@@ -132,7 +132,9 @@ export const ui = {
   /** #293: the pins over the monitors */
   pins: {} as Record<string, string>,
   /** #287: the photo */
-  photo: {} as Record<string, string>,
+  photo: {
+    alt: "Adham Sedik, smiling, in glasses and a black polo",
+  } as Record<string, string>,
   /** #290: the ambient screens on the spare CRTs. Drawn on a canvas, so not in the page's HTML.
    *  The commit lines come from src/commits-saved.json, not from here. */
   ambient: {
