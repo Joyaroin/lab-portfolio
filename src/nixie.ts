@@ -50,12 +50,12 @@ export const digitsToShow = (reading: string, scrambled: string | null, shifting
 
 /** What the app, the tour and the room tell each other about the meter. The tour gives the gap (deploys behind) and the
  *  hover preview (#228) that the desk meter works its digits out from (`meterDigits`, src/bar.ts), and what a
- *  click does. The room gives the tour the TV the pointer is on (`tvHover`: a station's number, or null). `on` is whether the
+ *  click does. The room gives the tour the TV the pointer is on (`tvHover`: a station's number, or null), and the tour gives the room the pin the pointer is on (`pinHover`, #293: the TV's glow follows it). `on` is whether the
  *  boot screen has gone, which starts the power-on. `redraw` and `onAt` are the room's (`onAt` on its clock). `onMs` is the page's
  *  clock (`performance.now()`) when the boot screen began to go: the meter bar's device times its own power-on from it. */
 export type MeterLink = {
-  deploys: number; preview: Preview | null; next: () => void; tvHover: (stop: number | null) => void;
+  deploys: number; preview: Preview | null; next: () => void; tvHover: (stop: number | null) => void; pinHover: (stop: number | null) => void;
   on: boolean; onAt: number | null; onMs: number | null; redraw?: () => void;
 };
 
-export const meterLink = (): MeterLink => ({ deploys: 0, preview: null, next: () => {}, tvHover: () => {}, on: false, onAt: null, onMs: null });
+export const meterLink = (): MeterLink => ({ deploys: 0, preview: null, next: () => {}, tvHover: () => {}, pinHover: () => {}, on: false, onAt: null, onMs: null });

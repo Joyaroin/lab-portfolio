@@ -18,6 +18,7 @@ import { RoomClick } from "./RoomClick";
 import type { MeterLink } from "./nixie";
 import type { Shift } from "./shift";
 import { TextPins } from "./text/TextPins";
+import { PinPlacer } from "./PinPlacer";
 
 type V3 = [number, number, number];
 
@@ -110,6 +111,7 @@ export default function Room({ onReady, onProgress, visit, where, reduced, meter
       <CameraRig visit={visit} where={where} reduced={reduced} cover={cover} />
       <RoomClick visit={visit} where={where} />
       <TextPins where={where} shift={shift} />
+      <PinPlacer where={where} />
       <Suspense fallback={null}>
         <BakedRoom onLoaded={onReady} onProgress={onProgress} />
         <DeskMeter link={meter} shift={shift} reduced={reduced} where={where} />

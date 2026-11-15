@@ -3,6 +3,7 @@ import type { MeterLink } from "./nixie";
 import { Tear, type PageTurn } from "./TearView";
 import { stations, ui } from "./content";
 import { Hud, usePortrait } from "./Hud";
+import { Pins } from "./PinView";
 import { barFor, createHover, stopLineFor, meterDigits, PREVIEW_REST_MS, previewStop, type BarKey } from "./bar";
 import { ScreenPanels } from "./text/ScreenPanels";
 import { Meter } from "./Meter";
@@ -105,11 +106,17 @@ export function Tour({ gap, visit, meter, shift: shifts }: { gap: Gap | null; vi
     return () => { meter.tvHover = () => {}; };
   }, [meter, hover]);
   const onPoint = useCallback((stop: number | null) => hover.point("link", stop), [hover]);
+  // The pins (#293) report the same way, and light with the TV: `lit` is the station the pointer is on by its TV or its pin. The room's
+  // TV glow hears of a pin through the meter link, as the tour hears of a TV.
+  const onPinPoint = useCallback((stop: number | null) => hover.point("pin", stop), [hover]);
+  const lit = useSyncExternalStore(hover.subscribe, hover.lit);
+  const redrawRoom = useCallback(() => meter.redraw?.(), [meter]);
+  useEffect(() => { meter.pinHover(hover.pinStop()); return hover.subscribe(() => meter.pinHover(hover.pinStop())); }, [meter, hover]);
   // A visit ends the pointer's claim on a HUD link: it has not moved since, so back at the overview it shows no preview until
   // it enters a link again (the shift's rule: leaving ends on the true reading). The TV's report already follows the same rule
   // (TvTargets reports it only at the overview), so a pointer left on a TV starts its rest again on the landing.
   useEffect(() => visit.subscribe((e) => {
-    if (e.type === "move") hover.point("link", null);
+    if (e.type === "move") { hover.point("link", null); hover.point("pin", null); }
     else if (e.stop === 0) hover.rest();
   }), [visit, hover]);
   useEffect(() => {
@@ -145,6 +152,7 @@ export function Tour({ gap, visit, meter, shift: shifts }: { gap: Gap | null; vi
       <Tear shift={shifts} turn={turn} reduced={reduced} />
       <ScreenPanels onTurn={pageTurned} />
       <Hud where={here} visited={visited} visit={visit} onPoint={onPoint} />
+      <Pins at={here} lit={visit.target() === 0 ? lit : null} reduced={reduced} visit={visit} onPoint={onPinPoint} redraw={redrawRoom} win={win} />
       <div style={{ position: "fixed", left: 0, right: 0, bottom: "var(--meter-bottom, 1rem)", zIndex: 10, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
         <div style={{ pointerEvents: "auto" }}>
           <Meter reading={shown.reading} label={barLine} keys={bar.keys}

@@ -15,7 +15,7 @@ import { BEZEL, BEZEL_GAP, SCREEN_LAYER, pointGlowTexture } from "./draw";
 // On the overview each TV takes a click (a visit to its station) and shows a soft glow under the pointer. The hit
 // target is an invisible plane the size of the bezel, in front of the bezel layer (the overlay meshes take no
 // pointer). The glow eases in and out over about a third of a second, a slow swell that is far from a flash, so the
-// flash limit does not count it. The hovered id is written to the canvas's data-hover, so a spec can check the target.
+// flash limit does not count it. The hovered id is written to the canvas's data-hover, so a spec can check the target, and the id whose glow is rising (on the TV or on its pin) to data-lit.
 // Where the visitor is decides it every frame (clickable): at a station, or in flight, nothing is hot and no glow shows.
 
 /** How far in front of the bezel layer the hit target and the glow stand. */
@@ -24,6 +24,8 @@ const TARGET_GAP = 0.003;
 export function TvTargets({ visit, where, meter }: { visit: Visit; where: MutableRefObject<Where>; meter: MeterLink }) {
   const invalidate = useThree((s) => s.invalidate);
   const hovered = useRef<string | null>(null);
+  const pinned = useRef<string | null>(null); // the station whose pin the pointer is on (#293): its TV glows as if the pointer were on it
+  const lastLit = useRef<string | null>(null);
   const byPointer = useRef(true); // the pointer on the TV is a mouse or pen: a touch has no hover preview
   const shown = useRef<string | null>(null); // what the cursor and data-hover currently say
   const glow = useRef<Record<string, number>>({});
@@ -39,9 +41,15 @@ export function TvTargets({ visit, where, meter }: { visit: Visit; where: Mutabl
       // The tour's hover preview (#228) hears of the TV the pointer is on, under the same rule as the glow.
       meter.tvHover(hot && byPointer.current ? stations.findIndex((s) => s.id === hot) + 1 : null);
     }
+    const lit = clickable(where.current) && visit.target() === 0 ? pinned.current : null;
+    const glowing = hot ?? lit; // the TV whose glow is on its way up: the pointer is on it or on its pin. A spec reads it from data-lit.
+    if (glowing !== lastLit.current) {
+      lastLit.current = glowing;
+      if (glowing) gl.domElement.dataset.lit = glowing; else delete gl.domElement.dataset.lit;
+    }
     let easing = false;
     for (const crt of crts) {
-      const goal = crt.id === hot ? 1 : 0;
+      const goal = crt.id === hot || crt.id === lit ? 1 : 0;
       let v = glow.current[crt.id] ?? 0;
       v = easeGlow(v, goal, dt);
       if (v !== goal) easing = true;
@@ -51,6 +59,11 @@ export function TvTargets({ visit, where, meter }: { visit: Visit; where: Mutabl
     }
     if (easing) invalidate();
   });
+  // The tour tells the room which pin the pointer is on; the glow follows it, and the next frame is asked for.
+  useEffect(() => {
+    meter.pinHover = (stop) => { pinned.current = stop === null ? null : (stations[stop - 1]?.id ?? null); invalidate(); };
+    return () => { meter.pinHover = () => {}; };
+  }, [meter, invalidate]);
   useEffect(() => () => { if (shown.current) { document.body.style.cursor = ""; meter.tvHover(null); } }, [meter]);
 
   return (

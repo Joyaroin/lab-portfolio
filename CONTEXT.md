@@ -25,7 +25,7 @@ The language of this project: its terms, what each one means, and what it doesn'
   flight it never applies, and not through a reduced-motion fade either (the fade's second half already reads as the new
   station, so the rule is given `visit.moving()`). Resting the pointer on a lit TV also previews its station on the meter
   (see **Hover preview**): `TvTargets` tells the tour which TV the pointer is on, through the meter link's `tvHover`.
-- **Hover preview**: at the overview, resting the pointer on a lit TV or on a station's HUD link makes the meter show
+- **Hover preview**: at the overview, resting the pointer on a lit TV, on a station's pin or on a station's HUD link makes the meter show
   that station before the click. The bar's line changes at once to the station's name only ("Projects",
   no count); after the pointer has rested `PREVIEW_REST_MS` (150 ms) the digits play the short scramble
   (`SHIFT_SECONDS.short`, 0.25 s) onto the station's reading, or change with no scramble under reduced motion. Leaving,
@@ -35,7 +35,7 @@ The language of this project: its terms, what each one means, and what it doesn'
   on the landing. It is pointer only: keyboard focus never previews (the tour puts focus back on a HUD link
   whenever the visitor returns to the overview), touch has no preview, and it never applies at a station or in a flight.
   It is not a shift: the room never tears for it. The rule is in `src/bar.ts`: `createHover` (which station the pointer
-  is on, from the TV and the HUD link, each reporting its own enter and leave), `previewStop` (only at the overview) and
+  is on, from the TV, the pin and the HUD link, each reporting its own enter and leave; `lit` and `pinStop` say which TV and pin glow: a link previews but lights neither), `previewStop` (only at the overview) and
   `meterDigits` (below). The tour feeds it and passes the result to the bar through the `reading`, `label` and `shift`
   props, so the bar is not edited for it.
 - **Overview**: stop 0. A camera pose that shows the glass of the three station TVs (the bench TV included) and the whole desk meter on a
@@ -43,8 +43,15 @@ The language of this project: its terms, what each one means, and what it doesn'
   (the boxes in `src/pin.ts`). The spare CRTs are not checked. It has its own wider field of
   view (`OVERVIEW` in `src/crts.ts`, 75 degrees at most; stations use `CAMERA_FOV`), and a separate pose for a
   portrait window. `src/visit/flight.test.ts` projects the TVs and the meter through the real camera to check this; if the
-  HUD's boxes in `src/pin.ts` change, the pose may need to change with them. It is where the site opens and where Back (the HUD's Overview link, Esc, the ROOM key) goes. The meter shows
-  the gap there. It is not a station.
+  HUD's boxes in `src/pin.ts` change, the pose may need to change with them. It is where the site opens and where Back goes from the HUD's Overview link and the ROOM key, and Esc too except from a
+  project page, where it goes to the Projects list (`up` in `src/walk.ts`). The meter shows the gap there. It is not a station.
+  On a landscape window it carries a numbered **pin** over each station's glass ("1 Work", "2 Projects", "3 About me", `ui.pins`): a
+  link that visits its station, after the HUD's links in the tab order, in tour order. The rule is in `src/pins.ts` (`pinPlaces`),
+  a pure function of the camera and the window: all three pins or none, none when any pin would meet the HUD's boxes (`src/pin.ts`) or the meter
+  device, leave the window or touch another pin, at the camera's rest or anywhere the mouse parallax takes it (so with today's pose pins show
+  from about 1350 px wide up, at 1440 x 900 and 1920 x 1080, and not under the two-line or compact HUD or on a portrait window).
+  `PinPlacer` (in the room's canvas) puts each pin over its glass every frame; they hide in a flight and at a station, and show without easing
+  under reduced motion. Hovering a pin lights its TV's glow (the meter link's `pinHover`), and hovering the TV lights the pin.
 - **Visit**: where the visitor is and is going: a stop (the overview or a station) and, at a station, the page. `src/visit/`
   owns both. `visit.step()` is the stop and page (a `Step` from `src/walk.ts`) the visitor is at or going to; `visit.target()` is just its stop.
   `next()`, `prev()` and `up()` follow the walk order. A move to another stop flies (or fades) and emits `move` then `land`;
