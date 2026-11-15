@@ -181,13 +181,14 @@ export function createShift(reduced = false) {
       readyAt = Math.max(readyAt, nowMs + fullTearMs);
       wakeTimer = setTimeout(() => wake?.(), SHIFT_SECONDS[kind] * 1000 + SNAP_BACK_MS + TIMER_SLACK_MS);
     },
-    /** A Work page turn asks for the short flick on that TV. It plays unless reduced motion is on or
-     *  it would put more than the limit of sudden changes in a second (quick clicks): the page turns
+    /** A page turn (a tab, row, button or key moving to another page of the station the visitor is at, on any station) asks for
+     *  the short flick on that station's glass. It plays unless reduced motion is on or
+     *  it would put more than the limit of sudden changes in a second (quick clicks, a held key): the page turns
      *  either way. */
     turn(): boolean {
       return !reduced && book("page", "short", performance.now());
     },
-    /** The flick on the Work TV really began at `nowMs`: its changes count from here. */
+    /** The page turn's flick really began at `nowMs`: its changes count from here. */
     turnStarted(nowMs: number) { rebook("page", "short", nowMs); },
     /** How station `i`'s text stands at this time, for where the visitor is. A read: it changes nothing. On a first visit
      *  it is held back until the full tear ends, so it resolves out of it; on a return it shows on the

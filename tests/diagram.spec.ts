@@ -1,34 +1,27 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import { stations } from "../src/content";
-import { waitForCamera } from "./lib/page";
+import { panelOf } from "./lib/page";
+import { openProject, openStation, tab } from "./lib/pages";
 
-// Ticket 53: MediaSafe shows a line diagram under its links, drawn from data in the content module.
-// Other stations that have none look as they did.
-//
-// PARKED (test.fixme) by #282, which made the stations Work, Projects and About me: the diagrams are on the project
-// pages (Software factory, MediaSafe, Home lab), and until #284 puts pages on the glass the glass shows only each station's
-// first page, which is the Projects list. These tests still name the old stations (#mediasafe, #home-lab, #software-factory,
-// #contact). #284 restores them against the project pages.
-const mediasafe = stations.flatMap((s) => s.pages).find((p) => p.id === "mediasafe")!;
+// Ticket 53: MediaSafe shows a line diagram under its links, drawn from data in the content module. Other pages that have
+// none look as they did. #282 moved the diagrams onto the Projects station's project pages and parked these specs; #284
+// put pages on the glass and restored them: a spec opens a project the way a visitor does, from the Projects list.
+const pages = stations.flatMap((s) => s.pages);
+const mediasafe = pages.find((p) => p.id === "mediasafe")!;
+const desktop = { width: 1280, height: 800 };
 
 for (const [w, h] of [[1280, 800], [1920, 1080]]) {
-  test.fixme(`desktop ${w}x${h}: MediaSafe's diagram sits under its links, and Work has none`, async ({ page }) => {
+  test(`desktop ${w}x${h}: MediaSafe's diagram sits under its links, and Work has none`, async ({ page }) => {
     test.setTimeout(90_000);
-    await page.setViewportSize({ width: w, height: h });
-    await page.goto("/");
-    await expect(page.getByLabel("Boot log")).toBeHidden();
-    const hud = page.getByRole("navigation", { name: "HUD" });
-
-    await hud.locator('a[href="#work"]').click();
-    const work = page.locator('[data-screen="work"]');
-    await expect(work).toHaveCSS("opacity", "1");
-    await expect(work.locator("figure")).toHaveCount(0);
+    await openStation(page, 1, "work", { width: w, height: h });
+    await expect(panelOf(page, "work").locator("figure")).toHaveCount(0);
     await page.screenshot({ path: `test-results/diagram-${w}x${h}-work.png` });
 
-    await hud.locator('a[href="#mediasafe"]').click();
-    const panel = page.locator('[data-screen="mediasafe"]');
+    await page.getByRole("navigation", { name: "HUD" }).locator('a[href="#projects"]').click();
+    const panel = panelOf(page, "projects");
     await expect(panel).toHaveCSS("opacity", "1");
-    await waitForCamera(page);
+    await expect(panel.locator("figure")).toHaveCount(0); // the list has none either
+    await panel.locator('button[data-row="mediasafe"]').click();
     const fig = panel.locator("figure[data-diagram]");
     await expect(fig).toBeVisible();
 
@@ -38,7 +31,7 @@ for (const [w, h] of [[1280, 800], [1920, 1080]]) {
 
     // under the links, above the body, inside the panel and the window
     const y = async (sel: string) => (await panel.locator(sel).first().boundingBox())!;
-    const links = await y("a"), fb = (await fig.boundingBox())!, body = await y("ul");
+    const links = await y('a[target="_blank"]'), fb = (await fig.boundingBox())!, body = await y("ul");
     expect(fb.y).toBeGreaterThanOrEqual(links.y + links.height);
     expect(fb.y + fb.height).toBeLessThanOrEqual(body.y + 1);
     const pb = (await panel.boundingBox())!;
@@ -51,16 +44,12 @@ for (const [w, h] of [[1280, 800], [1920, 1080]]) {
   });
 }
 
-test.fixme("phone: MediaSafe still shows its panel with the diagram not breaking the layout", async ({ browser }) => {
+test("phone: MediaSafe still shows its panel with the diagram not breaking the layout", async ({ browser }) => {
   test.setTimeout(60_000);
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   const page = await ctx.newPage();
-  await page.goto("/");
-  await expect(page.getByLabel("Boot log")).toBeHidden();
-  await page.getByRole("navigation", { name: "HUD" }).locator('a[href="#mediasafe"]').click();
-  const panel = page.locator('[data-screen="mediasafe"]');
-  await expect(panel).toHaveCSS("opacity", "1");
-  await waitForCamera(page);
+  await openProject(page, "mediasafe");
+  const panel = panelOf(page, "projects");
   const pb = (await panel.boundingBox())!;
   expect(pb.x).toBeGreaterThanOrEqual(0);
   expect(pb.x + pb.width).toBeLessThanOrEqual(390);
@@ -69,23 +58,14 @@ test.fixme("phone: MediaSafe still shows its panel with the diagram not breaking
   await ctx.close();
 });
 
-// Ticket 54: Home lab and Software factory get one too; Contact never does.
-async function goToStation(page: Page, id: string) {
-  await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto("/");
-  await expect(page.getByLabel("Boot log")).toBeHidden();
-  await page.getByRole("navigation", { name: "HUD" }).locator(`a[href="#${id}"]`).click();
-  const panel = page.locator(`[data-screen="${id}"]`);
-  await expect(panel).toHaveCSS("opacity", "1");
-  await waitForCamera(page);
-  return panel;
-}
-
+// Ticket 54: Home lab and Software factory get one too; the pages of About me never do.
 for (const id of ["home-lab", "software-factory"]) {
-  test.fixme(`desktop 1280x800: ${id} shows its diagram, drawn from its copy, inside the panel`, async ({ page }) => {
+  test(`desktop 1280x800: ${id} shows its diagram, drawn from its copy, inside the panel`, async ({ page }) => {
     test.setTimeout(90_000);
-    const panel = await goToStation(page, id);
-    const d = stations.find((s) => s.id === id)!.pages[0].diagram!;
+    await openProject(page, id, desktop);
+    const panel = panelOf(page, "projects");
+    const p = pages.find((x) => x.id === id)!;
+    const d = p.diagram!;
     const fig = panel.locator("figure[data-diagram]");
     await expect(fig).toBeVisible();
     // labels in order; an arrow with no label draws no text
@@ -102,18 +82,21 @@ for (const id of ["home-lab", "software-factory"]) {
     }).length);
     expect(bad).toBe(0);
     // the bullets are a real list, below the lead
-    const st = stations.find((s) => s.id === id)!;
     const lead = panel.locator("[data-lead]"), items = panel.locator("ul > li");
-    await expect(lead).toHaveText(st.pages[0].lead!);
-    await expect(items).toHaveText(st.pages[0].body);
+    await expect(lead).toHaveText(p.lead!);
+    await expect(items).toHaveText(p.body);
     expect((await lead.boundingBox())!.y).toBeLessThan((await panel.locator("ul").boundingBox())!.y);
     await page.screenshot({ path: `test-results/diagram-1280x800-${id}.png` });
   });
 }
 
-test.fixme("desktop 1280x800: contact has no diagram", async ({ page }) => {
+test("desktop 1280x800: the About me pages have no diagram", async ({ page }) => {
   test.setTimeout(90_000);
-  const panel = await goToStation(page, "contact");
-  await expect(panel.locator("figure")).toHaveCount(0);
+  await openStation(page, 3, "about", desktop);
+  for (const id of ["why-i-do-this", "off-the-keyboard", "contact"]) {
+    await tab(page, "about", id).click();
+    await expect(tab(page, "about", id)).toHaveAttribute("aria-current", "page");
+    await expect(panelOf(page, "about").locator("figure")).toHaveCount(0);
+  }
   await page.screenshot({ path: "test-results/diagram-1280x800-contact.png" });
 });

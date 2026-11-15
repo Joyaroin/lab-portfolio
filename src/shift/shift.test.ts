@@ -395,7 +395,7 @@ describe("limiting flashes", () => {
   });
 });
 
-describe("a Work page turn", () => {
+describe("a page turn", () => {
   it("plays the short flick, and only when the visitor is not reduced", () => {
     expect(setup().shift.turn()).toBe(true);
     expect(setup({ reduced: true }).shift.turn()).toBe(false);
@@ -428,6 +428,33 @@ describe("a Work page turn", () => {
     arrive(s, at(1), 0); // fired: 0, 200, 340
     vi.advanceTimersByTime(450);
     expect(s.shift.turn()).toBe(false);
+  });
+  it("is the same short flick whichever station it is on, and one limit counts the turns of every station", () => {
+    // turn() takes no station: Work, Projects and About me share the booking, so turns on different glasses never add up past the limit
+    const s = setup();
+    const played: number[] = [];
+    for (let i = 0; i < 40; i++) { if (s.shift.turn()) played.push(performance.now()); vi.advanceTimersByTime(130); } // a held key's pace
+    expect(played.length).toBeGreaterThan(3);
+    expect(busiestWindow(played.flatMap((t) => changeOffsets("short").map((o) => t + o)))).toBeLessThanOrEqual(MAX_CHANGES_PER_SECOND);
+  });
+  it("keeps the limit holding → across a page boundary and a station boundary: turns, then a landing, then turns again", () => {
+    // A held → repeats about every 33 ms: three page turns at one station, a flight and landing at the next, then more page turns.
+    for (const pace of [33, 90, 250]) {
+      const s = setup();
+      const changes: number[] = [];
+      const seen = new Set<number>();
+      let stop = 1;
+      s.shift.observe(at(stop));
+      for (let k = 0; k < 120; k++) {
+        const before = performance.now();
+        if (k % 8 === 7) { stop = (stop % STATION_COUNT) + 1; s.shift.observe(at(stop)); } // the station boundary: → lands at the next monitor
+        else if (s.shift.turn()) changes.push(...changeOffsets("short").map((o) => before + o)); // a page boundary: → turns the page
+        vi.advanceTimersByTime(pace);
+        for (const p of s.started) if (!seen.has(p.id)) { seen.add(p.id); changes.push(...changeOffsets(p.kind).map((o) => before + o)); }
+      }
+      expect(changes.length, `at ${pace} ms it still plays some`).toBeGreaterThan(6);
+      expect(busiestWindow(changes), `at ${pace} ms`).toBeLessThanOrEqual(MAX_CHANGES_PER_SECOND);
+    }
   });
   it("holds a tear back when it would land just after a page turn, and its changes don't fit", () => {
     const s = setup();

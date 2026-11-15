@@ -1,38 +1,72 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { markMore } from "./more";
-import type { OnPageTurn } from "../TearView";
-import { pageSwitch, stations, ui, type Diagram, type PageList, type Station } from "../content";
+import { controlsFor, headingFor, type Button, type Controls, type PageStep } from "./controls";
+import { stations, ui, type Diagram, type PageList, type Station } from "../content";
+import type { Step } from "../walk";
+import type { Visit } from "../visit";
 
 // Each station's text as real HTML. place.ts (run per frame by TextPins, which the room mounts)
 // pins each panel to its CRT screen and sets its position, size and opacity; this file holds how it looks: green phosphor with
 // fine scanlines and a curved-glass vignette, all drawn by CSS behind the text so it stays sharp.
+// A panel shows the visit's page (`step`), never a page of its own: a tab, a list row, the breadcrumb's link and the Next and Back
+// buttons all ask the visit to go, and the panel follows what the visit says (src/text/controls.ts holds what they say and where they go).
 // When the text runs past the panel's height, a fade and a "more" hint sit at its bottom edge
 // until the visitor has scrolled to the end.
-export function ScreenPanels({ onTurn }: { onTurn?: OnPageTurn }) {
+export function ScreenPanels({ visit, step }: { visit: Visit; step: Step }) {
   return (
     <>
       <style>{css}</style>
-      {stations.map((s) => <StationPanel key={s.id} s={s} onTurn={onTurn} />)}
+      {stations.map((s) => <StationPanel key={s.id} s={s} visit={visit} step={step} />)}
     </>
   );
 }
 
-function StationPanel({ s, onTurn }: { s: Station; onTurn?: OnPageTurn }) {
+function StationPanel({ s, visit, step }: { s: Station; visit: Visit; step: Step }) {
   const ref = useRef<HTMLElement>(null);
-  // A station opens on its first page (Work: Solace). Scrolling never changes it.
-  const [open, setOpen] = useState(0);
-  const page = s.pages[open];
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  // The page shown is the visit's when it is at this station. Otherwise the panel keeps the page it last showed (it may be
+  // fading out), and a station nobody has been to shows its first page.
+  const [last, setLast] = useState(s.pages[0].id);
+  const here = step.kind === "page" && step.station === s.id ? step.page : null;
+  if (here && here !== last) setLast(here);
+  const pageId = here ?? last;
+  const page = s.pages.find((p) => p.id === pageId) ?? s.pages[0];
+  const at: PageStep = { kind: "page", station: s.id, page: page.id };
+  const controls = controlsFor(at);
   // A new page starts at its top, and the "more" cue is worked out for the new text.
-  useLayoutEffect(() => { if (ref.current) { ref.current.scrollTop = 0; markMore(ref.current); } }, [open]);
+  useLayoutEffect(() => { if (ref.current) { ref.current.scrollTop = 0; markMore(ref.current); } }, [page.id]);
+  // After a tab, a row or a button the visitor's focus goes to the new page's heading, so a screen reader says where it landed.
+  // The arrow keys never do this: they are not a click on one of these. Only a move the visit made at once counts.
+  const refocus = useRef(false);
+  useLayoutEffect(() => { if (refocus.current) { refocus.current = false; headingRef.current?.focus({ preventScroll: true }); } }, [page.id]);
+  // The cue sits just above the foot, whatever height its row has (it wraps on a narrow panel).
+  const footRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const panelEl = ref.current, foot = footRef.current;
+    if (!panelEl) return;
+    if (!foot) { panelEl.style.removeProperty("--foot-h"); return; }
+    const set = () => panelEl.style.setProperty("--foot-h", `${foot.offsetHeight}px`);
+    set();
+    const ro = new ResizeObserver(set);
+    ro.observe(foot);
+    return () => ro.disconnect();
+  }, [controls.back?.label, controls.next?.label]);
+  const go = (to: Step) => {
+    visit.go(to);
+    const now = visit.step();
+    refocus.current = now.kind === "page" && now.station === s.id && now.page !== page.id;
+  };
   return (
     <section ref={ref} tabIndex={-1} data-screen={s.id} aria-label={s.name} className="crt-panel" style={{ ...panel, visibility: "hidden" }}
       onScroll={(e) => markMore(e.currentTarget)}>
-      <h2 style={heading}>{s.heading}</h2>
+      <Crumb c={controls.crumb} go={go} />
+      <h2 ref={headingRef} tabIndex={-1} data-heading style={heading}>{headingFor(at)}</h2>
       {s.line && <p data-line style={lead}>{s.line}</p>}
+      {controls.tabs && <Tabs tabs={controls.tabs} station={s} go={go} />}
       {/* the open page's lead: it changes when the page turns */}
       {page.lead && <p data-lead style={lead}>{page.lead}</p>}
       {page.stat && <p data-stat style={stat}>{page.stat}</p>}
-      {page.list && <ProjectList list={page.list} s={s} />}
+      {page.list && <ProjectList list={page.list} s={s} go={go} />}
       {/* links first, so they are on screen without scrolling even in a phone's short panel */}
       <p style={linkRow}>
         {page.links.map((l) => (
@@ -43,24 +77,68 @@ function StationPanel({ s, onTurn }: { s: Station; onTurn?: OnPageTurn }) {
         ))}
       </p>
       {page.diagram && <DiagramFigure d={page.diagram} />}
-      {/* the job timeline is Work's; the other stations' pages get their own controls in a later ticket */}
-      {s.pages.length > 1 && s.pages.every((p) => p.dates) && <Timeline pages={s.pages} open={open} onOpen={(i) => { if (i !== open && ref.current) onTurn?.(ref.current); setOpen(i); }} />}
       <ul style={list}>{page.body.map((b, i) => <li key={i} style={item}>{b}</li>)}</ul>
+      <Foot c={controls} go={go} footRef={footRef} />
       <div className="crt-more" aria-hidden="true"><span>{ui.more}</span></div>
     </section>
   );
 }
 
+// The first line of every panel: "Monitor 1 · Work", or on a project page "~/projects / mediasafe" with "~/projects" a link back to the list.
+function Crumb({ c, go }: { c: Controls["crumb"]; go: (to: Step) => void }) {
+  return (
+    <p data-crumb style={crumb}>
+      {c.up && <a href="#projects" style={crumbLink} onClick={(e) => { e.preventDefault(); go(c.up!.to); }}>{c.up.label}</a>}
+      {c.text}
+    </p>
+  );
+}
+const crumb: CSSProperties = { margin: 0, color: "#ffb347", fontSize: "0.8em", letterSpacing: "0.12em", textTransform: "uppercase" };
+const crumbLink: CSSProperties = { color: "#ffb347", textDecoration: "underline" };
+
+// Work's and About me's pages as tabs, in page order. Each is a real button; the open one is filled and marked with aria-current,
+// so it never rests on colour alone (it is the only filled one, and the others are outlined).
+function Tabs({ tabs, station, go }: { tabs: NonNullable<Controls["tabs"]>; station: Station; go: (to: Step) => void }) {
+  return (
+    <nav aria-label={ui.pageControls.tabs} data-tabs style={tabRow}>
+      {tabs.map((t) => (
+        <button key={t.page} type="button" className="crt-tab" data-page={t.page} aria-current={t.open ? "page" : undefined}
+          onClick={() => { if (!t.open) go({ kind: "page", station: station.id, page: t.page }); }}>
+          <span>{t.label}</span>
+          {t.sub && <span className="crt-tab-sub">{t.sub}</span>}
+        </button>
+      ))}
+    </nav>
+  );
+}
+const tabRow: CSSProperties = { display: "flex", gap: 8, margin: "0.4em 0 0.7em" };
+
+// Back and Next at the foot of the panel, each naming where it goes.
+function Foot({ c, go, footRef }: { c: Controls; go: (to: Step) => void; footRef: React.RefObject<HTMLDivElement | null> }) {
+  if (!c.back && !c.next) return null;
+  const btn = (b: Button, kind: "back" | "next") => (
+    <button type="button" className="crt-btn" data-btn={kind} onClick={() => go(b.to)}>{b.label}</button>
+  );
+  return (
+    <div ref={footRef} className="crt-foot" data-foot>
+      {c.back && btn(c.back, "back")}
+      {c.next && btn(c.next, "next")}
+    </div>
+  );
+}
+
 // The Projects list page: a shell prompt, a row for each project (its name, tech tag and stat) and a line at the foot.
-function ProjectList({ list, s }: { list: PageList; s: Station }) {
+function ProjectList({ list, s, go }: { list: PageList; s: Station; go: (to: Step) => void }) {
   return (
     <div data-list>
       <p style={prompt}>{list.prompt}</p>
       <ul style={rows}>
         {list.rows.map((r) => (
           <li key={r.page} style={row}>
-            <span style={rowName}>{r.name}</span> <span style={rowTag}>{r.tag}</span>
-            <span style={rowStat}>{s.pages.find((p) => p.id === r.page)?.stat}</span>
+            <button type="button" className="crt-row" data-row={r.page} onClick={() => go({ kind: "page", station: s.id, page: r.page })}>
+              <span style={rowName}>{r.name}</span> <span style={rowTag}>{r.tag}</span>
+              <span style={rowStat}>{s.pages.find((p) => p.id === r.page)?.stat}</span>
+            </button>
           </li>
         ))}
       </ul>
@@ -70,36 +148,11 @@ function ProjectList({ list, s }: { list: PageList; s: Station }) {
 }
 const prompt: CSSProperties = { margin: "0 0 0.5em", color: "#7dffb0" };
 const rows: CSSProperties = { margin: "0 0 0.7em", padding: 0, listStyle: "none" };
-const row: CSSProperties = { margin: "0 0 0.6em" };
+const row: CSSProperties = { margin: 0 };
 const rowName: CSSProperties = { fontWeight: 700, color: "#b4ffd0" };
 const rowTag: CSSProperties = { fontSize: "0.8em", letterSpacing: "0.04em", color: "#ffb347" };
 const rowStat: CSSProperties = { display: "block" };
 const stat: CSSProperties = { margin: "0 0 0.7em", color: "#ffb347" };
-
-// The timeline that is Work's diagram and its page switch: one real button per job, oldest on the
-// left, each as wide as its months. The open one is filled and tagged "open" with a marker, the
-// others are outlined with an arrow and brighten under the pointer or keyboard focus, so the open
-// page never rests on colour alone and the rest look clickable.
-function Timeline({ pages, open, onOpen }: { pages: Station["pages"]; open: number; onOpen: (i: number) => void }) {
-  const order = [...pages.keys()].reverse(); // oldest first, left to right
-  return (
-    <div role="group" aria-label={pageSwitch.name} data-timeline style={timeline}>
-      <p style={hint}>{pageSwitch.hint}</p>
-      <div style={{ display: "flex", gap: 6 }}>
-        {order.map((i) => (
-          <button key={pages[i].id} type="button" className="crt-seg" data-page={pages[i].id} data-open={i === open}
-            aria-pressed={i === open} onClick={() => onOpen(i)} style={{ flex: `${pages[i].months ?? 1} 1 0`, minWidth: "5.5em" }}>
-            <span className="crt-seg-label"><span className="crt-seg-tag">{i === open ? `${pageSwitch.openMark} ${pageSwitch.open}` : pageSwitch.closedMark}</span> {pages[i].label}</span>
-            <span className="crt-seg-dates">{pages[i].dates}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-const timeline: CSSProperties = { margin: "0 0 0.7em", padding: 0 };
-// 0.3333em of the hint's own size (0.75em) is 0.25 of the panel's em.
-const hint: CSSProperties = { margin: "0 0 0.3333em", fontSize: "0.75em", letterSpacing: "0.08em", color: "#ffb347" };
 
 // A station's diagram as a line drawing. The labels are real SVG text (selectable, scaling with the
 // panel); the figure as a whole carries the plain description for a screen reader.
@@ -154,15 +207,30 @@ const css = `
   background: linear-gradient(to bottom, rgba(4,20,11,0), rgba(4,20,11,0.97) 70%); }
 .crt-more span { font-size: 0.8em; letter-spacing: 0.1em; color: #ffb347; text-shadow: 0 0 6px rgba(255,140,30,0.6); }
 .crt-panel[data-more="true"] .crt-more { visibility: inherit; }
-.crt-seg { font: inherit; color: #b4ffd0; text-align: left; cursor: pointer; display: grid; padding: 0.2em 0.6em;
-  background: rgba(10,40,22,0.6); border: 1px dashed #2f7a4d; border-top: 3px solid #2f7a4d; border-radius: 6px; text-shadow: inherit; }
-.crt-seg:hover, .crt-seg:focus-visible { background: #0f4a28; border-color: #7dffb0; box-shadow: 0 0 10px rgba(80,255,150,0.4); }
-.crt-seg:focus-visible { outline: 2px solid #ffb347; outline-offset: 2px; }
-.crt-seg[data-open="true"] { background: #7dffb0; color: #02140a; text-shadow: none; border: 2px solid #7dffb0; border-top-width: 6px; cursor: default; font-weight: 700; }
-.crt-seg-tag { font-size: 0.7em; letter-spacing: 0.1em; text-transform: uppercase; color: #ffb347; }
-.crt-seg[data-open="true"] .crt-seg-tag { color: #02140a; }
-.crt-seg-label { font-size: 1.05em; }
-.crt-seg-dates { font-size: 0.8em; }
+/* The panel is a column so the Back and Next row sits at its foot when the text is short, and stays on screen (sticky) when the
+   text scrolls. --foot-h is that row's height, set by the panel: the "more" cue sits just above it. */
+.crt-panel { display: flex; flex-direction: column; }
+.crt-panel > * { flex: none; }
+.crt-foot { position: sticky; bottom: -0.9em; margin: auto -1em -0.9em; padding: 0.5em 1em 0.9em; display: flex; flex-wrap: wrap; gap: 0.5em; z-index: 1;
+  border-top: 1px solid rgba(125,255,176,0.2); background: #04140b; }
+.crt-panel[data-glass="true"] .crt-foot { bottom: -0.6em; margin: auto -1.2em -0.6em; padding: 0.5em 1.2em 0.6em; background: #020a05; }
+.crt-more { bottom: calc(var(--foot-h, 0px) - 0.9em); }
+.crt-panel[data-glass="true"] .crt-more { bottom: calc(var(--foot-h, 0px) - 0.6em); }
+.crt-tab, .crt-btn, .crt-row { font: inherit; color: #b4ffd0; text-shadow: inherit; cursor: pointer; text-align: left;
+  background: rgba(10,40,22,0.6); border: 1px solid #2f7a4d; border-radius: 6px; }
+.crt-tab { flex: 1 1 0; display: grid; padding: 0.3em 0.7em; min-width: 5.5em; }
+.crt-tab-sub { font-size: 0.8em; color: #7dffb0; opacity: 0.8; }
+.crt-btn { min-height: 2.2em; padding: 0.3em 0.9em; }
+.crt-btn[data-btn="next"] { margin-left: auto; background: #7dffb0; color: #02140a; text-shadow: none; border-color: #7dffb0; font-weight: 700; }
+.crt-row { display: block; position: relative; width: 100%; padding: 0.6em 0.5em 0.6em 1.5em; background: none; border: 0; border-bottom: 1px dashed rgba(125,255,176,0.25); border-radius: 0; }
+.crt-tab:hover, .crt-btn:hover, .crt-row:hover, .crt-tab:focus-visible, .crt-btn:focus-visible, .crt-row:focus-visible { background: #0f4a28; border-color: #7dffb0; box-shadow: 0 0 10px rgba(80,255,150,0.4); }
+.crt-btn[data-btn="next"]:hover, .crt-btn[data-btn="next"]:focus-visible { background: #b4ffd0; color: #02140a; }
+.crt-row:hover, .crt-row:focus-visible { box-shadow: none; }
+.crt-row::before { content: "▸"; position: absolute; left: 0.4em; visibility: hidden; color: #ffb347; }
+.crt-row:hover::before, .crt-row:focus-visible::before { visibility: visible; }
+.crt-tab:focus-visible, .crt-btn:focus-visible, .crt-row:focus-visible { outline: 2px solid #ffb347; outline-offset: 2px; }
+.crt-tab[aria-current="page"] { background: #7dffb0; color: #02140a; text-shadow: none; border: 2px solid #7dffb0; cursor: default; font-weight: 700; }
+.crt-tab[aria-current="page"] .crt-tab-sub { color: #0d3b23; opacity: 1; }
 /* The text resolves out of the shift: it comes in from a red and cyan split that closes up, in a few
    steps like a signal locking, not a smooth fade. Until then the panel is held at opacity 0 by the
    room (still in the page). Reduced motion never gets the attribute, so its text just appears. */
@@ -173,7 +241,7 @@ const css = `
   100% { opacity: 1; text-shadow: 0 0 5px rgba(80,255,150,0.45); }
 }
 .crt-panel[data-glass="true"] { background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.18) 2px 3px); border: 0; border-radius: 0; box-shadow: none; padding: 0.6em 1.2em; }
-.crt-panel[data-glass="true"] .crt-more { margin: -2.6em -1.2em 0; bottom: -0.6em; height: 2.6em;
+.crt-panel[data-glass="true"] .crt-more { margin: -2.6em -1.2em 0; height: 2.6em;
   background: linear-gradient(to bottom, rgba(2,10,5,0), rgba(2,10,5,0.95) 70%); }
 `;
 

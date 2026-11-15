@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { identity } from "./content";
 import { readdirSync } from "node:fs";
 
-import { validateContent, content, pageSwitch, ui, fill, hasPrivateAddress, stopLineText, MAX_BULLETS, type Diagram, type Page } from "./content";
+import { validateContent, content, ui, fill, hasPrivateAddress, stopLineText, MAX_BULLETS, type Diagram, type Page } from "./content";
 import { WORK_COPY, WORK_LEADS } from "../tests/fixtures/work-copy";
 
 const good = () => structuredClone(content);
@@ -463,28 +463,41 @@ describe("bezel words", () => {
   });
 });
 
-// The timeline's own words are drawn on a TV too, so they are checked like the rest. The words come
-// from the Content given, so every key it holds is validated, including ones added later.
-describe("timeline words", () => {
-  it.each(Object.keys(pageSwitch))("rejects a %s that is empty or reads as live", (f) => {
-    const c = good();
-    c.pageSwitch[f as keyof typeof pageSwitch] = "";
-    expect(validateContent(c).join("\n")).toContain(`pageSwitch.${f}: missing`);
-    c.pageSwitch[f as keyof typeof pageSwitch] = "Synced";
-    expect(validateContent(c).join("\n")).toContain(`pageSwitch.${f}: reads as a live status`);
+// The page controls' words are #280's approved copy, used word for word. They are drawn on a TV, so they are checked like the rest.
+describe("page controls words", () => {
+  it("are the approved words", () => {
+    expect(ui.pageControls).toEqual({
+      crumb: "Monitor {n} · {station}",
+      crumbList: "~/projects",
+      crumbProject: " / {project}",
+      tabs: "Pages",
+      nextJob: "Next job: {company} →",
+      nextProject: "Next project: {name} →",
+      nextPage: "Next: {page} →",
+      nextMonitor: "Next: {station} →",
+      toOverview: "Back to overview",
+      back: "← {page}",
+    });
   });
-  it("validates a key added to the timeline words", () => {
+  it("rejects a word that is empty, and a template that lost its placeholder", () => {
     const c = good();
-    (c.pageSwitch as Record<string, string>).extra = "";
-    expect(validateContent(c).join("\n")).toContain("pageSwitch.extra: missing");
+    c.ui.pageControls.toOverview = "";
+    expect(validateContent(c).join("\n")).toContain("ui.pageControls.toOverview: missing");
+    const d = good();
+    d.ui.pageControls.nextJob = "Next job →";
+    expect(validateContent(d).join("\n")).toContain("ui.pageControls.nextJob: must contain {company}");
+  });
+  it("retired the timeline's words", () => {
+    expect(JSON.stringify(content)).not.toContain("Click a job to read it");
+    expect(content).not.toHaveProperty("pageSwitch");
   });
 });
 
 // Every other word the app shows or announces: the HUD, the meter's labels, the boot log, the signal
 // lost screen, the gap's sentence. They move here from the components, so validation covers them.
 describe("interface words", () => {
-  const EMPTY_GROUPS = ["pageControls", "photo"];
-  const GROUPS = [...EMPTY_GROUPS, "hud", "pins", "ambient"];
+  const EMPTY_GROUPS = ["photo"];
+  const GROUPS = [...EMPTY_GROUPS, "pageControls", "hud", "pins", "ambient"];
   const keys = Object.keys(ui).filter((k) => !GROUPS.includes(k));
   it("accepts the shipped words", () => {
     expect(validateContent(content)).toEqual([]);

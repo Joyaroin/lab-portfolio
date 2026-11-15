@@ -64,7 +64,8 @@ export function Tour({ gap, visit, meter, shift: shifts }: { gap: Gap | null; vi
   // The bar plays what the shift says is playing; leaving mid-shift ends it. The tear subscribes itself.
   const barShift = useSyncExternalStore(shifts.subscribe, () => shifts.playing);
 
-  // A Work page turn's flick, on that TV's screen only. The page turns whether or not it plays.
+  // A page turn's flick, on that station's glass only: every move to another page of the station the visitor is at, from a tab, a row,
+  // a button or a key. The page turns whether or not it plays.
   const [turn, setTurn] = useState<PageTurn | null>(null);
   const turnId = useRef(0);
   const pageTurned = useCallback((el: HTMLElement) => {
@@ -83,6 +84,11 @@ export function Tour({ gap, visit, meter, shift: shifts }: { gap: Gap | null; vi
       if (e.type === "land" && e.stop >= 1) setVisited(true);
       setStep(visit.step());
       if (e.type !== "page") report(); // a page move is not a move of the camera: the shift has nothing to hear
+      // A page change under way to a station still flying in has no glass to tear yet.
+      else if (!visit.moving(performance.now())) {
+        const el = document.querySelector<HTMLElement>(`[data-screen="${stations[e.stop - 1].id}"]`);
+        if (el) pageTurned(el);
+      }
     });
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") visit.up();
@@ -92,7 +98,7 @@ export function Tour({ gap, visit, meter, shift: shifts }: { gap: Gap | null; vi
     };
     window.addEventListener("keydown", onKey);
     return () => { off(); window.removeEventListener("keydown", onKey); };
-  }, [visit]);
+  }, [visit, pageTurned]);
 
   // The hover preview (#228): where the pointer rests at the overview. The TV reports through the meter link (the room's
   // canvas), a HUD link through `onPoint`. The pointer's rest is the rule in src/bar.ts; this only hears of it and asks for the
@@ -150,7 +156,7 @@ export function Tour({ gap, visit, meter, shift: shifts }: { gap: Gap | null; vi
   return (
     <>
       <Tear shift={shifts} turn={turn} reduced={reduced} />
-      <ScreenPanels onTurn={pageTurned} />
+      <ScreenPanels visit={visit} step={step} />
       <Hud where={here} visited={visited} visit={visit} onPoint={onPoint} />
       <Pins at={here} lit={visit.target() === 0 ? lit : null} reduced={reduced} visit={visit} onPoint={onPinPoint} redraw={redrawRoom} win={win} />
       <div style={{ position: "fixed", left: 0, right: 0, bottom: "var(--meter-bottom, 1rem)", zIndex: 10, display: "flex", justifyContent: "center", pointerEvents: "none" }}>

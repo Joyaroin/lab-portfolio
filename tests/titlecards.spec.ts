@@ -4,8 +4,8 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { PerspectiveCamera, Vector3 } from "three";
 import { stations } from "../src/content";
-import { crts, spares, type Crt } from "../src/crts";
-import { glassOnScreen } from "../src/glass";
+import { crts, spares, PLANE_INSET, type Crt } from "../src/crts";
+import { phosphorOnScreen } from "../src/glass";
 import { framingFor } from "../src/framing";
 import { goBack, readCamera, readShot } from "./lib/page";
 
@@ -32,17 +32,27 @@ async function arriveAtOverview(page: Page) {
   await expect.poll(async () => Math.hypot(...(await readCamera(page)).map((g, k) => g - want[k])), { message: "camera arrived at the overview" }).toBeLessThan(0.02);
 }
 
-/** The glass's four corners on screen (texture corners top-left, top-right, bottom-left, bottom-right). */
-function glassCornersAt(crt: Crt) {
+/** The four corners on screen of the plane that carries the card (texture corners top-left, top-right,
+ *  bottom-left, bottom-right). That plane is not the baked glass: it stands in front of it and is a little
+ *  smaller while it carries a card (src/Phosphor.tsx), and from the overview's angle the difference is
+ *  enough to slide the sample off the card on a steeply seen TV (the bench TV). `inset` is the plane's
+ *  shrink: PLANE_INSET for a station's card, 0 for a spare's clear glass. */
+function glassCornersAt(crt: Crt, inset: number) {
   const s = viewAt();
   const cam = new PerspectiveCamera(s.fov, size.width / size.height, 0.1, 1000);
   cam.position.set(...s.camera); cam.lookAt(new Vector3(...s.look)); cam.updateMatrixWorld();
-  const [bl, tl, br, tr] = glassOnScreen(crt, cam, size); // glassCorners' order: x then y
+  const [bl, tl, br, tr] = phosphorOnScreen(crt, cam, size, inset); // glassCorners' order: x then y
   return [tl, tr, bl, br];
 }
 
-/** The most any card may match plain glass, or a spare CRT's glass, by `scoreOf`. */
+/** The most any card may match plain glass (drawn, so exactly the clear phosphor) by `scoreOf`. */
 const PLAIN_GLASS_BEST = 0.3;
+/** The most any card may match a spare CRT's glass, as the render shows it. That is the clear phosphor too, but
+ *  lit and seen at an angle, so what is left after taking the plain glass away is shading, not a card: it scored
+ *  0.12 to 0.33 on the three spares when sampled on the phosphor plane (0.12 to 0.29 when sampled on the baked
+ *  glass's corners, the sampling this replaced, which put the spares just under 0.3 and the bench TV's card at 0.21).
+ *  The stations' own cards score 0.58 or more, so 0.45 sits between the two. */
+const SPARE_GLASS_BEST = 0.45;
 
 /** The map from the glass's own (u, v) in 0..1 to window pixels, as nine numbers (a homography). */
 function homography(c: { x: number; y: number }[]) {
@@ -165,7 +175,7 @@ test("every TV shows its own title card from the overview", { tag: "@render" }, 
   await page.waitForTimeout(300); // let the drawn frame land
   const full = await page.screenshot({ path: "test-results/titlecard-overview-desktop.png" }); // for the PR's contact sheet
   for (const [i, s] of stations.entries()) {
-    const corners = glassCornersAt(crts[i]);
+    const corners = glassCornersAt(crts[i], PLANE_INSET);
     for (const c of corners) {
       expect(c.x, `${s.id}: glass inside the window`).toBeGreaterThan(0); expect(c.x).toBeLessThan(size.width);
       expect(c.y, `${s.id}: glass inside the window`).toBeGreaterThan(0); expect(c.y).toBeLessThan(size.height);
@@ -176,16 +186,16 @@ test("every TV shows its own title card from the overview", { tag: "@render" }, 
     rows.push(`${s.id}: own ${own.toFixed(2)}, best other ${Math.max(...others).toFixed(2)}`);
     expect(own, `${s.id}: its own card, not another's. ${rows[rows.length - 1]}`).toBeGreaterThan(Math.max(...others) + 0.15);
   }
-  // The spare CRTs are no station and have no card: their glass is the clear phosphor, so it matches no card better than plain glass does.
+  // The spare CRTs are no station and have no card: their glass is the clear phosphor, so it matches no card (SPARE_GLASS_BEST).
   for (const spare of spares) {
-    const spareCorners = glassCornersAt(spare);
+    const spareCorners = glassCornersAt(spare, 0);
     for (const c of spareCorners) {
       expect(c.x, `${spare.id}: glass inside the window`).toBeGreaterThan(0); expect(c.x).toBeLessThan(size.width);
       expect(c.y, `${spare.id}: glass inside the window`).toBeGreaterThan(0); expect(c.y).toBeLessThan(size.height);
     }
     const spareScores = scoreOf(want, await sampleGlass(page, full, homography(spareCorners)));
     rows.push(`${spare.id}: best card ${Math.max(...spareScores).toFixed(2)}`);
-    expect(Math.max(...spareScores), `${spare.id} carries no card. ${rows[rows.length - 1]}`).toBeLessThan(PLAIN_GLASS_BEST);
+    expect(Math.max(...spareScores), `${spare.id} carries no card. ${rows[rows.length - 1]}`).toBeLessThan(SPARE_GLASS_BEST);
   }
   test.info().annotations.push({ type: "card match", description: rows.join("; ") });
 });
