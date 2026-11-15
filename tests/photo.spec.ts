@@ -84,5 +84,4 @@ test("on a short landscape phone (667x375) the photo is not shown, nor fetched, 
   await expect(img(page)).toHaveCount(0);
   await expect(panelOf(page, "about").locator("[data-photo]")).toHaveCount(0);
   expect(urls).toEqual([]);
-  await page.screenshot({ path: process.env.PHOTO_SHOT ?? test.info().outputPath("about-667x375.png") });
 });
