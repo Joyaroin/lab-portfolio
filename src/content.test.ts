@@ -14,9 +14,9 @@ const projectPage = (id: string) => station("projects").pages.find((p) => p.id =
 describe("the page's description and preview alt text", () => {
   it("are the approved words", () => {
     expect(identity.description).toBe(
-      "Adham Sedik, Software & Platform Engineer. Tour a 3D home lab: my work, MediaSafe, my home Kubernetes cluster and the AI software factory that built this site.");
-    expect(identity.description).toHaveLength(159);
-    expect(identity.imageAlt).toBe("The lab at night: five lit monitors and a nixie meter on a desk, with Adham Sedik's name");
+      "Adham Sedik, Software & Platform Engineer. Tour a 3D home lab with three monitors: my work experience, my projects, and about me.");
+    expect(identity.description).toHaveLength(129);
+    expect(identity.imageAlt).toBe("The lab at night: three lit monitors marked Work, Projects and About me, and a nixie meter on a desk, with Adham Sedik's name");
   });
 });
 

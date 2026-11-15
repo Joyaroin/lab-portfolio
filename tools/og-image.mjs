@@ -1,7 +1,7 @@
 // Takes the link preview image, public/og-image.png: `make og-image`, through `heavy`, on the Mac. CI never runs it.
 // It builds the real site and serves it with `vite preview` (as playwright.config.ts does), opens it in Playwright's
 // Chromium at a 1200x630 window with device scale factor 2, waits for the room to settle at the overview, hides
-// the HUD's link row and the meter bar for the shot only, and scales the shot down to 1200x630 in a browser canvas
+// the HUD's link row, the pins, the Start button and the meter bar for the shot only, and scales the shot down to 1200x630 in a browser canvas
 // (the repo has no image decoder).
 //   TEST_PORT=<port> node tools/og-image.mjs
 import { spawn, spawnSync } from "node:child_process";
@@ -48,8 +48,8 @@ try {
   if (still < 8) throw new Error(`the room never settled; last state ${last}`);
   console.log(`og-image: settled at ${last}`);
 
-  // Hidden for the shot only: the HUD's link row and the meter bar (device and line).
-  await page.addStyleTag({ content: "[data-link-row],[data-meter-bar]{visibility:hidden!important}" });
+  // Hidden for the shot only: the HUD's link row, the numbered pins, the Start button and the meter bar (device and line).
+  await page.addStyleTag({ content: "[data-link-row],[data-pin],[data-start],[data-meter-bar]{visibility:hidden!important}" });
   await page.waitForTimeout(500);
 
   const shot = await page.screenshot({ type: "png" }); // 2400x1260

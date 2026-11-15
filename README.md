@@ -4,10 +4,11 @@
 
 **[Visit the live site](https://lab.mediasafe.space)** · **[Résumé (PDF)](public/resume.pdf)**
 
-[![The overview of the room: a dark desk with five lit CRT monitors and a nixie-tube meter](public/og-image.png)](https://lab.mediasafe.space)
+[![The overview of the room: a dark desk with three lit monitors marked Work, Projects and About me, and a nixie-tube meter](public/og-image.png)](https://lab.mediasafe.space)
 
-You open on an overview of a desk with five lit monitors. Click one (or a link at the top) and the camera flies to
-that station: work experience, MediaSafe, the home lab, the software factory that built this site, and contact. A
+You open on an overview of a desk with three lit monitors. Click one (or a link at the top) and the camera flies to
+it. Each monitor has pages you step through: work experience, projects (Software factory, MediaSafe, Home lab) and
+About me. Three spare CRTs stay lit and are decoration. A
 nixie-tube meter on the desk shows a live number: how many MediaSafe staging deploys have landed since the last
 promotion to production.
 
@@ -25,7 +26,8 @@ I run built it.
   and every build fails if the first screen goes over about 100 KB or the whole site over 15 MB (gzip).
 - **Live data, no backend.** The meter's count comes from a public GitOps repo's commit history, read by the
   visitor's browser through the GitHub API. The site stays static files served by nginx. If the call fails, the
-  meter falls back to a value saved at build time and says the reading isn't live.
+  meter falls back to a value saved at build time and says the reading isn't live. The build also reads the site's latest
+  commits from the same API.
 - **Text is real HTML.** Station text is HTML pinned to the screens, and the page carries it before boot, so search engines can read
   it. The tour works from the keyboard (arrow keys and Esc), respects reduced motion, and shows a failure
   screen when 3D can't start.
@@ -86,7 +88,7 @@ npm ci
 npm run dev
 ```
 
-`npm test` runs the unit tests. `npm run build` saves today's live gap, type-checks, makes the production build and
+`npm test` runs the unit tests. `npm run build` saves today's live gap and the latest commits, type-checks, makes the production build and
 checks the size budget. `make frontend` runs `npm ci`, the type check, `npm test` and `npm run build`, in that order.
 `make facts` checks that the paths, commands and tags the docs name exist. The room's 3D model is committed, so you
 don't need Blender unless you rebuild it (below).
@@ -148,7 +150,7 @@ change to one means rendering again. The images are committed (ADR-0006), and CI
 <details>
 <summary>The preview image</summary>
 
-`make og-image` writes `public/og-image.png`, the picture a shared link shows (1200×630). Run it on the Mac, through `heavy`: `heavy make og-image`. It builds the site, serves it with `npm run preview`, opens it in Playwright's Chromium at a 1200×630 window with device scale factor 2, waits for the boot screen to go, the camera to be still at the overview and the desk meter's reading to settle, hides the HUD's link row and the meter bar for the shot only, and scales the shot to 1200×630 in a browser canvas. The desk meter stays in the shot and shows whatever gap it read. The PNG is committed, and CI never runs it. `src/page-image-tags.test.ts` checks the file's size matches the head's `og:image:width` and `og:image:height`. If the room changes, run it again and look at the image.
+`make og-image` writes `public/og-image.png`, the picture a shared link shows (1200×630). Run it on the Mac, through `heavy`: `heavy make og-image`. It builds the site, serves it with `npm run preview`, opens it in Playwright's Chromium at a 1200×630 window with device scale factor 2, waits for the boot screen to go, the camera to be still at the overview and the desk meter's reading to settle, hides the HUD's link row, the numbered pins, the Start button and the meter bar for the shot only, and scales the shot to 1200×630 in a browser canvas. The desk meter stays in the shot and shows whatever gap it read. The PNG is committed, and CI never runs it. `src/page-image-tags.test.ts` checks the file's size matches the head's `og:image:width` and `og:image:height`. The desk meter stays in the shot. If the room or the overview changes, run it again and look at the image.
 
 </details>
 

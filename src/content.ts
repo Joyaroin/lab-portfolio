@@ -196,9 +196,9 @@ export const content: Content = {
     availability: "Graduating Dec 2027. Open to co-op and full-time.",
     /** the meta description, and the link preview's text */
     description:
-      "Adham Sedik, Software & Platform Engineer. Tour a 3D home lab: my work, MediaSafe, my home Kubernetes cluster and the AI software factory that built this site.",
+      "Adham Sedik, Software & Platform Engineer. Tour a 3D home lab with three monitors: my work experience, my projects, and about me.",
     /** the preview image's alt text */
-    imageAlt: "The lab at night: five lit monitors and a nixie meter on a desk, with Adham Sedik's name",
+    imageAlt: "The lab at night: three lit monitors marked Work, Projects and About me, and a nixie meter on a desk, with Adham Sedik's name",
   },
 
   links: [
