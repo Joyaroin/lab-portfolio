@@ -43,7 +43,7 @@ The language of this project: its terms, what each one means, and what it doesn'
   (the boxes in `src/pin.ts`). The spare CRTs are not checked. It has its own wider field of
   view (`OVERVIEW` in `src/crts.ts`, 75 degrees at most; stations use `CAMERA_FOV`), and a separate pose for a
   portrait window. `src/visit/flight.test.ts` projects the TVs and the meter through the real camera to check this; if the
-  HUD's boxes in `src/pin.ts` change, the pose may need to change with them. It is where the site opens and where Back (the HUD's Room link, Esc, the ROOM key) goes. The meter shows
+  HUD's boxes in `src/pin.ts` change, the pose may need to change with them. It is where the site opens and where Back (the HUD's Overview link, Esc, the ROOM key) goes. The meter shows
   the gap there. It is not a station.
 - **Visit**: where the visitor is and is going: a stop (the overview or a station) and, at a station, the page. `src/visit/`
   owns both. `visit.step()` is the stop and page (a `Step` from `src/walk.ts`) the visitor is at or going to; `visit.target()` is just its stop.
@@ -134,9 +134,9 @@ The language of this project: its terms, what each one means, and what it doesn'
   are files of their own, asked for while the boot screen is up (`src/meter-images.ts`); until they arrive, and for good
   if they fail, the bar is plain text digits and plain buttons. At the overview, a pointer resting on a TV or a station link changes the line, then the digits (see **Hover preview**); `meterDigits` in `src/bar.ts` gives the bar's digits and scramble.
 - **Keys**: the buttons on the meter bar, with their words in `ui` (`keyPrev`, `keyRoom`, `keyNext`, `keyStart`) and
-  their accessible names (`prevStation`, `backToRoom`, `nextStation`, `startTour`), each at least 44 x 44 px. On the device each is a transparent button over its drawn key (the drawn key already has the word, so the button's text is not painted); it brightens on hover and focus and shows a press, in CSS. At a
-  station on a landscape window they are PREV, ROOM, NEXT; on a portrait window PREV and NEXT (the phone menu has the
-  way back to the room); at the overview START alone. PREV is `visit.prev()` (one page back along the walk order; Work's first page goes to the overview),
+  their accessible names (`prevStation` "Previous page", `backToRoom` "Back to the overview", `nextStation` "Next page", `startTour` "Start the tour"; the key names keep their code names, only the words changed), each at least 44 x 44 px. On the device each is a transparent button over its drawn key (the drawn key already has the word, so the button's text is not painted); it brightens on hover and focus and shows a press, in CSS. At a
+  station on a landscape window they are PREV, ROOM, NEXT; on a portrait window PREV and NEXT (the phone bar has the
+  way back to the overview); at the overview START alone. PREV is `visit.prev()` (one page back along the walk order; Work's first page goes to the overview),
   NEXT is `visit.next()` (one page on; About me's last page goes to the overview), ROOM is `back()`, START goes to Work.
 - **Meter layers**: the rendered images the meter bar's device is built from (ADR-0006): the case and tubes unlit, the
   tubes' light on the case, ten lit numerals all seven tubes share, the decimal point and the four keys (PREV, ROOM,
@@ -148,27 +148,33 @@ The language of this project: its terms, what each one means, and what it doesn'
   drift, which Argo CD keeps at zero.
 - **Boot screen**: the instant lightweight first screen with Adham's name, title and real load progress.
 - **Signal lost**: the one static screen shown when 3D can't start. Not a second site.
-- **HUD**: the always-on overlay: a name block (name, title, availability), the Room link that goes back to the overview, the
-  station links and the outside links (Résumé, LinkedIn, GitHub, which open a new tab and carry a ↗). On a landscape window
-  at least `ONE_ROW_MIN_W` wide (1280 px) the name block is at the top left and one row of links at the top right: Room and the
+- **HUD**: the always-on overlay: a name block (name, title, availability), the Overview link (`ui.room`) that goes back to the overview, the
+  station links (Work, Projects, About me) and the outside links (Résumé, LinkedIn, GitHub, which open a new tab and carry a ↗). On a landscape window
+  at least `ONE_ROW_MIN_W` (1060 px) wide the name block is at the top left and one row of links at the top right: Overview and the
   stations, a divider, the outside links. Narrower, the row moves to its own line under the name block, and under
-  `TWO_LINE_MIN_W` (the link row's box plus both margins, 836 px) it wraps as two whole groups (stations, then outside
-  links), a third line; no row holds a single link, which holds down to about 540 px wide, the stations group and both
-  margins (narrower, the groups overflow rather than split). On a short landscape window (a phone held sideways) the HUD
+  `TWO_LINE_MIN_W` (616 px: the link row's box, `LINK_ROW_W`, plus both margins) it wraps as two whole groups (stations, then outside
+  links), a third line. `LINK_ROW_W` (580 px) is the row's real width on one line, 571.64 px as Chromium measured it on the Mac at 14 px, with a little room for a wider
+  font; with three stations the row holds one line down to about 608 px, so between 616 and 836 px the HUD is two lines and reserves no third. No row holds
+  a single link, and each group holds down to its own width plus both margins (the stations, about 335 px; narrower, the groups overflow rather than split, though a landscape window that narrow is always compact).
+  **Résumé is a button** (an amber outline, `resumeIsButton` in `src/pin.ts`) on every tier but the compact HUD, where it stays a link: the button is
+  as tall as a link, so no line and not the phone top (96 px) grows, but it is wider, and the compact first line has only `COMPACT_SLACK` to spare. On a short landscape window (a phone held sideways) the HUD
   goes **compact**: no availability line, 14 px text. From `COMPACT_MIN_W` (655 px wide) two lines: the name, the title and the
-  outside links, then Room and the stations; narrower, three: the name and title, the outside links, the stops. A window is
+  outside links, then Overview and the stations; narrower, three: the name and title, the outside links, the stops. A window is
   short when its width's tier would leave the panel under `MIN_PANEL_H` (120 px): `height < tier top + 120 + bottom clearance` (the bottom as the full HUD has it)
-  (`hudTier(win)` in `src/pin.ts`, a pure rule of the window): about 461 px under 747 wide (the full HUD's saved gap sentence, 82 characters, wraps to two lines), 443 at 747 to 835, 407 at 836 to 965, about 445 at
-  1279. The compact tops are 76 px (two lines) and 107 px (three), from `COMPACT_LINE_H` and `COMPACT_GAP`; with them the glass and
+  (`hudTier(win)` in `src/pin.ts`, a pure rule of the window): about 461 px under 616 wide (three lines, and the full HUD's saved gap sentence, 82 characters, wraps to two lines), 425 at 616 to 746, 407 at 747 to 967, about 419 at
+  1059 (two lines), then 383 at 1060 (the one-row HUD) and about 410 at 1279. The compact tops are 76 px (two lines) and 107 px (three), from `COMPACT_LINE_H` and `COMPACT_GAP`; with them the glass and
   the panel stay above the device down to about 355 px tall (two lines) and 386 px (three), under which `MIN_PANEL_H` holds them
   at 120 px and they reach the meter. On a portrait window the
-  name block spans the top with the name, title and outside links (no availability line), and Room and the stations are a
-  bottom menu, three to a row, in buttons at least 44 px tall; the meter bar rises above it. All HUD text is at least 14 px.
+  name block spans the top with the name, title and outside links (no availability line, Résumé a button), and Overview and the stations are the
+  **phone bar**, one row of four buttons along the bottom, each at least 44 px tall (`PHONE_ROWS` is 1, so the bar is 56.8 px); the text panel stays above the meter bar, which rises above the bar,
+  and has the room the second row gave up. All HUD text is at least 14 px.
   The current stop's link differs in weight and background as well as in `aria-current`; during a flight none is marked. The
   name block fits `NAME_BLOCK_W`, the link row `LINK_ROW_W` x `LINK_ROW_H`, and the HUD is no taller than the top
   clearance (`clearances(win).top`, all in `src/pin.ts`): on landscape the one-row HUD's height (90 px), the
-  two-line HUD's (126 px) from `TWO_LINE_MIN_W`, the three-line HUD's (162 px) under it, or the compact HUD's, each worked out from the boxes. A hint line 8 px above the bottom clearance tells the visitor what to
-  click; it fades after the first landing at a station and stays gone.
+  two-line HUD's (126 px) from `TWO_LINE_MIN_W`, the three-line HUD's (162 px) under it, or the compact HUD's, each worked out from the boxes.
+  The **Start button** ("Start the tour · 3 monitors", with "or click a monitor" under it, or "or pick one below" on a portrait window; the words are `ui.hud`)
+  stands 8 px above the bottom clearance on the overview. It takes the hint line's place: it fades after the first landing at a station, leaves the tab order at
+  once, and stays gone. It does what the START key does, `visit.go(1)`.
 - **Phone stop**: a station's own camera stop, look point and text pin used on a portrait window instead of
   the pulled-back view, where that view would be mostly dark. Only Work (the CRT that was MediaSafe's) has one.
 - **Framing**: how the camera and the text are set for the window's shape. Two exist. **Square** (a window

@@ -59,11 +59,8 @@ export const pageSwitch = { name: "Pages", hint: "Click a job to read it", open:
 /** The app's other words. Strings with `{name}` in them are templates: `fill` puts the values in. */
 export const ui = {
   /** the HUD's link back to the overview, and the nav's aria label */
-  room: "Room",
+  room: "Overview",
   hudLabel: "HUD",
-  /** the hint line on the overview, until the first landing at a station: landscape, and portrait (the menu is below) */
-  hintLandscape: "Click a monitor",
-  hintPortrait: "Tap a monitor, or pick one below",
   /** the cue at the foot of a panel with more text below */
   more: "more ▾",
   /** the meter's label while the gap is still being read */
@@ -96,9 +93,9 @@ export const ui = {
   keyRoom: "ROOM",
   keyNext: "NEXT",
   keyStart: "START",
-  prevStation: "Previous station",
-  backToRoom: "Back to the room",
-  nextStation: "Next station",
+  prevStation: "Previous page",
+  backToRoom: "Back to the overview",
+  nextStation: "Next page",
   startTour: "Start the tour",
   /** the line under the meter at a named page: "Projects · MediaSafe · 2 of 3" */
   stopLine: "{station} · {page} · {n} of {total}",
@@ -111,8 +108,14 @@ export const ui = {
   // Marked, empty groups: each later ticket fills in only its own. validateContent already walks them.
   /** #284: the page controls (Back, Next, tabs) */
   pageControls: {} as Record<string, string>,
-  /** #285: the overview and the HUD */
-  hud: {} as Record<string, string>,
+  /** #285: the overview and the HUD. The Start button on the overview, until the first landing at a station: its words, and the
+   *  line under it (landscape, and portrait, where the phone bar is below) */
+  hud: {
+    start: "Start the tour",
+    startCount: "· 3 monitors",
+    startOrLandscape: "or click a monitor",
+    startOrPortrait: "or pick one below",
+  },
   /** #293: the pins over the monitors */
   pins: {} as Record<string, string>,
   /** #287: the photo */
@@ -151,7 +154,7 @@ export type Content = {
 // Links that more than one station or the HUD uses, written once.
 const LINKEDIN: Link = { label: "LinkedIn", href: "https://www.linkedin.com/in/adham-sedik-971a57184/" };
 const GITHUB: Link = { label: "GitHub", href: "https://github.com/Joyaroin" };
-const RESUME: Link = { label: "Résumé", href: "/resume.pdf" };
+export const RESUME: Link = { label: "Résumé", href: "/resume.pdf" };
 const SITE_SOURCE: Link = { label: "This site's source", href: "https://github.com/Joyaroin/lab" };
 
 // Work's two jobs, written once: the station shows them as two pages, each with its own lead.
