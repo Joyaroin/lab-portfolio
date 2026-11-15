@@ -2,15 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import type { Play, Shift } from "./shift";
 import { playTear } from "./tear-draw";
 
-const FILTER = "shift-tear", TURN_FILTER = "shift-tear-page"; // the whole view's, and a Work page turn's
+const FILTER = "shift-tear", TURN_FILTER = "shift-tear-page"; // the whole view's, and a page turn's
 // The map is noise that varies only down the screen, stepped into flat bands, so each band slips
 // its own distance (left or right) as a whole. Each pose is a different cut (TEAR_SEEDS).
 const BANDS = "0 .12 .86 .3 1 .5 0 .74 .95 .2 .6 .02 .9 .4";
 
-/** A Work page turn's flick: the screen's element, and an `id` that changes for each turn. */
+/** A page turn's flick: the screen's element, and an `id` that changes for each turn. */
 export type PageTurn = { el: HTMLElement; id: number };
-/** What a screen calls when its page turns, with its element. */
-export type OnPageTurn = (el: HTMLElement) => void;
 /** What a play tells the shift when it really starts drawing (a frame or more after the shift fired). */
 type OnTearStart = (kind: Play["kind"], nowMs: number) => void;
 
@@ -20,7 +18,7 @@ type OnTearStart = (kind: Play["kind"], nowMs: number) => void;
  *  at rest it costs nothing. It subscribes to the shift: each new play starts one, and it plays out its own
  *  length even if the visitor leaves (the flash limit counted its snap back); reduced motion ends it.
  *  It reports when it really began, and when a page turn's flick did, straight to the shift.
- *  `turn` is a Work page turn: the same short flick, on that TV's screen only, through its own copy of
+ *  `turn` is a page turn: the same short flick, on the screen of the station it happened at only, through its own copy of
  *  the filter so it never fights a tear of the whole view. */
 export function Tear({ shift, turn, reduced }: { shift: Shift; turn?: PageTurn | null; reduced: boolean }) {
   const [play, setPlay] = useState<Play | null>(null);

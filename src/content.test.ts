@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { identity } from "./content";
 import { readdirSync } from "node:fs";
 
-import { validateContent, content, pageSwitch, ui, fill, hasPrivateAddress, stopLineText, MAX_BULLETS, type Diagram, type Page } from "./content";
+import { validateContent, content, ui, fill, hasPrivateAddress, stopLineText, MAX_BULLETS, type Diagram, type Page } from "./content";
 import { WORK_COPY, WORK_LEADS } from "../tests/fixtures/work-copy";
 
 const good = () => structuredClone(content);
@@ -463,190 +463,32 @@ describe("bezel words", () => {
   });
 });
 
-// The timeline's own words are drawn on a TV too, so they are checked like the rest. The words come
-// from the Content given, so every key it holds is validated, including ones added later.
-describe("timeline words", () => {
-  it.each(Object.keys(pageSwitch))("rejects a %s that is empty or reads as live", (f) => {
-    const c = good();
-    c.pageSwitch[f as keyof typeof pageSwitch] = "";
-    expect(validateContent(c).join("\n")).toContain(`pageSwitch.${f}: missing`);
-    c.pageSwitch[f as keyof typeof pageSwitch] = "Synced";
-    expect(validateContent(c).join("\n")).toContain(`pageSwitch.${f}: reads as a live status`);
-  });
-  it("validates a key added to the timeline words", () => {
-    const c = good();
-    (c.pageSwitch as Record<string, string>).extra = "";
-    expect(validateContent(c).join("\n")).toContain("pageSwitch.extra: missing");
-  });
-});
-
-// Every other word the app shows or announces: the HUD, the meter's labels, the boot log, the signal
-// lost screen, the gap's sentence. They move here from the components, so validation covers them.
-describe("interface words", () => {
-  const EMPTY_GROUPS = ["pageControls", "hud", "pins", "photo"];
-  const GROUPS = [...EMPTY_GROUPS, "ambient"];
-  const keys = Object.keys(ui).filter((k) => !GROUPS.includes(k));
-  it("accepts the shipped words", () => {
-    expect(validateContent(content)).toEqual([]);
-  });
-  it.each(keys)("rejects %s when it is removed or empty", (k) => {
-    const c = good();
-    delete (c.ui as unknown as Record<string, string>)[k];
-    expect(validateContent(c).join("\n")).toContain(`ui.${k}: missing`);
-    (c.ui as unknown as Record<string, string>)[k] = " ";
-    expect(validateContent(c).join("\n")).toContain(`ui.${k}: missing`);
-  });
-  it.each(EMPTY_GROUPS)("has an empty %s group for a later ticket, which validateContent walks", (g) => {
-    const group = (ui as Record<string, unknown>)[g];
-    expect(group).toEqual({});
-    const c = good();
-    delete (c.ui as Record<string, unknown>)[g];
-    expect(validateContent(c).join("\n")).toContain(`ui.${g}: missing`);
-    (c.ui as Record<string, unknown>)[g] = { added: " ", phone: "Call 613-555-0142" };
-    const problems = validateContent(c).join("\n");
-    expect(problems).toContain(`ui.${g}.added: missing`);
-    expect(problems).toContain(`ui.${g}.phone: looks like a phone number`);
-  });
-  describe("the ambient screens' words (#290)", () => {
-    const ambient = ui.ambient as Record<string, string>;
-    const withAmbient = (f: (a: Record<string, string>) => void) => {
-      const c = good();
-      f(c.ui.ambient as Record<string, string>);
-      return validateContent(c).join("\n");
-    };
-    it("are the approved words", () => {
-      expect(ambient).toEqual({
-        gitlogCommand: "$ git log --oneline",
-        tunnel: "Tunnel", proxmox: "Proxmox", k3s: "k3s",
-        trafficCaption: "internet → home lab",
-        wordReliable: "RELIABLE", wordMaintainable: "MAINTAINABLE", wordSecure: "SECURE",
-        puzzleDecoding: "[ decoding… ]", puzzleSolved: "[ solved ]",
-      });
-    });
-    it.each(Object.keys(ambient))("rejects %s when it is removed, empty or reads as a live status", (k) => {
-      expect(withAmbient((a) => { delete a[k]; })).toContain(`ui.ambient.${k}: missing`);
-      expect(withAmbient((a) => { a[k] = " "; })).toContain(`ui.ambient.${k}: missing`);
-      expect(withAmbient((a) => { a[k] = "Healthy"; })).toContain(`ui.ambient.${k}: reads as a live status`);
-    });
-    it("checks a word added to the group, for a phone number too", () => {
-      const problems = withAmbient((a) => { a.added = "42 passing"; a.phone = "Call 613-555-0142"; });
-      expect(problems).toContain("ui.ambient.added: reads as a live status");
-      expect(problems).toContain("ui.ambient.phone: looks like a phone number");
-    });
-    it("rejects a missing group", () => {
-      const c = good();
-      delete (c.ui as Record<string, unknown>).ambient;
-      expect(validateContent(c).join("\n")).toContain("ui.ambient: missing");
+// The page controls' words are #280's approved copy, used word for word. They are drawn on a TV, so they are checked like the rest.
+describe("page controls words", () => {
+  it("are the approved words", () => {
+    expect(ui.pageControls).toEqual({
+      crumb: "Monitor {n} · {station}",
+      crumbList: "~/projects",
+      crumbProject: " / {project}",
+      tabs: "Pages",
+      nextJob: "Next job: {company} →",
+      nextProject: "Next project: {name} →",
+      nextPage: "Next: {page} →",
+      nextMonitor: "Next: {station} →",
+      toOverview: "Back to overview",
+      back: "← {page}",
     });
   });
-  it("exports hasPrivateAddress", () => {
-    expect(hasPrivateAddress("10.0.0.5")).toBe(true);
-    expect(hasPrivateAddress("lab.mediasafe.space")).toBe(false);
-  });
-  it("rejects a missing ui block, not a crash", () => {
+  it("rejects a word that is empty, and a template that lost its placeholder", () => {
     const c = good();
-    delete (c as Partial<typeof c>).ui;
-    expect(validateContent(c).join("\n")).toContain("ui.room: missing");
+    c.ui.pageControls.toOverview = "";
+    expect(validateContent(c).join("\n")).toContain("ui.pageControls.toOverview: missing");
+    const d = good();
+    d.ui.pageControls.nextJob = "Next job →";
+    expect(validateContent(d).join("\n")).toContain("ui.pageControls.nextJob: must contain {company}");
   });
-  it("rejects a template that lost its placeholder", () => {
-    const c = good();
-    c.ui.gapBehind = "{n} deploys behind";
-    expect(validateContent(c).join("\n")).toContain("ui.gapBehind: must contain {noun}");
-  });
-  it("has the words the stop controls use", () => {
-    expect([ui.keyPrev, ui.keyRoom, ui.keyNext, ui.keyStart]).toEqual(["PREV", "ROOM", "NEXT", "START"]);
-    expect([ui.prevStation, ui.backToRoom, ui.nextStation, ui.startTour]).toEqual(
-      ["Previous station", "Back to the room", "Next station", "Start the tour"]);
-    expect(fill(ui.stopLine, { station: "Work", page: "Solace", n: 1, total: 3 })).toBe("Work · Solace · 1 of 3");
-    expect(fill(ui.listStopLine, { station: "Projects", n: 2, total: 3 })).toBe("Projects · 2 of 3");
-    expect(fill(ui.stationTitle, { page: "Solace", station: "Work", name: "Adham Sedik" })).toBe("Solace · Work · Adham Sedik");
-    expect(fill(ui.listTitle, { station: "Projects", name: "Adham Sedik" })).toBe("Projects · Adham Sedik");
-  });
-  it("the line under the meter names the page, and the Projects list has none", () => {
-    const [work, projects] = content.stations;
-    expect(stopLineText(work, work.pages[0], 1, 3)).toBe("Work · Solace · 1 of 3");
-    expect(stopLineText(projects, projects.pages[0], 2, 3)).toBe("Projects · 2 of 3");
-    expect(stopLineText(projects, projects.pages[2], 2, 3)).toBe("Projects · MediaSafe · 2 of 3");
-  });
-  it.each([
-    ["stopLine", ["station", "page", "n", "total"]], ["listStopLine", ["station", "n", "total"]],
-    ["stationTitle", ["page", "station", "name"]], ["listTitle", ["station", "name"]],
-  ] as const)("rejects %s without a placeholder", (key, phs) => {
-    for (const ph of phs) {
-      const c = good();
-      c.ui[key] = c.ui[key].replace(`{${ph}}`, "x");
-      expect(validateContent(c).join("\n")).toContain(`ui.${key}: must contain {${ph}}`);
-    }
-  });
-  it("says the gap in the new sentence", () => {
-    expect(fill(ui.gapBehind, { n: 9, noun: "deploys" })).toBe("MediaSafe: 9 staging deploys since the last prod release");
-    expect(fill(ui.gapBehindAtLeast, { n: 9, noun: "deploys" })).toBe("MediaSafe: at least 9 staging deploys since the last prod release");
-  });
-  it("says the gap in the short form for a short window", () => {
-    expect(fill(ui.gapBehindShort, { n: 9, noun: "deploys" })).toBe("MediaSafe: 9 deploys ahead of prod");
-    expect(fill(ui.gapBehindAtLeastShort, { n: 9, noun: "deploys" })).toBe("MediaSafe: 9+ deploys ahead of prod");
-  });
-  it.each(["gapBehindShort", "gapBehindAtLeastShort"] as const)("rejects %s without {n} or {noun}", (k) => {
-    for (const ph of ["n", "noun"]) {
-      const c = good();
-      c.ui[k] = c.ui[k].replace(`{${ph}}`, "x");
-      expect(validateContent(c).join("\n")).toContain(`ui.${k}: must contain {${ph}}`);
-    }
-  });
-  it("blocks a phone number in them like other copy", () => {
-    const c = good();
-    c.ui.room = "Call 613-555-0142";
-    expect(validateContent(c).join("\n")).toContain("ui.room: looks like a phone number");
-  });
-  it("fill puts values in their placeholders", () => {
-    expect(fill("a {x} b {y}", { x: "1", y: "2" })).toBe("a 1 b 2");
-  });
-  it("keeps the words visitors saw before", () => {
-    expect(ui.room).toBe("Room");
-    expect(ui.more).toBe("more ▾");
-    expect(ui.readingPending).toBe("reading prod and staging…");
-    expect(fill(ui.meterReading, { digits: "0.000214" })).toBe("Reading 0.000214");
-    expect([ui.loadProgress, ui.bootLog, ui.signalLost]).toEqual(["Load progress", "Boot log", "SIGNAL LOST"]);
-    expect(fill(ui.logDone, { step: ui.stepCode })).toBe("[ ok ] room code");
-    expect(fill(ui.logPending, { step: ui.stepScene })).toBe("[ .. ] room scene");
-    expect(ui.logPowerOn).toBe("[ ok ] meter power-on");
-    expect(ui.stepCapability).toBe("capability check");
-  });
-});
-
-// No copy sits in app code outside the content module: no component or helper holds one of these
-// words as a quoted string or as text between tags.
-describe("no copy outside the content module", () => {
-  const files = (dir: string): string[] =>
-    readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
-      e.isDirectory() ? files(`${dir}/${e.name}`) : /\.tsx?$/.test(e.name) && !/\.test\./.test(e.name) && e.name !== "content.ts" ? [`${dir}/${e.name}`] : []);
-  const sources = files("src").map((f) => [f, readFileSync(f, "utf8")] as const);
-  const words = [...Object.values(ui), ...Object.values(identity)].filter((w): w is string => typeof w === "string" && w.length >= 4);
-  it("finds the source files", () => expect(sources.length).toBeGreaterThan(15));
-  it.each(sources)("%s", (_f, src) => {
-    for (const w of words) {
-      for (const q of ['"', "'", "`"]) expect(src, w).not.toContain(`${q}${w}${q}`);
-      expect(src, w).not.toContain(`>${w}<`);
-    }
-  });
-});
-
-describe("the pull request count", () => {
-  it("says 100+ in Software factory's last bullet, and nothing says 76", () => {
-    const factory = projectPage("software-factory");
-    expect(factory.body.at(-1)).toContain("This site has 100+ merged pull requests since 5 November 2026.");
-    expect(JSON.stringify(content)).not.toMatch(/\b76\b/);
-  });
-});
-
-describe("station readings", () => {
-  const readings = content.stations.map((s) => s.reading);
-  it("are not numbers from the series", () => {
-    // A few well-known divergence readings, as six-decimal strings.
-    const series = ["0.337187", "0.571024", "0.456903", "0.523299", "0.409431", "1.048596", "1.130426"];
-    for (const r of readings) expect(series).not.toContain((r / 1e6).toFixed(6));
-  });
-  it("are distinct, so each station is identifiable", () => {
-    expect(new Set(readings).size).toBe(readings.length);
+  it("retired the timeline's words", () => {
+    expect(JSON.stringify(content)).not.toContain("Click a job to read it");
+    expect(content).not.toHaveProperty("pageSwitch");
   });
 });

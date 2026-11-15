@@ -25,12 +25,14 @@ export type Station = {
   pages: Page[];
   /** Whether Esc on one of this station's later pages goes up to its first page. Without it, up goes to the overview. */
   upToFirstPage?: boolean;
+  /** What one page of this station is, for the Next button's words ("Next job: …", "Next project: …"). Without it the button says "Next: {page} →". */
+  pageNoun?: "job" | "project";
   /** words on the TV's bezel: the maker's plate and the sticky note. Neither may read as a status. */
   bezel: Bezel;
 };
 /** One page of a station: its lead (a page may have none), its bullets (at most three, and none for a
  *  list page), and the diagram and links that go with them. `label` names it. `dates` and `months` are
- *  only on Work's job pages: they set the timeline's text and its segment's width. `stat` is a project
+ *  only on Work's job pages: `dates` show on the job's tab, and `months` is how long it ran. `stat` is a project
  *  page's one stat line, a fact its copy already states. `list` is the Projects list page's prompt, rows
  *  and foot. */
 export type Page = {
@@ -53,9 +55,6 @@ export type Bezel = { plate: string; note: string };
  *  ("" for none), so it has one entry fewer than `steps`. `description` is the plain-text version
  *  a screen reader gets. */
 export type Diagram = { description: string; steps: string[]; hops: string[] };
-/** The words on the timeline that switches a station's pages. `openMark` and `closedMark` sit before
- *  a segment's tag: the open page is `openMark open`, the others just `closedMark`. */
-export const pageSwitch = { name: "Pages", hint: "Click a job to read it", open: "open", openMark: "▸", closedMark: "›" };
 /** The app's other words. Strings with `{name}` in them are templates: `fill` puts the values in. */
 export const ui = {
   /** the HUD's link back to the overview, and the nav's aria label */
@@ -109,8 +108,25 @@ export const ui = {
   /** the tab title on a list page: "Projects · Adham Sedik" */
   listTitle: "{station} · {name}",
   // Marked, empty groups: each later ticket fills in only its own. validateContent already walks them.
-  /** #284: the page controls (Back, Next, tabs) */
-  pageControls: {} as Record<string, string>,
+  /** The controls on every station's glass (#284): the breadcrumb, the tabs, the Next and Back buttons. Strings with
+   *  `{name}` in them are templates. */
+  pageControls: {
+    /** the first line of every panel: "Monitor 1 · Work" ({n} is the station's place in the tour) */
+    crumb: "Monitor {n} · {station}",
+    /** on a project page the crumb is this link back to the list, then " / {project}" */
+    crumbList: "~/projects",
+    crumbProject: " / {project}",
+    /** the tabs' accessible name */
+    tabs: "Pages",
+    /** the Next button: the next job, the next project, the next page of a station, the next station, and (on About's last page) back to the overview */
+    nextJob: "Next job: {company} →",
+    nextProject: "Next project: {name} →",
+    nextPage: "Next: {page} →",
+    nextMonitor: "Next: {station} →",
+    toOverview: "Back to overview",
+    /** the Back button: "← Solace", "← All projects" */
+    back: "← {page}",
+  } as Record<string, string>,
   /** #285: the overview and the HUD */
   hud: {} as Record<string, string>,
   /** #293: the pins over the monitors */
@@ -133,6 +149,7 @@ const PLACEHOLDERS: Record<string, string[]> = {
   gapBehindShort: ["n", "noun"], gapBehindAtLeastShort: ["n", "noun"],
   gapSaved: ["gap"], stopLine: ["station", "page", "n", "total"], listStopLine: ["station", "n", "total"], logDone: ["step"], logPending: ["step"], signalLostReason: ["reason"],
   stationTitle: ["page", "station", "name"], listTitle: ["station", "name"],
+  crumb: ["n", "station"], crumbProject: ["project"], nextJob: ["company"], nextProject: ["name"], nextPage: ["page"], nextMonitor: ["station"], back: ["page"],
 };
 export const fill = (template: string, values: Record<string, string | number>) =>
   template.replace(/\{(\w+)\}/g, (m, k) => (k in values ? String(values[k]) : m));
@@ -144,7 +161,6 @@ export type Content = {
   identity: { name: string; title: string; pageTitle: string; availability: string; description: string; imageAlt: string };
   links: Link[];
   stations: Station[];
-  pageSwitch: typeof pageSwitch;
   ui: typeof ui;
 };
 
@@ -169,7 +185,6 @@ const BARRACUDA = [
 ];
 
 export const content: Content = {
-  pageSwitch,
   ui,
   identity: {
     name: "Adham Sedik",
@@ -193,7 +208,7 @@ export const content: Content = {
   // Every fact here comes from spec #165, and the copy spec #280 approved. Add nothing that is not there.
   stations: [
     {
-      id: "work", name: "Work", reading: 214,
+      id: "work", name: "Work", reading: 214, pageNoun: "job",
       heading: "Work experience",
       line: "Two platform co-ops, 16 months in all. Newest first.",
       // `body` is the whole text in order (Solace, then Barracuda); `pages` splits the same bullets.
@@ -209,6 +224,7 @@ export const content: Content = {
       id: "projects", name: "Projects", reading: 733,
       heading: "Things I've built and run",
       upToFirstPage: true, // Esc on a project page goes up to the list
+      pageNoun: "project",
       pages: [
         {
           id: "list", label: "All projects", body: [], links: [],
@@ -381,7 +397,6 @@ export function validateContent(c: Content): string[] {
     });
   };
 
-  for (const [f, v] of Object.entries(c.pageSwitch ?? {})) tvText(`pageSwitch.${f}`, v);
   // Every shipped key must be present, and a key added to the given content is checked too.
   // A word is a string; a group (the marked, empty ones later tickets fill) is an object of words, walked the same way.
   const isGroup = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);

@@ -87,8 +87,7 @@ The language of this project: its terms, what each one means, and what it doesn'
   that differs on each TV, pinned to its station by id (`noteStyleFor` in `src/notes.ts`).
 - **Diagram**: a page's line drawing on its glass. It redraws facts already in that page's copy
   and adds none, and never reads as a live status or result. Only the three project pages (Software factory,
-  MediaSafe and Home lab) have one, and they are a left-to-right chain of steps joined by hops. Work's timeline
-  is also called a diagram, made of segments, with no steps or hops.
+  MediaSafe and Home lab) have one, and they are a left-to-right chain of steps joined by hops.
 - **Page**: one part of a station's text, shown one at a time. Every station has at least one. A page has a
   lead (a page may have none), up to three bullets (none is allowed), and its diagram and links. Work has
   two (Solace and Barracuda, the only pages with dates and months), Projects four (the list, then Software
@@ -96,13 +95,22 @@ The language of this project: its terms, what each one means, and what it doesn'
   page has one stat line, and the list page has a `list`: a prompt, a row for each project with its tag and its
   stat, and a foot. A station may have a `line` under its heading (Work's, About me's). Where a station keeps a
   whole text (Work's `body`), its pages hold exactly that text, in order; the other stations keep theirs on their
-  pages only. The glass shows only each station's first page for now (until the glass ticket, #284), and scrolling never changes it. The **walk order** (`src/walk.ts`)
+  pages only. The glass shows the visit's current page (`ScreenPanels`
+  takes the visit and its step, and keeps no page of its own): a station not being visited keeps showing the page it last showed, so a panel fading out
+  never changes its text, and one nobody has visited shows its first page. Every panel opens with its breadcrumb ("Monitor 1 · Work"; on a project page
+  "~/projects / mediasafe", where "~/projects" is a link to the list), then its heading (a project page is headed by the project's name). Work and
+  About me show their pages as **tabs**, in page order, the open one filled and marked `aria-current`, with a job's dates under its name. Projects shows its list
+  page as rows (each a button that opens its project), and every page after the list as a project page. At the foot of every panel, kept on the glass while
+  the text scrolls, a **Back** button ("← Solace", "← All projects") and a **Next** button that names where it goes ("Next job: Barracuda →", "Next: Projects →",
+  "Next project: MediaSafe →", "Next: About me →", "Next: Contact →", "Back to overview" on the last page of About me). Back shows only when the page before
+  is in the same station, and the Projects list has no Next (its foot says to pick a project). They, the tabs, the rows and the breadcrumb's link
+  call the visit (`go`, `next`, `prev`), so the URL and history follow (a page change replaces the entry), and the buttons go exactly where → and ← go.
+  What each says and where it goes is one pure function, `controlsFor` in `src/text/controls.ts`; the words are `ui.pageControls`. After a tab, a row, the
+  breadcrumb's link or a button, focus moves to the new page's heading (`tabindex="-1"`); the arrow keys move no focus. A page change plays the **shift**'s
+  short flick on that station's glass (see Shift), at every station, and swaps the text at once under reduced motion. Scrolling never changes the page and a new
+  page starts at its top. The **walk order** (`src/walk.ts`)
   puts every page in one sequence after the overview, and `up` goes back up (a station with
   `upToFirstPage` goes from a later page to its first page, otherwise to the overview). The visit holds the page and moves it with `next`, `prev` and `up`.
-- **Timeline**: Work's diagram, and the switch between its pages. A row of segments drawn on the TV,
-  oldest job on the left, and the only way to turn a page.
-- **Segment**: one job on the timeline, a real button as wide as the months the job ran. It names the
-  page and its dates; the open one is marked in words and shape, not colour alone.
 - **Step**: one box in a diagram, such as "Argo CD".
 - **Hop**: the arrow between two steps, with an optional label such as "by hand". A diagram has one fewer
   hop than steps.
@@ -182,8 +190,8 @@ The language of this project: its terms, what each one means, and what it doesn'
 - **Shift**: the moment of arrival at a station, when the view tears and the meter scrambles and locks
   onto the reading. It fires as the camera lands, with no wait (once the power-on hold is over), not when flying through. Full on
   a station's first visit, a short flick after. Never at the overview, never with reduced motion. There is no restore window: a reload followed by a click plays the shift. The
-  tear is room-only: the HUD and the meter bar stay still. A Work page turn plays the short flick too, on
-  that TV's screen only (not the room); the same limit counts it. On a return the text shows on
+  tear is room-only: the HUD and the meter bar stay still. A page change at a station (a tab, a row, a button, a key or the browser's Back, on any station) plays the short flick too, on
+  that station's glass only (not the room); the same limit counts it, so holding → across a page and a monitor boundary stays inside it. On a return the text shows on
   the landing and the flick plays over it; on a first visit it waits for the tear, then resolves out of
   it. The full tear lasts 0.4 s and re-cuts its bands once; the short flick lasts 0.25 s. No one-second window holds more than 3 sudden changes (the
   tear starting, a re-cut, the snap back), the snap back counted where it is visible (the slip reaches 0, at
@@ -210,7 +218,7 @@ get a folder; the rest are still flat files in `src/`.
   bar and the desk meter play; null once the visitor leaves its station) and hear changes with
   `shift.subscribe`: the bar subscribes, the tear subscribes (and plays out its own length when `playing`
   goes null), and the desk meter reads it every frame. The tour `mount`s it, calls `observe(where)`
-  when a move starts and when it lands and `turn()` on a Work page turn. The tear reports straight to it (`tearStarted`,
+  when a move starts and when it lands and `turn()` on a page change at a station. The tear reports straight to it (`tearStarted`,
   `turnStarted`), and the desk meter reports when its power-on really began (`powerOnBegan`). The room
   gives it one function to ask for a frame (`setWake`). The module owns the power-on timer, the power-on hold,
   the tear-over wake-up, the leaving rule, the page-turn limit and the
@@ -236,7 +244,7 @@ get a folder; the rest are still flat files in `src/`.
   the current window each time. The framing answers `cameraAt(where, launch)` (camera, look and field of view; a flying Where is `flightPose` from the launch pose to the stop),
   `textOnGlass(where, station)`, `parallaxStrength(where)` and `panelPoint(crt)`, each taking a **Where**; nothing else decides
   the portrait split. The tour module (`src/tour.ts`) keeps `readingAt(where, gap)` and the mouse `parallax`; `panelStrength(where, station)` in `src/hold.ts` takes a Where. The room the HUD and the meter bar take is one pure rule of the window in `src/pin.ts` (`clearances`, with `deviceSize`); the camera's stop and the text panel both read it, and on a portrait window the panel takes all the free height. On a landscape window its top is one of five tiers (one row, two lines, and under `TWO_LINE_MIN_W` three lines, by width; or the compact two or three lines on a short window, by height as well, as the HUD entry says), so the stop and the panel clear the HUD at 800 px wide as at 1440 and at 667 x 375, and the glass is always above the device wherever the window is tall enough for `MIN_PANEL_H`.
-- **`src/content.ts`**: all copy in the app: station text, links, the bezel and timeline words, and `ui`, the
+- **`src/content.ts`**: all copy in the app: station text, links, the bezel words and the page controls' words, and `ui`, the
   rest of what visitors see or hear (HUD, meter aria labels, boot log, signal lost, the gap's sentence).
   Templates take `{name}` placeholders through `fill`. Components hold none of it; a test fails if a `ui`
   word turns up quoted in other `src` code. `validateContent` covers every key. The build writes the page from it

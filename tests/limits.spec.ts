@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { defineHudDriver, goBack, goTo, hudHref, stationIds, waitForCamera } from "./lib/page";
+import { defineHudDriver, goBack, goTo, hudHref, landedAt, stationIds, waitForCamera } from "./lib/page";
 import { defineSnapWatcher } from "./lib/snap";
 import { SHIFT_SECONDS } from "../src/nixie";
 
@@ -171,11 +171,11 @@ test("a return plays the short flick: it starts and ends", { tag: "@timing" }, a
   expect(len, "the return's flick").toBeGreaterThan(SHIFT_SECONDS.short * 500);
 });
 
-// The limit of 3 counts a Work page turn too: it flicks the Work TV only, so its changes are the panel's filter going on
-// and its snap back. Turning the page every `every` ms, never more than 3 changes in a real second. The 0.7 s pace, where
+// The limit of 3 counts a page change too: it flicks that station's glass only, so its changes are the panel's filter going on
+// and its snap back. Clicking Work's tab every `every` ms, never more than 3 changes in a real second. The 0.7 s pace, where
 // the snap back's late frame mattered, is tests/work-pages.spec.ts's; its boundary is pinned in src/shift/shift.test.ts.
 for (const every of [400]) {
-  test(`turning the Work page every ${every} ms never puts more than 3 sudden changes in a real second`, { tag: "@timing" }, async ({ page }) => {
+  test(`clicking Work's tabs every ${every} ms never puts more than 3 sudden changes in a real second`, { tag: "@timing" }, async ({ page }) => {
     await page.addInitScript(defineSnapWatcher);
     await page.goto("/");
     await expect(page.getByLabel("Boot log")).toBeHidden();
@@ -196,13 +196,54 @@ for (const every of [400]) {
       }).observe(el, { attributes: true, attributeFilter: ["style"] });
       window.__watchSnap("shift-tear-page", () => times.push(performance.now() - t0));
       let k = 0;
-      const turn = () => el.querySelector<HTMLElement>(`button[data-page="${ids[k++ % 2]}"]`)!.click();
+      const turn = () => el.querySelector<HTMLElement>(`button[data-page="${ids[k++ % 2]}"]`)!.click(); // a tab
       turn();
       const id = setInterval(turn, every);
       setTimeout(() => { clearInterval(id); setTimeout(() => res(times), 1_500); }, 6_000);
     }), every);
     expect(changes.length, "the turns flicked").toBeGreaterThan(1);
     expect(busiest(changes)).toBeLessThanOrEqual(3);
+  });
+}
+
+// #280: every page change tears, so holding → from the Projects list walks three pages of one station (each a flick on its glass,
+// across page boundaries) and then flies to About me (the whole view's tear on landing, across a monitor boundary). Held at a key's
+// repeat rate, those moves come far faster than the tears can play; the limit of 3 sudden changes in a real second must hold across
+// both kinds together: the whole view's changes (the canvas's filter on, each re-cut, the snap back) and the glass's (its filter on, its snap back).
+// Six presses from the list end on About me's last page. The 33 ms pace is a typical key repeat; 120 ms is a slow one. Without the page-turn
+// limit the three page changes alone put six sudden changes in about a tenth of a second (break-checked in the session, #284).
+for (const every of [33, 120]) {
+  test(`holding → across a page boundary and a station boundary, repeating every ${every} ms, never puts more than 3 sudden changes in a real second`, { tag: "@timing" }, async ({ page }) => {
+    await boot(page);
+    await goTo(page, 2);
+    // the arrival's own tear is over, and its changes have left the limit's window, before the hold begins
+    await expect.poll(async () => (await seen(page)).off.length, { timeout: 8_000 }).toBeGreaterThan(0);
+    await page.waitForTimeout(1_300);
+    await page.evaluate(() => {
+      const w = window as unknown as { __seen: Seen; __flicks: number[]; __start: number };
+      w.__flicks = [];
+      w.__start = performance.now() - w.__seen.t0;
+      for (const el of document.querySelectorAll<HTMLElement>("[data-screen]")) {
+        let on = false;
+        new MutationObserver(() => {
+          const now = el.style.filter.includes("shift-tear");
+          if (now && !on) w.__flicks.push(performance.now() - w.__seen.t0); // a glass's flick starting; its end is the snap back, below
+          on = now;
+        }).observe(el, { attributes: true, attributeFilter: ["style"] });
+      }
+      window.__watchSnap("shift-tear-page", () => w.__flicks.push(performance.now() - w.__seen.t0));
+    });
+    // hold →: a key down, again and again (a held key's repeats are keydowns with repeat set), then released
+    for (let k = 0; k < 6; k++) { await page.keyboard.down("ArrowRight"); await page.waitForTimeout(every); }
+    await page.keyboard.up("ArrowRight");
+    await landedAt(page, 3);
+    await page.waitForTimeout(1_500); // the landing's tear plays out
+    const s = await seen(page);
+    const { flicks, start } = await page.evaluate(() => { const w = window as unknown as { __flicks: number[]; __start: number }; return { flicks: w.__flicks, start: w.__start }; });
+    const since = (ts: number[]) => ts.filter((t) => t >= start);
+    expect(flicks.length, "a page change flicked a glass").toBeGreaterThan(0);
+    expect(since(s.on).length, "a landing tore the view").toBeGreaterThan(0);
+    expect(busiest([...since(s.on), ...since(s.cuts), ...since(s.snaps), ...flicks])).toBeLessThanOrEqual(3);
   });
 }
 
