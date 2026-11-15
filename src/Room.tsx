@@ -1,4 +1,4 @@
-import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
+import { Canvas, events, useFrame, useLoader, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, type MutableRefObject } from "react";
 import { MeshBasicMaterial, type Mesh, type MeshStandardMaterial, type PerspectiveCamera } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -8,6 +8,8 @@ import type { Visit } from "./visit";
 import { nextCover } from "./visit/cover";
 import { framingFor } from "./framing";
 import { parallax } from "./tour";
+import { easeOffset } from "./ease";
+import { withoutWheel } from "./no-wheel-events";
 import type { Where } from "./where";
 import { Bezels } from "./Bezels";
 import { DeskMeter } from "./DeskMeter";
@@ -69,13 +71,8 @@ function CameraRig({ visit, where, reduced, cover }: { visit: Visit; where: Muta
     // dt is large after an idle spell, so cap it: the first frame of a move still eases.
     const k = reduced ? 1 : 1 - Math.exp(-Math.min(dt, 0.1) * 6);
     const [px, py, pz] = reduced ? [0, 0, 0] : parallax(target, look, pointer, framing.parallaxStrength(w));
-    const o = offset.current;
-    const dx = px - o[0], dy = py - o[1], dz = pz - o[2];
-    o[0] += dx * k; o[1] += dy * k; o[2] += dz * k;
-    // A parallax that is on its way to nothing (a landing at a station) stops easing once it is a couple of
-    // millimetres off, so the tail of it does not keep the room drawing frames.
-    const tail = Math.hypot(px, py, pz) < 1e-9 && Math.hypot(o[0], o[1], o[2]) < 2e-3;
-    if (tail) { o[0] = o[1] = o[2] = 0; }
+    const { offset: o, resting } = easeOffset(offset.current, [px, py, pz], k);
+    offset.current = o;
     camera.position.set(target[0] + o[0], target[1] + o[1], target[2] + o[2]);
     camera.lookAt(look[0], look[1], look[2]);
     const cam = camera as PerspectiveCamera;
@@ -89,7 +86,7 @@ function CameraRig({ visit, where, reduced, cover }: { visit: Visit; where: Muta
     covered.current = nextCover(covered.current, want, dt);
     if (cover.current) cover.current.style.opacity = String(covered.current);
     const moving = covered.current > 0 || w.kind === "flying" || w.stop !== visit.target() || want > 0;
-    if (moving || (!tail && Math.hypot(dx, dy, dz) * (1 - k) > 1e-4)) invalidate();
+    if (moving || !resting) invalidate();
   });
   return null;
 }
@@ -105,6 +102,7 @@ export default function Room({ onReady, onProgress, visit, where, reduced, meter
         phone batteries and keeps software WebGL (CI, locked-down laptops) from starving the page. */}
     <Canvas
       frameloop="demand"
+      events={withoutWheel(events)} // the wheel never moves the camera, so r3f must not take its pointer from it
       style={{ position: "fixed", inset: 0 }}
       camera={{ position: OVERVIEW.camera, fov: OVERVIEW.fov }}
     >
