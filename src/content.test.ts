@@ -496,8 +496,8 @@ describe("page controls words", () => {
 // Every other word the app shows or announces: the HUD, the meter's labels, the boot log, the signal
 // lost screen, the gap's sentence. They move here from the components, so validation covers them.
 describe("interface words", () => {
-  const EMPTY_GROUPS = ["pins"];
-  const GROUPS = [...EMPTY_GROUPS, "photo", "pageControls", "hud", "ambient"];
+  const EMPTY_GROUPS: string[] = [];
+  const GROUPS = [...EMPTY_GROUPS, "photo", "pageControls", "hud", "pins", "ambient"];
   const keys = Object.keys(ui).filter((k) => !GROUPS.includes(k));
   it("accepts the shipped words", () => {
     expect(validateContent(content)).toEqual([]);
@@ -545,6 +545,23 @@ describe("interface words", () => {
       const c = good();
       delete (c.ui as Record<string, unknown>).hud;
       expect(validateContent(c).join("\n")).toContain("ui.hud: missing");
+    });
+  });
+  describe("the pins' words (#293)", () => {
+    it("are the approved words, one per station", () => {
+      expect(ui.pins).toEqual({ work: "1 Work", projects: "2 Projects", about: "3 About me" });
+    });
+    it.each(Object.keys(ui.pins))("rejects %s when it is removed or empty", (k) => {
+      const c = good();
+      delete (c.ui.pins as Record<string, string>)[k];
+      expect(validateContent(c).join("\n")).toContain(`ui.pins.${k}: missing`);
+      (c.ui.pins as Record<string, string>)[k] = " ";
+      expect(validateContent(c).join("\n")).toContain(`ui.pins.${k}: missing`);
+    });
+    it("is walked by validateContent: removed, it is missing", () => {
+      const c = good();
+      delete (c.ui as Record<string, unknown>).pins;
+      expect(validateContent(c).join("\n")).toContain("ui.pins: missing");
     });
   });
   describe("the ambient screens' words (#290)", () => {

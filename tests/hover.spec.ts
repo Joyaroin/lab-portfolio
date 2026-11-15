@@ -71,6 +71,22 @@ test.describe("the hover preview at the overview (1440 x 900)", () => {
     await canvasNeverFiltered(page);
   });
 
+  test("the pointer on a pin shows that station's name under the meter bar and then its digits; moving off shows the gap's sentence (#293)", async ({ page }) => {
+    await page.locator(`[data-pin="${stations[1].id}"]`).hover();
+    await expect(barLine(page)).toHaveText(line(2));
+    expect(await barLine(page).textContent(), "no count in a preview").not.toContain(" of ");
+    await expect(page.locator("[data-meter-bar] [role=img]")).toHaveAttribute("aria-label", fill(ui.meterReading, { digits: formatReading(stations[1].reading) }));
+    await page.mouse.move(720, 2);
+    await expect(barLine(page)).toHaveText(gapLine);
+    await canvasNeverFiltered(page);
+  });
+
+  test("keyboard focus on a pin shows no preview (#293)", async ({ page }) => {
+    await page.mouse.move(720, 2);
+    await page.locator(`[data-pin="${stations[1].id}"]`).focus();
+    await expect(barLine(page)).toHaveText(gapLine);
+  });
+
   test("the pointer on a TV shows that station's line; leaving it shows the gap's sentence", async ({ page }) => {
     const size = page.viewportSize()!;
     for (const i of [0, 1, 2]) {

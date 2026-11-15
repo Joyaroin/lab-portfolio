@@ -133,7 +133,7 @@ export const ui = {
     startOrPortrait: "or pick one below",
   },
   /** #293: the pins over the monitors */
-  pins: {} as Record<string, string>,
+  pins: { work: "1 Work", projects: "2 Projects", about: "3 About me" } as Record<string, string>,
   /** #287: the photo */
   photo: {
     alt: "Adham Sedik, smiling, in glasses and a black polo",

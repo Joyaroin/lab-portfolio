@@ -90,6 +90,60 @@ describe("the hover preview's rest", () => {
   });
 });
 
+describe("the pins as a hover source (#293)", () => {
+  it("a pin makes a preview of its station, as a TV or a link does", () => {
+    const c = clock(), h = createHover(c.now);
+    h.point("pin", 3);
+    expect(h.preview()).toEqual({ stop: 3, since: 1000 });
+    h.point("pin", null);
+    expect(h.preview()).toBeNull();
+  });
+
+  it("says which station's TV and pin are lit: the one the pointer is on through its TV or its pin, never through a link", () => {
+    const c = clock(), h = createHover(c.now);
+    expect(h.lit()).toBeNull();
+    h.point("tv", 2);
+    expect(h.lit()).toBe(2);
+    h.point("tv", null);
+    h.point("pin", 3);
+    expect(h.lit()).toBe(3);
+    h.point("pin", null);
+    h.point("link", 1);
+    expect(h.preview()).toEqual({ stop: 1, since: 1000 });
+    expect(h.lit(), "a link previews the station but lights neither the TV nor the pin").toBeNull();
+  });
+
+  it("says which pin the pointer is on, for the TV's glow, and only a pin counts", () => {
+    const c = clock(), h = createHover(c.now);
+    h.point("tv", 2);
+    expect(h.pinStop()).toBeNull();
+    h.point("pin", 2); // the pointer moved from the TV onto its pin; the TV's leave may come after
+    expect(h.pinStop()).toBe(2);
+    h.point("tv", null);
+    expect(h.pinStop()).toBe(2);
+    expect(h.lit()).toBe(2);
+    h.point("pin", null);
+    expect(h.pinStop()).toBeNull();
+    expect(h.lit()).toBeNull();
+  });
+
+  it("keeps the rest going from TV to its pin (the same station), and tells its subscribers when the lit station or the pin changes without the preview changing", () => {
+    const c = clock(), h = createHover(c.now);
+    let n = 0;
+    h.subscribe(() => n++);
+    h.point("link", 2);
+    const link = h.preview();
+    expect(n).toBe(1);
+    c.t = 1500;
+    h.point("pin", 2); // the same station by another source: the rest goes on, and now the pin is lit
+    expect(h.preview(), "same preview object, same start").toBe(link);
+    expect(h.lit()).toBe(2);
+    expect(n, "heard of the lit station").toBe(2);
+    h.point("pin", 2);
+    expect(n).toBe(2);
+  });
+});
+
 describe("what a preview shows", () => {
   const p = (stop: number, since = 1000): Preview => ({ stop, since });
 

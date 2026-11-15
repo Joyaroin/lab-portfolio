@@ -22,7 +22,22 @@ progress {
 
 /* #285: the overview and the HUD (the Start button, the HUD's Résumé button, the phone bar). */
 
-/* #293: the pins over the monitors. */
+/* #293: the pins over the monitors. A pill over each station's glass at the overview: a number disc and the name, with a stem down to the glass.
+   src/PinPlacer.tsx puts it there (left and top are its bottom middle); it is hidden (and out of the tab order) except at the overview (data-here) in a window with room for all three (data-fit), and under
+   reduced motion it shows and hides with no easing. It is lit when the pointer is on it or on its TV. */
+.pin {
+  position: fixed; left: 0; top: 0; z-index: 12; transform: translate(-50%, -100%); box-sizing: border-box; display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px 6px 8px; white-space: nowrap; font-size: 15px; font-weight: 700; line-height: 1; color: #7dffb0; text-decoration: none; cursor: pointer;
+  background: rgba(5, 8, 10, 0.82); border: 1px solid rgba(125, 255, 176, 0.5); border-radius: 999px;
+  opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.25s, visibility 0s 0.25s, background 0.2s;
+}
+.pin[data-here][data-fit] { opacity: 1; visibility: visible; pointer-events: auto; transition: opacity 0.25s, background 0.2s; }
+.pin[data-still], .pin[data-still][data-here][data-fit] { transition: none; }
+.pin:hover, .pin[data-lit] { background: rgba(125, 255, 176, 0.18); }
+.pin::after { content: ""; position: absolute; left: 50%; top: 100%; width: 1px; height: 14px; background: rgba(125, 255, 176, 0.5); }
+.pin-n {
+  display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: #7dffb0; color: #05080a; font-size: 13px;
+}
 
 /* #287: the photo on About me's first page. */
 /* The heading and line sit in a row with the photo to their right; in portrait the photo goes above them. */

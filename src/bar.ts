@@ -31,7 +31,7 @@ export function stopLineFor(stop: number, step: Step): string {
 }
 
 // ---- the hover preview (#228)
-// At the overview, resting the pointer on a lit TV or a station link makes the meter show that station before the
+// At the overview, resting the pointer on a lit TV, a station's pin or a station link makes the meter show that station before the
 // click. The line changes at once; the digits after the pointer has rested PREVIEW_REST_MS, with the short scramble.
 // Pointer only, and only at the overview: the tour feeds `createHover` from pointer events, never from focus.
 
@@ -46,30 +46,44 @@ export function previewStop(where: Where, preview: Preview | null): number | nul
   return preview && where.kind === "at" && where.stop === 0 ? preview.stop : null;
 }
 
-/** Where the pointer is: the one station whose TV or link it is on, if any. The TV (the room's canvas) and the HUD's
+/** Where the pointer is: the one station whose TV, pin or link it is on, if any. The TV (the room's canvas), the pins and the HUD's
  *  links each report their own enter and leave, in no fixed order. The last to report a station has the pointer, and a
- *  source leaving clears only what it reported. Subscribers hear of each change of `preview()`, which is stable between changes. */
+ *  source leaving clears only what it reported. Subscribers hear of each change of `preview()`, `lit()` or `pinStop()`; each is
+ *  stable between changes. */
 export function createHover(clock: () => number) {
-  type Source = "tv" | "link";
+  type Source = "tv" | "pin" | "link";
   let current: (Preview & { source: Source }) | null = null;
   let snapshot: Preview | null = null;
   const listeners = new Set<() => void>();
+  // The station whose TV and pin glow: the pointer is on its TV or its pin (a link previews the station but lights neither), and the pin
+  // the pointer is on, which the TV's glow follows.
+  const litOf = () => (current && current.source !== "link" ? current.stop : null);
+  const pinOf = () => (current?.source === "pin" ? current.stop : null);
   const set = (next: (Preview & { source: Source }) | null) => {
     current = next;
     snapshot = next && { stop: next.stop, since: next.since };
     listeners.forEach((l) => l());
   };
   return {
-    /** `source` has the pointer on `stop`'s TV or link, or (null) no longer has it on any. */
+    /** `source` has the pointer on `stop`'s TV, pin or link, or (null) no longer has it on any. */
     point(source: Source, stop: number | null) {
       if (stop === null) { if (current?.source === source) set(null); return; }
       if (current?.stop === stop && current.source === source) return; // still resting
-      if (current?.stop === stop) { current = { ...current, source }; return; } // the same station, the other source: the rest goes on
+      if (current?.stop === stop) { // the same station, another source: the rest goes on, and what is lit may change
+        const [lit, pin] = [litOf(), pinOf()];
+        current = { ...current, source };
+        if (litOf() !== lit || pinOf() !== pin) listeners.forEach((l) => l());
+        return;
+      }
       set({ stop, since: clock(), source });
     },
     /** The rest starts again from now: the pointer stayed put through a visit and the overview is back. */
     rest() { if (current) set({ ...current, since: clock() }); },
     preview: (): Preview | null => snapshot,
+    /** The station whose TV glows and whose pin is lit: the pointer is on its TV or its pin. */
+    lit: (): number | null => litOf(),
+    /** The station whose pin the pointer is on: its TV glows too. */
+    pinStop: (): number | null => pinOf(),
     subscribe(l: () => void) { listeners.add(l); return () => { listeners.delete(l); }; },
   };
 }
