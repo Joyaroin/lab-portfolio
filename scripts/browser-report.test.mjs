@@ -178,6 +178,36 @@ describe("main against a fake Forgejo", () => {
     });
   });
 
+  describe("many flaky tests", () => {
+    const flakyAttempt = (msg) => attempt(5, { error: msg });
+    const manyFlaky = (n, msg = (i) => `first try ${i}`) =>
+      reportOf(Array.from({ length: n }, (_, i) => ({ title: `t${i}`, tests: [{ status: "flaky", annotations: [], results: [flakyAttempt(msg(i)), attempt(5)] }] })));
+    it("the PR comment names every flaky test, with an error on the first 10 only", async () => {
+      const t = await setup({ prs: [pr], rep: manyFlaky(12) });
+      await t.run();
+      const body = t.calls[0].body.body;
+      expect(body).toContain("12 flaky test(s), passed on a retry:");
+      for (let i = 0; i < 12; i++) expect(body).toContain(`**t${i}**`);
+      for (let i = 0; i < 10; i++) expect(body).toContain(`first try ${i}`);
+      expect(body).not.toContain("first try 10");
+      expect(body).not.toContain("first try 11");
+      expect(body).not.toMatch(/and \d+ more/);
+    });
+    it("the PR comment cuts a 700-character flaky error at 600", async () => {
+      const t = await setup({ prs: [pr], rep: manyFlaky(1, () => "x".repeat(700)) });
+      await t.run();
+      const body = t.calls[0].body.body;
+      expect(body).toContain("x".repeat(600) + "\n… (cut)");
+      expect(body).not.toContain("x".repeat(601));
+    });
+    it("the main comment names every flaky test too", async () => {
+      const t = await setup({ branch: "main", issues: [standing], rep: manyFlaky(12) });
+      await t.run();
+      const body = t.calls[0].body.body;
+      for (let i = 0; i < 12; i++) expect(body).toContain(`**t${i}**`);
+    });
+  });
+
   describe("on main", () => {
     const onMain = (o = {}) => setup({ branch: "main", ...o });
     it("a pass with a flaky test makes one comment on the standing issue", async () => {

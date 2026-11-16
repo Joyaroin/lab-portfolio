@@ -48,15 +48,17 @@ export function flakyTests(report) {
 
 const MAX_FLAKY_ERROR = 600; // characters kept per flaky test
 
-/** Markdown lines naming flaky tests, each with its first error. Empty when there are none. */
+/** Markdown lines naming every flaky test. The first MAX_TESTS carry their first error; the rest are named only, so the comment stays bounded. Empty when there are none. */
 export function flakyLines(flaky) {
   if (!flaky?.length) return [];
+  const name = (t) => `**${t.name.replace(/[*`\r\n]+/g, "'")}**`;
   const lines = [`${flaky.length} flaky test(s), passed on a retry:`, ""];
   for (const t of flaky.slice(0, MAX_TESTS)) {
     const err = t.error.length > MAX_FLAKY_ERROR ? t.error.slice(0, MAX_FLAKY_ERROR) + "\n… (cut)" : t.error;
-    lines.push(`**${t.name.replace(/[*`\r\n]+/g, "'")}**`, "", ...fenced(err), "");
+    lines.push(name(t), "", ...fenced(err), "");
   }
-  if (flaky.length > MAX_TESTS) lines.push(`… and ${flaky.length - MAX_TESTS} more.`, "");
+  const rest = flaky.slice(MAX_TESTS);
+  if (rest.length) lines.push(`${rest.length} more, by name only:`, "", ...rest.map((t) => `- ${name(t)}`), "");
   return lines;
 }
 

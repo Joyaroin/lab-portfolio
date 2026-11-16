@@ -297,6 +297,33 @@ describe("main against a fake Forgejo", () => {
     await t.run();
     expect(t.calls[1].body.body).toContain("**wheel moves nothing**");
   });
+  describe("many flaky tests", () => {
+    const flakyAttempt = (msg) => ({ status: "failed", error: { message: msg } });
+    const manyFlaky = (n, msg = (i) => `first try ${i}`) => ({
+      suites: [{ title: "room.spec.ts", file: "room.spec.ts", specs: [
+        { title: "HUD appears", tests: [test("unexpected", "broke")] },
+        ...Array.from({ length: n }, (_, i) => ({ title: `t${i}`, tests: [{ status: "flaky", results: [flakyAttempt(msg(i)), { status: "passed" }] }] })),
+      ] }],
+    });
+    it("a failure comment names every flaky test, with an error on the first 10 only", async () => {
+      const t = await run([pr(7, "ticket-66")], { rep: manyFlaky(12) });
+      await t.run();
+      const body = t.calls[0].body.body;
+      expect(body).toContain("12 flaky test(s), passed on a retry:");
+      for (let i = 0; i < 12; i++) expect(body).toContain(`**t${i}**`);
+      for (let i = 0; i < 10; i++) expect(body).toContain(`first try ${i}`);
+      expect(body).not.toContain("first try 10");
+      expect(body).not.toContain("first try 11");
+      expect(body).not.toMatch(/and \d+ more/);
+    });
+    it("a failure comment cuts a 700-character flaky error at 600", async () => {
+      const t = await run([pr(7, "ticket-66")], { rep: manyFlaky(1, () => "x".repeat(700)) });
+      await t.run();
+      const body = t.calls[0].body.body;
+      expect(body).toContain("x".repeat(600) + "\n… (cut)");
+      expect(body).not.toContain("x".repeat(601));
+    });
+  });
   it("a failure comment without flaky tests has no flaky section", async () => {
     const t = await run([pr(7, "ticket-66")]);
     await t.run();
