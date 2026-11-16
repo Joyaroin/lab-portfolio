@@ -27,6 +27,13 @@ export default defineConfig({
     reuseExistingServer: false,
   },
   use: { baseURL: origin, ...llvmpipe },
+  // Two projects, so each test runs once, in one of them. CI retries a failed test once, except @timing: a timing
+  // test is a limit check and fails on its first failure. Outside CI nothing retries. A project's grep combines with
+  // the CLI's --grep, so make browser-light and the like select the same tests as before.
+  projects: [
+    { name: "timing", grep: /@timing/, retries: 0 },
+    { name: "browser", grepInvert: /@timing/, retries: process.env.CI ? 1 : 0 },
+  ],
   // The meter and HUD only appear once the room is ready. WebGL draws on the CPU, in CI and on the
   // agents' Mac, which takes a few seconds, so the timeout stays generous.
   expect: { timeout: 15_000 },
