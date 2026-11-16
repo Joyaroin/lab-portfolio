@@ -434,58 +434,114 @@ describe("main against a fake Forgejo", () => {
   });
 });
 
+// The workflows are read as text: the repo has no YAML parser. A job is the block from its key to the next two-space key.
+const jobIn = (yml, name) => yml.slice(yml.indexOf(`\n  ${name}:\n`) + 1).split(/\n  (?=[a-z-]+:\n)/)[0];
+const stepsIn = (yml, name) => jobIn(yml, name).split(/\n      - /).slice(1);
+// What a browser job that runs the light specs sets up, the same in ci.yml and release.yml.
+const BROWSER_SETUP = ['CI: "true"', "LAB_WEBGL: llvmpipe", 'LIBGL_ALWAYS_SOFTWARE: "1"', 'LP_NUM_THREADS: "4"', "xvfb-run -a", 'make browser-light PW_ARGS="--reporter=list,json"', "libgl1-mesa-dri"];
+const reportSteps = (yml) => yml.split(/\n      - /).filter((b) => b.includes("node scripts/browser-report.mjs"));
+// The report: scripts/browser-report.mjs, its own script, so the post-ci-failure assertions don't cover its steps.
+function expectReportAfterPost(yml, name, job) {
+  const all = stepsIn(yml, name);
+  const post = all.findIndex((b) => b.includes("post-ci-failure.mjs"));
+  const report = all.findIndex((b) => b.includes("node scripts/browser-report.mjs"));
+  expect(post).toBeGreaterThanOrEqual(0);
+  expect(report).toBeGreaterThan(post);
+  expect(all[report]).toMatch(/continue-on-error: true/);
+  expect(all[report]).toMatch(/if: always\(\)/);
+  expect(all[report]).toMatch(/MASK_ENV: TOKEN/);
+  expect(all[report]).toContain(`JOB: ${job}`);
+  expect(all[report]).toContain("OUTCOME: ${{ steps.run.outcome }}");
+  expect(all[report]).toContain("START_FILE: ${{ runner.temp }}/start");
+  expect(all[report]).toContain("REPORT: ${{ runner.temp }}/playwright.json");
+  expect(all[report].match(/TOKEN: (.*)/g)?.every((l) => l.endsWith("${{ secrets.GITHUB_TOKEN }}"))).toBe(true);
+}
+
 describe("ci.yml", () => {
   const yml = readFileSync(new URL("../.forgejo/workflows/ci.yml", import.meta.url), "utf8");
+  const browser = jobIn(yml, "browser");
   it("every post step has continue-on-error: true", () => {
     const posts = yml.split(/\n      - /).filter((b) => b.includes("post-ci-failure.mjs"));
-    expect(posts).toHaveLength(6);
+    expect(posts).toHaveLength(7);
     for (const p of posts) expect(p).toMatch(/continue-on-error: true/);
   });
-  it("has no full browser suite: release.yml runs it", () => {
-    expect(yml).not.toMatch(/^  browser:/m);
-    expect(yml).not.toContain("make browser");
+  it("the browser job runs the light specs, not the release specs or the whole suite", () => {
+    expect(browser).toContain('make browser-light PW_ARGS="--reporter=list,json"');
+    expect(browser).not.toContain("browser-release");
+    expect(yml.match(/make browser\b(?!-)/g)).toBeNull();
+  });
+  it("the browser job skips main, where the release runs the light specs after staging", () => {
+    expect(browser).toMatch(/^    if: github\.ref_name != 'main'$/m);
+  });
+  it("the browser job stops the old run on a new push, per ref", () => {
+    expect(browser).toMatch(/^    concurrency:\n      group: browser-\$\{\{ github\.ref \}\}\n      cancel-in-progress: true$/m);
+  });
+  it("the browser job has the release's browser setup", () => {
+    for (const part of BROWSER_SETUP) expect(browser, part).toContain(part);
+  });
+  it("the browser job posts its failure with the report, then reports the run", () => {
+    const post = stepsIn(yml, "browser").find((b) => b.includes("post-ci-failure.mjs"));
+    expect(post).toContain("JOB: browser\n");
+    expect(post).toContain("REPORT: ${{ runner.temp }}/playwright.json");
+    expect(post).toMatch(/MASK_ENV: TOKEN/);
+    expectReportAfterPost(yml, "browser", "browser");
+  });
+  it("every report step is continue-on-error", () => {
+    expect(reportSteps(yml)).toHaveLength(1);
+    for (const r of reportSteps(yml)) expect(r).toMatch(/continue-on-error: true/);
   });
 });
 
 describe("release.yml", () => {
   const yml = readFileSync(new URL("../.forgejo/workflows/release.yml", import.meta.url), "utf8");
-  const job = (name) => yml.slice(yml.indexOf(`\n  ${name}:\n`) + 1).split(/\n  (?=[a-z-]+:\n)/)[0];
-  it("moves staging only after the image and the full browser suite pass", () => {
+  const job = (name) => jobIn(yml, name);
+  const steps = (name) => stepsIn(yml, name);
+  it("moves staging only after the image and the release specs pass", () => {
     expect(job("staging")).toMatch(/^    needs: \[image, browser\]$/m);
   });
-  it("runs the full suite, and no screenshots: every PR takes them", () => {
-    expect(job("browser")).toContain('make browser PW_ARGS="--reporter=list,json"');
+  it("the browser job runs the release specs only, and there are no screenshots: every PR takes them", () => {
+    expect(job("browser")).toContain('make browser-release PW_ARGS="--reporter=list,json"');
+    expect(job("browser")).not.toContain("make browser-light");
     expect(yml).not.toMatch(/^  screenshots:/m);
     expect(yml).not.toContain("playwright.screenshots.config.ts");
   });
+  it("the browser-light job waits for staging, and skips when staging didn't move", () => {
+    const light = job("browser-light");
+    expect(light).toMatch(/^    needs: staging$/m);
+    expect(light).toMatch(/^    if: needs\.staging\.outputs\.moved == 'true'$/m);
+  });
+  it("staging doesn't wait for browser-light", () => {
+    expect(job("staging")).not.toMatch(/needs:.*browser-light/);
+    expect(yml.match(/needs:.*browser-light/g)).toBeNull();
+  });
+  it("the browser-light job runs the light specs with the same setup as the release specs", () => {
+    const light = job("browser-light");
+    expect(light).not.toContain("browser-release");
+    for (const part of BROWSER_SETUP) expect(light, part).toContain(part);
+  });
   it("every post step has continue-on-error: true and masks the token", () => {
     const posts = yml.split(/\n      - /).filter((b) => b.includes("post-ci-failure.mjs"));
-    expect(posts).toHaveLength(1);
+    expect(posts).toHaveLength(2);
     for (const p of posts) {
       expect(p).toMatch(/continue-on-error: true/);
       expect(p).toMatch(/MASK_ENV: TOKEN/);
     }
+    expect(steps("browser").find((b) => b.includes("post-ci-failure.mjs"))).toContain("JOB: browser\n");
+    expect(steps("browser-light").find((b) => b.includes("post-ci-failure.mjs"))).toContain("JOB: browser-light\n");
   });
-  // The report: scripts/browser-report.mjs, its own script, so the post-ci-failure assertion above doesn't cover it.
-  it("the browser job reports the run after the failure post, whatever the result, without failing", () => {
-    const all = steps("browser");
-    const post = all.findIndex((b) => b.includes("post-ci-failure.mjs"));
-    const report = all.findIndex((b) => b.includes("node scripts/browser-report.mjs"));
-    expect(report).toBeGreaterThan(post);
-    expect(all[report]).toMatch(/continue-on-error: true/);
-    expect(all[report]).toMatch(/if: always\(\)/);
-    expect(all[report]).toMatch(/MASK_ENV: TOKEN/);
-    expect(all[report]).toContain("OUTCOME: ${{ steps.run.outcome }}");
-    expect(all[report]).toContain("START_FILE: ${{ runner.temp }}/start");
-    expect(all[report]).toContain("REPORT: ${{ runner.temp }}/playwright.json");
-    expect(all[report].match(/TOKEN: (.*)/g)?.every((l) => l.endsWith("${{ secrets.GITHUB_TOKEN }}"))).toBe(true);
+  it("each browser job reports the run after the failure post, whatever the result, without failing", () => {
+    expectReportAfterPost(yml, "browser", "browser");
+    expectReportAfterPost(yml, "browser-light", "browser-light");
   });
-  it("only the browser job runs the report", () => {
-    expect(yml.match(/browser-report\.mjs/g)?.length).toBe(2); // the comment names it once, the step runs it once
+  it("every report step is continue-on-error", () => {
+    expect(reportSteps(yml)).toHaveLength(2);
+    for (const r of reportSteps(yml)) expect(r).toMatch(/continue-on-error: true/);
+  });
+  it("only the browser jobs run the report", () => {
+    expect(job("image")).not.toContain("browser-report.mjs");
     expect(job("staging")).not.toContain("browser-report.mjs");
   });
   // The release clock: scripts/release-clock.mjs holds the rule, these check the wiring.
-  const steps = (name) => job(name).split(/\n      - /).slice(1);
   it("the browser job exposes start, retried and the load average as outputs", () => {
     const outputs = job("browser").split("\n    env:")[0];
     expect(outputs).toMatch(/^      start: \$\{\{ steps\.start\.outputs\.start \}\}$/m);

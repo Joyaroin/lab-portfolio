@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 const port = Number(process.env.TEST_PORT) || 4173;
 const origin = `http://127.0.0.1:${port}`;
 
-// CI draws WebGL on Mesa's llvmpipe (LAB_WEBGL=llvmpipe, set in release.yml and ci.yml, run under Xvfb): a third of SwiftShader's CPU at the
+// CI draws WebGL on Mesa's llvmpipe (LAB_WEBGL=llvmpipe, set in ci.yml and release.yml, run under Xvfb): a third of SwiftShader's CPU at the
 // same frame rate. It needs the full Chromium, because the headless shell has no display for OpenGL, and ANGLE on GL.
 // Anywhere else Playwright's default stands.
 const llvmpipe = process.env.LAB_WEBGL === "llvmpipe"
@@ -14,8 +14,9 @@ const llvmpipe = process.env.LAB_WEBGL === "llvmpipe"
 
 export default defineConfig({
   // Where TEST_PORT is set (agent sessions on the Mac) one worker, so one session can't take the CPU from the others.
-  // CI: 3, because the runner draws WebGL on its CPUs and runs up to 3 jobs at once; Playwright's default (half the
-  // CPUs, 6) overloaded it and timing specs missed frames. A Mac without TEST_PORT keeps the default.
+  // CI: 3, because the runner draws WebGL on its CPUs and runs 2 jobs at once (release runs 526 and 527 overlapped and took 859 s
+  // and 795 s, against about 450 s alone); Playwright's default (half the CPUs, 6) overloaded it and timing specs missed frames.
+  // A Mac without TEST_PORT keeps the default.
   workers: process.env.TEST_PORT ? 1 : process.env.CI ? 3 : undefined,
   testDir: "tests",
   testMatch: "*.spec.ts",

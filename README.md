@@ -40,21 +40,21 @@ An AI software factory built this site:
 
 1. I plan a feature with an orchestrator agent, which cuts it into small tickets.
 2. Builder agents write each ticket test-first in their own git worktree and open a pull request.
-3. CI runs the unit and integration tests and takes screenshots of every station on every PR.
+3. CI runs the unit and integration tests and the light browser specs, and takes screenshots of every station, on every PR.
 4. A fresh reviewer agent decides whether the PR merges by itself, needs me, or goes back for a rebuild.
-5. The full browser suite runs before each deploy to staging. I promote to production by hand.
+5. The timing and rendering specs run before each deploy to staging. I promote to production by hand.
 
 ## How it ships
 
 ```
-pull request ──► CI ──► merge to main ──► release: full browser suite ──► staging ──► (by hand) production
+pull request ──► CI ──► merge to main ──► release: timing and rendering specs ──► staging ──► (by hand) production
 ```
 
 - **CI** (Forgejo Actions on my own runner): type check, unit tests, the production build with its size budget,
-  an integration test, station screenshots, a gitleaks secret scan, and `make facts`, which fails if a doc names a
+  an integration test, the browser specs except the timing and rendering ones, station screenshots, a gitleaks secret scan, and `make facts`, which fails if a doc names a
   path, command or test tag that no longer exists.
-- **Release:** after each merge, the full Playwright suite runs, including timing and rendering tests, with WebGL
-  drawn in software on a runner with no GPU. Staging moves only if it passes.
+- **Release:** after each merge, the timing and rendering specs run, with WebGL drawn in software on a runner with no GPU.
+  Staging moves only if they pass. The other browser specs run on main once staging has moved.
 - **Hosting:** a Docker image, deployed by Argo CD from the Helm chart in [`deploy/`](deploy) to a single-node k3s cluster on
   a Proxmox host at home. Traffic comes in through a Cloudflare Tunnel, so no ports are open.
 

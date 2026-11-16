@@ -10,7 +10,7 @@ Which tests exist, where each runs, and what CI runs: `docs/agents/testing.md`.
 `make facts` checks that every path, command and tag these docs name exists, so update a doc in the same PR as the change that makes it wrong.
 
 ## Deploys
-Merging to `main` deploys to staging once the full browser suite passes in `release.yml`.
+Merging to `main` deploys to staging once the release specs (`@timing` and `@render`) pass in `release.yml`. The light browser specs run on every PR in `ci.yml`, and on `main` after staging has moved.
 Staging follows the `staging` branch, which only `release.yml`
 moves. Production follows the `production` branch, which only the
 `promote` workflow moves. Adham runs it.
