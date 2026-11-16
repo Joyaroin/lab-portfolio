@@ -109,6 +109,25 @@ jobs:
           SHA: ${{ github.sha }}
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/post-ci-failure.mjs
+      # What the run cost: its time, load, flaky tests, slowest tests and boot time (scripts/browser-report.mjs). On main only a pass
+      # with a flaky test posts anything (a failure's comment above names its flaky tests). It runs after "Post the failure", which
+      # the report links on a PR. Best effort: it never changes the job result.
+      - name: Report the run
+        id: report
+        if: always()
+        continue-on-error: true
+        env:
+          JOB: browser
+          OUTCOME: ${{ steps.run.outcome }}
+          START_FILE: ${{ runner.temp }}/start
+          REPORT: ${{ runner.temp }}/playwright.json
+          MASK_ENV: TOKEN
+          SERVER_URL: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/browser-report.mjs
   staging:
     needs: [image, browser]
     runs-on: docker

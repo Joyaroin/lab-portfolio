@@ -9,10 +9,13 @@ export const stationIds = stations.map((s) => s.id);
 
 export const panelOf = (page: Page, id: string) => page.locator(`[data-screen="${id}"]`);
 
-/** Loads the site and waits until the boot screen has gone. */
+/** Loads the site and waits until the boot screen has gone. Records how long that took as a `boot-ms` test annotation,
+ *  which the browser job's report adds up (scripts/browser-report.mjs). Only this helper is measured, not a spec's own `page.goto`. */
 export async function openTour(page: Page) {
+  const began = Date.now();
   await page.goto("/");
   await expect(page.getByLabel("Boot log")).toBeHidden();
+  test.info().annotations.push({ type: "boot-ms", description: String(Date.now() - began) });
 }
 
 // How a spec gets somewhere. A spec moves the way a visitor does: it clicks the HUD's links. These helpers
