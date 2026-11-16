@@ -12,23 +12,54 @@ const MAX_TESTS = 10;
 
 const stripAnsi = (s) => s.replace(/\u001b\[[0-9;]*m/g, "");
 
-/** Failed tests in a Playwright JSON report, as { name, error }. */
+/** Calls `fn(test, name, file)` for every test in a Playwright JSON report. `name` is the describe titles and the spec title joined with " > ". */
+export function eachTest(report, fn) {
+  const walk = (suite, titles, file) => {
+    const path = suite.title && !suite.file?.endsWith(suite.title) ? [...titles, suite.title] : titles;
+    for (const spec of suite.specs ?? []) for (const t of spec.tests ?? []) fn(t, [...path, spec.title].join(" > "), suite.file ?? file);
+    for (const s of suite.suites ?? []) walk(s, path, suite.file ?? file);
+  };
+  for (const s of report.suites ?? []) walk(s, [], s.file);
+}
+
+/** Failed tests in a Playwright JSON report, as { name, error }. A test that passed on a retry (status "flaky") is not one. */
 export function failedTests(report) {
   const out = [];
-  const walk = (suite, titles) => {
-    const path = suite.title && !suite.file?.endsWith(suite.title) ? [...titles, suite.title] : titles;
-    for (const spec of suite.specs ?? []) {
-      for (const t of spec.tests ?? []) {
-        if (t.status !== "unexpected") continue;
-        const last = t.results?.[t.results.length - 1];
-        const err = last?.error?.message ?? last?.errors?.[0]?.message ?? "(no error message)";
-        out.push({ name: [...path, spec.title].join(" > "), error: stripAnsi(err).trim() });
-      }
-    }
-    for (const s of suite.suites ?? []) walk(s, path);
-  };
-  for (const s of report.suites ?? []) walk(s, []);
+  eachTest(report, (t, name) => {
+    if (t.status !== "unexpected") return;
+    const last = t.results?.[t.results.length - 1];
+    const err = last?.error?.message ?? last?.errors?.[0]?.message ?? "(no error message)";
+    out.push({ name, error: stripAnsi(err).trim() });
+  });
   return out;
+}
+
+/** Tests that failed and then passed on a retry (status "flaky"), as { name, error }: the error is the first attempt's. */
+export function flakyTests(report) {
+  const out = [];
+  eachTest(report, (t, name) => {
+    if (t.status !== "flaky") return;
+    const first = t.results?.find((r) => r.error || r.errors?.length);
+    const err = first?.error?.message ?? first?.errors?.[0]?.message ?? "(no error message)";
+    out.push({ name, error: stripAnsi(err).trim() });
+  });
+  return out;
+}
+
+const MAX_FLAKY_ERROR = 600; // characters kept per flaky test
+
+/** Markdown lines naming every flaky test. The first MAX_TESTS carry their first error; the rest are named only, so the comment stays bounded. Empty when there are none. */
+export function flakyLines(flaky) {
+  if (!flaky?.length) return [];
+  const name = (t) => `**${t.name.replace(/[*`\r\n]+/g, "'")}**`;
+  const lines = [`${flaky.length} flaky test(s), passed on a retry:`, ""];
+  for (const t of flaky.slice(0, MAX_TESTS)) {
+    const err = t.error.length > MAX_FLAKY_ERROR ? t.error.slice(0, MAX_FLAKY_ERROR) + "\n… (cut)" : t.error;
+    lines.push(name(t), "", ...fenced(err), "");
+  }
+  const rest = flaky.slice(MAX_TESTS);
+  if (rest.length) lines.push(`${rest.length} more, by name only:`, "", ...rest.map((t) => `- ${name(t)}`), "");
+  return lines;
 }
 
 /** Hidden line that marks a job's comment as ours, so a later push updates it instead of adding another. */
@@ -89,7 +120,7 @@ const MAX_FINDINGS = 20;
 
 /**
  * The comment body. The first line must not start with verdict, pass, fail or rebuild: merge-pr reads those.
- * `i` holds job, sha, step (failed step id), cmd, exit, out (output text or undefined), tests (browser only),
+ * `i` holds job, sha, step (failed step id), cmd, exit, out (output text or undefined), tests and flaky (browser only),
  * seconds (how long the job took) and load (load average).
  */
 export function formatComment(i) {
@@ -117,6 +148,7 @@ export function formatComment(i) {
     if (first) lines.push(`First error line: ${code(first)}`);
     lines.push("");
   }
+  lines.push(...flakyLines(i.flaky));
   if (i.out !== undefined) lines.push(`Last ${TAIL_LINES} lines of output:`, "", ...fenced(tail(i.out)), "");
   return lines.join("\n").trimEnd() + `\n\n${markerFor(i.job)}`;
 }
@@ -188,6 +220,7 @@ export async function main(input, env) {
   const failed = failedStep(input.steps) ?? input.job;
   const reportText = input.report && failed === input.runStep ? read(input.report) : undefined;
   let tests = [];
+  let flaky = [];
   let findings;
   if (input.leaksReport && failed === input.runStep) {
     try {
@@ -197,7 +230,11 @@ export async function main(input, env) {
     }
   }
   try {
-    if (reportText) tests = failedTests(JSON.parse(reportText)).map((t) => ({ name: clean(t.name), error: clean(t.error) }));
+    if (reportText) {
+      const parsed = JSON.parse(reportText);
+      tests = failedTests(parsed).map((t) => ({ name: clean(t.name), error: clean(t.error) }));
+      flaky = flakyTests(parsed).map((t) => ({ name: clean(t.name), error: clean(t.error) }));
+    }
   } catch {
     console.log("Could not read the Playwright report; using the command and exit code.");
   }
@@ -205,7 +242,7 @@ export async function main(input, env) {
   const now = input.now ?? Date.now();
   const text = formatComment({
     job: input.job, sha: env.SHA, step: failed, cmd: clean(input.cmd ?? ""), exit: read(input.exitFile)?.trim(),
-    out: input.leaksReport ? undefined : out, tests, findings, seconds: start ? now / 1000 - start : 0, load: loadavg(),
+    out: input.leaksReport ? undefined : out, tests, flaky, findings, seconds: start ? now / 1000 - start : 0, load: loadavg(),
   });
   const marker = markerFor(input.job);
   const pr = await findPr(env);

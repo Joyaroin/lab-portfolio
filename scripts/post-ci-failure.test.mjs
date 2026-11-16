@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { AUTHOR, cli, findingsFrom, failedTests, failedStep, formatComment, main, markerFor, MARKER, ISSUE_MARKER } from "./post-ci-failure.mjs";
+import { AUTHOR, cli, findingsFrom, failedTests, flakyTests, failedStep, formatComment, main, markerFor, MARKER, ISSUE_MARKER } from "./post-ci-failure.mjs";
 
 const test = (status, message) => ({ status, results: [{ error: message && { message } }] });
 const report = {
@@ -30,6 +30,26 @@ describe("failedTests", () => {
   });
   it("finds nothing in a passing report", () => {
     expect(failedTests({ suites: [{ title: "a", file: "a", specs: [{ title: "x", tests: [test("expected")] }] }] })).toEqual([]);
+  });
+});
+
+const flakyReport = {
+  suites: [{
+    title: "room.spec.ts", file: "room.spec.ts",
+    specs: [
+      { title: "wheel moves nothing", tests: [{ status: "flaky", results: [{ status: "failed", error: { message: "\u001b[31mfirst try\u001b[39m" } }, { status: "passed" }] }] },
+      { title: "HUD appears", tests: [test("unexpected", "broke")] },
+      { title: "meter shows", tests: [test("expected")] },
+    ],
+  }],
+};
+
+describe("flakyTests", () => {
+  it("lists only tests that passed on a retry, with the first attempt's error", () => {
+    expect(flakyTests(flakyReport)).toEqual([{ name: "wheel moves nothing", error: "first try" }]);
+  });
+  it("never counts a flaky test as failed", () => {
+    expect(failedTests(flakyReport).map((t) => t.name)).toEqual(["HUD appears"]);
   });
 });
 
@@ -262,6 +282,53 @@ describe("main against a fake Forgejo", () => {
       expect(t.calls[1].body.body).toContain("Error: ***");
     });
   });
+  it("a failure comment names the run's flaky tests and counts only the failed ones", async () => {
+    const t = await run([pr(7, "ticket-66")], { rep: flakyReport });
+    await t.run();
+    const body = t.calls[0].body.body;
+    expect(body).toContain("1 browser test(s) did not pass");
+    expect(body).toContain("**HUD appears**");
+    expect(body).toContain("1 flaky test(s), passed on a retry:");
+    expect(body).toContain("**wheel moves nothing**");
+    expect(body).toContain("first try");
+  });
+  it("a failure comment on main carries the flaky tests too", async () => {
+    const t = await run([pr(5, "other")], { rep: flakyReport, branch: "main" });
+    await t.run();
+    expect(t.calls[1].body.body).toContain("**wheel moves nothing**");
+  });
+  describe("many flaky tests", () => {
+    const flakyAttempt = (msg) => ({ status: "failed", error: { message: msg } });
+    const manyFlaky = (n, msg = (i) => `first try ${i}`) => ({
+      suites: [{ title: "room.spec.ts", file: "room.spec.ts", specs: [
+        { title: "HUD appears", tests: [test("unexpected", "broke")] },
+        ...Array.from({ length: n }, (_, i) => ({ title: `t${i}`, tests: [{ status: "flaky", results: [flakyAttempt(msg(i)), { status: "passed" }] }] })),
+      ] }],
+    });
+    it("a failure comment names every flaky test, with an error on the first 10 only", async () => {
+      const t = await run([pr(7, "ticket-66")], { rep: manyFlaky(12) });
+      await t.run();
+      const body = t.calls[0].body.body;
+      expect(body).toContain("12 flaky test(s), passed on a retry:");
+      for (let i = 0; i < 12; i++) expect(body).toContain(`**t${i}**`);
+      for (let i = 0; i < 10; i++) expect(body).toContain(`first try ${i}`);
+      expect(body).not.toContain("first try 10");
+      expect(body).not.toContain("first try 11");
+      expect(body).not.toMatch(/and \d+ more/);
+    });
+    it("a failure comment cuts a 700-character flaky error at 600", async () => {
+      const t = await run([pr(7, "ticket-66")], { rep: manyFlaky(1, () => "x".repeat(700)) });
+      await t.run();
+      const body = t.calls[0].body.body;
+      expect(body).toContain("x".repeat(600) + "\n… (cut)");
+      expect(body).not.toContain("x".repeat(601));
+    });
+  });
+  it("a failure comment without flaky tests has no flaky section", async () => {
+    const t = await run([pr(7, "ticket-66")]);
+    await t.run();
+    expect(t.calls[0].body.body).not.toContain("flaky");
+  });
   it("browser falls back to the command and exit code when there is no report", async () => {
     const t = await run([pr(7, "ticket-66")], { rep: null });
     await t.run();
@@ -398,6 +465,24 @@ describe("release.yml", () => {
       expect(p).toMatch(/continue-on-error: true/);
       expect(p).toMatch(/MASK_ENV: TOKEN/);
     }
+  });
+  // The report: scripts/browser-report.mjs, its own script, so the post-ci-failure assertion above doesn't cover it.
+  it("the browser job reports the run after the failure post, whatever the result, without failing", () => {
+    const all = steps("browser");
+    const post = all.findIndex((b) => b.includes("post-ci-failure.mjs"));
+    const report = all.findIndex((b) => b.includes("node scripts/browser-report.mjs"));
+    expect(report).toBeGreaterThan(post);
+    expect(all[report]).toMatch(/continue-on-error: true/);
+    expect(all[report]).toMatch(/if: always\(\)/);
+    expect(all[report]).toMatch(/MASK_ENV: TOKEN/);
+    expect(all[report]).toContain("OUTCOME: ${{ steps.run.outcome }}");
+    expect(all[report]).toContain("START_FILE: ${{ runner.temp }}/start");
+    expect(all[report]).toContain("REPORT: ${{ runner.temp }}/playwright.json");
+    expect(all[report].match(/TOKEN: (.*)/g)?.every((l) => l.endsWith("${{ secrets.GITHUB_TOKEN }}"))).toBe(true);
+  });
+  it("only the browser job runs the report", () => {
+    expect(yml.match(/browser-report\.mjs/g)?.length).toBe(2); // the comment names it once, the step runs it once
+    expect(job("staging")).not.toContain("browser-report.mjs");
   });
   // The release clock: scripts/release-clock.mjs holds the rule, these check the wiring.
   const steps = (name) => job(name).split(/\n      - /).slice(1);
