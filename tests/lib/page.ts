@@ -93,7 +93,7 @@ function pollBudget(limit: number) {
 /** Waits until `read()` returns the same thing twice, `every` ms apart, and fails if it hasn't
  *  within `timeout` ms (at most `STILL_LIMIT_MS`, and always before the test's own timeout). The
  *  failure shows the last value read. The scene is only drawn on demand and eases toward its target,
- *  so "the same twice" means the camera has arrived. */
+ *  so "the same twice" means arrived only if each read comes after a drawn frame: for the camera use `waitForCamera`. */
 export async function waitUntilStill<T>(read: () => Promise<T>, every = 300, timeout = STILL_LIMIT_MS) {
   let last: string | undefined;
   await expect.poll(async () => {
@@ -116,8 +116,29 @@ export async function readCamera(page: Page): Promise<number[]> {
   return v;
 }
 
-/** Waits for the camera to stop moving, and returns where it stopped. */
-export const waitForCamera = (page: Page, every = 300) => waitUntilStill(() => readCamera(page), every);
+/** How long `readDrawnCamera` waits for the scene to draw the frame it asked for. A draw on software WebGL under load takes
+ *  seconds at worst; a page that never draws one is hung, and fails with that said. */
+const FRAME_LIMIT_MS = 20_000;
+
+/** Asks the scene for a frame, waits until it has been drawn, then reads the camera.
+ *  data-camera is written once per drawn frame, and the scene draws on demand, so a plain read can't tell a camera at
+ *  rest from one that is easing but whose next frame hasn't come (slow frames under load): both read the same twice.
+ *  A frame drawn at rest leaves the camera where it was; a frame drawn mid-ease moves it. So a read taken after a frame
+ *  that was asked for tells the two apart. The ask is a `pointermove` on `window`, which only the room's own redraw hears:
+ *  it carries no pointer position, so it moves no parallax. */
+export async function readDrawnCamera(page: Page): Promise<number[]> {
+  await page.locator("canvas").first().evaluate((canvas, limit) => new Promise<void>((res, rej) => {
+    const timer = setTimeout(() => { mo.disconnect(); rej(new Error(`no frame was drawn within ${limit} ms of asking for one`)); }, limit);
+    const mo = new MutationObserver(() => { clearTimeout(timer); mo.disconnect(); res(); });
+    mo.observe(canvas, { attributes: true, attributeFilter: ["data-camera"] }); // fires on every write, changed or not
+    window.dispatchEvent(new Event("pointermove"));
+  }), FRAME_LIMIT_MS);
+  return readCamera(page);
+}
+
+/** Waits for the camera to stop moving, and returns where it stopped. Each read follows a frame the scene was asked to
+ *  draw (`readDrawnCamera`), so two equal reads mean the camera is at rest, not that frames were slow. */
+export const waitForCamera = (page: Page, every = 300) => waitUntilStill(() => readDrawnCamera(page), every);
 
 /** A panel's box in window pixels. */
 export const boxOf = (page: Page, id: string) => panelOf(page, id).evaluate((el) => {
