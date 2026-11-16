@@ -121,7 +121,7 @@ export function formatComment(i) {
   return lines.join("\n").trimEnd() + `\n\n${markerFor(i.job)}`;
 }
 
-async function api(env, path, init) {
+export async function api(env, path, init) {
   const res = await fetch(`${env.SERVER_URL}/api/v1/repos/${env.REPOSITORY}${path}`, {
     ...init,
     headers: { Authorization: `token ${env.TOKEN}`, "Content-Type": "application/json" },
@@ -153,20 +153,27 @@ export async function findComment(env, pr, marker) {
 export const ISSUE_MARKER = "<!-- ci-main-failures -->";
 export const ISSUE_TITLE = "CI failures on main";
 
-/** Number of the standing "CI failures on main" issue, open or closed, created by CI. Creates it if missing and reopens it if closed. */
-export async function findOrCreateIssue(env) {
+/**
+ * Number of a standing issue made by CI, open or closed, found by its title and hidden marker. Creates it if missing and reopens it
+ * if closed. `standing` is { title, marker, intro }; the default is "CI failures on main".
+ */
+export async function findOrCreateStandingIssue(env, { title, marker, intro }) {
   for (let page = 1; page <= 10; page++) {
-    const issues = await api(env, `/issues?type=issues&state=all&q=${encodeURIComponent(ISSUE_TITLE)}&limit=50&page=${page}`);
-    const found = issues.find((i) => i.body?.includes(ISSUE_MARKER) && i.user?.login === AUTHOR);
+    const issues = await api(env, `/issues?type=issues&state=all&q=${encodeURIComponent(title)}&limit=50&page=${page}`);
+    const found = issues.find((i) => i.body?.includes(marker) && i.user?.login === AUTHOR);
     if (found) {
       if (found.state === "closed") await api(env, `/issues/${found.number}`, { method: "PATCH", body: JSON.stringify({ state: "open" }) });
       return found.number;
     }
     if (issues.length < 50) break;
   }
-  const body = `Every red CI run on main is posted here as a comment.\n\n${ISSUE_MARKER}`;
-  return (await api(env, "/issues", { method: "POST", body: JSON.stringify({ title: ISSUE_TITLE, body }) })).number;
+  const body = `${intro}\n\n${marker}`;
+  return (await api(env, "/issues", { method: "POST", body: JSON.stringify({ title, body }) })).number;
 }
+
+/** Number of the standing "CI failures on main" issue. */
+export const findOrCreateIssue = (env) =>
+  findOrCreateStandingIssue(env, { title: ISSUE_TITLE, marker: ISSUE_MARKER, intro: "Every red CI run on main is posted here as a comment." });
 
 /**
  * `input`: job, steps, cmd, outFile, exitFile, startFile, report (browser only), secrets (values to mask),

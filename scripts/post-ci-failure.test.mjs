@@ -399,6 +399,47 @@ describe("release.yml", () => {
       expect(p).toMatch(/MASK_ENV: TOKEN/);
     }
   });
+  // The release clock: scripts/release-clock.mjs holds the rule, these check the wiring.
+  const steps = (name) => job(name).split(/\n      - /).slice(1);
+  it("the browser job exposes start, retried and the load average as outputs", () => {
+    const outputs = job("browser").split("\n    env:")[0];
+    expect(outputs).toMatch(/^      start: \$\{\{ steps\.start\.outputs\.start \}\}$/m);
+    expect(outputs).toMatch(/^      retried: \$\{\{ steps\.facts\.outputs\.retried \}\}$/m);
+    expect(outputs).toMatch(/^      load: \$\{\{ steps\.facts\.outputs\.load \}\}$/m);
+    const start = steps("browser").find((b) => b.includes("id: start"));
+    expect(start).toContain('/start"'); // still writes the start file the failure post reads
+    expect(start).toContain('echo "start=');
+  });
+  it("the browser job reads retried from the Playwright report, whatever the test result, without failing", () => {
+    const facts = steps("browser").find((b) => b.includes("id: facts"));
+    expect(facts).toContain("node scripts/release-clock.mjs retried");
+    expect(facts).toContain("REPORT: ${{ runner.temp }}/playwright.json");
+    expect(facts).toMatch(/if: always\(\)/);
+    expect(facts).toMatch(/continue-on-error: true/);
+  });
+  it("the image job exposes its start time, for when the runs API can't be read", () => {
+    expect(job("image")).toMatch(/^      start: \$\{\{ steps\.start\.outputs\.start \}\}$/m);
+  });
+  it("the staging job exposes moved: false on the 'main has moved past' exit, true after the push", () => {
+    const staging = job("staging");
+    expect(staging).toMatch(/^      moved: \$\{\{ steps\.move\.outputs\.moved \}\}$/m);
+    const move = steps("staging").find((b) => b.includes("id: move"));
+    const pastExit = move.slice(move.indexOf("main has moved past"));
+    expect(pastExit.split("exit 0")[0]).toContain('echo "moved=false" >> "$GITHUB_OUTPUT"');
+    const afterPush = move.slice(move.indexOf("git push"));
+    expect(afterPush.split("exit 0")[0]).toContain('echo "moved=true" >> "$GITHUB_OUTPUT"');
+  });
+  it("the warning step runs after the push, and continues on error", () => {
+    const all = steps("staging");
+    const move = all.findIndex((b) => b.includes("id: move"));
+    const clock = all.findIndex((b) => b.includes("release-clock.mjs warn"));
+    expect(move).toBeGreaterThanOrEqual(0);
+    expect(clock).toBeGreaterThan(move);
+    expect(all[clock]).toMatch(/continue-on-error: true/);
+    expect(all[clock]).toContain("RUN_ID: ${{ github.run_id }}");
+    expect(all[clock]).not.toContain("run_number: "); // the API id, not the run number, finds the run
+    expect(all[clock].match(/TOKEN: (.*)/g)?.every((l) => l.endsWith("${{ secrets.GITHUB_TOKEN }}"))).toBe(true);
+  });
   it("can be run by hand, to try again after a flaky failure", () => {
     expect(yml).toMatch(/^  workflow_dispatch:/m);
   });

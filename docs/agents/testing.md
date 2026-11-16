@@ -40,6 +40,7 @@ CI runs on every branch except `staging` and `production`, including `main` afte
 `release.yml` runs on each merge to `main`, or by hand on `main` to try again after a flaky failure (Forgejo can't re-run one job). Staging moves only when `image` and `browser` both pass, so a commit the browser suite failed never reaches staging. Each failure is a comment on the "CI failures on main" issue, and `main` stays red until a fix or a revert merges.
 - `image`: builds and pushes the image
 - `browser`: the full suite, tags included, on 3 workers (`playwright.config.ts`). The runner has no GPU, so WebGL draws on Mesa's llvmpipe under Xvfb (a third of SwiftShader's CPU); `tests/webgl.spec.ts` fails it if Chromium falls back to SwiftShader
-- `staging`: moves the `staging` branch to the commit
+- `staging`: moves the `staging` branch to the commit, then warns if the release was slow
+- The release clock runs from the release run's start (Forgejo's runs API, by the API run id, not the run number) to the end of the staging push. `scripts/release-clock.mjs` warns, as a comment on the standing "Browser job times" issue (created or reopened if needed), exactly when staging moved, the `browser` job retried no test (a test with more than one result in its Playwright JSON report, flaky or not) and the clock is over 360 s. The comment carries the clock, the browser job's load average and the runner wait in seconds. The warning step is best effort and never blocks staging. `scripts/release-clock.test.mjs` sweeps the rule over time, retried and moved; if the job's token can't read the runs API, the clock starts at the earlier of the `image` and `browser` job starts
 
 `promote.yml` moves `production`, run by Adham.
