@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { stations } from "../src/content";
 import { SHIFT_SECONDS } from "../src/nixie";
 import { busiestWindow, MAX_CHANGES_PER_SECOND, SNAP_BACK_MS } from "../src/shift";
-import { countDraws, draws, frames, goBack, landedAt, overflowPanel, panelOf, waitUntilStill } from "./lib/page";
+import { countDraws, draws, frames, goBack, landedAt, overflowPanel, panelOf, waitForCamera, waitUntilStill } from "./lib/page";
 import { backButton, crumb, hash, heading, nextButton, openStation, row, shownText, tab } from "./lib/pages";
 import { defineSnapWatcher } from "./lib/snap";
 import { WORK_COPY, WORK_LEADS } from "./fixtures/work-copy";
@@ -215,9 +215,9 @@ test("leaving Work with a long panel works, and the wheel over the room then mov
   const box = (await workPanel(page).boundingBox())!;
   await goBack(page);
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 3 }); // the pointer's parallax settles first
-  const camera = await waitUntilStill(() => page.locator("canvas").first().getAttribute("data-camera"));
+  const camera = await waitForCamera(page);
   for (let i = 0; i < 10; i++) { await page.mouse.wheel(0, 40); await page.waitForTimeout(75); }
-  expect(await waitUntilStill(() => page.locator("canvas").first().getAttribute("data-camera")), "the camera did not move").toEqual(camera);
+  expect(await waitForCamera(page), "the camera did not move").toEqual(camera);
   expect(await page.evaluate(() => scrollY), "the page did not scroll").toBe(0);
   await landedAt(page, 0);
 });

@@ -28,6 +28,7 @@ Checked against the code on 2026-11-10, at 9e73ff7: each line confirmed against 
 - `tests/shift.spec.ts` records the snap back's measured time as a `snap-back-ms` test annotation and a log line, for the release browser job's report
 - A browser spec can't import `src/meter-layers.ts` (Playwright's loader refuses JSON modules); `tests/device.spec.ts` reads `src/assets/meter/layers.json` itself
 - `tests/boot.spec.ts`'s `slowModel` helper serves the room model from a local server and waits on CDP `Network.dataReceived` for each chunk. That server must answer only `/room.glb`: on the Mac a stray `GET /` sometimes reaches it, and taking it for the model sent later chunks to a dead response, so the wait timed out (a chunk behind, or at 0) in whole-file runs only. The slow-load test needs the whole file to show it: `heavy make browser-light PW_ARGS="tests/boot.spec.ts --repeat-each=5"`
+- `waitForCamera` (`tests/lib/page.ts`) asks the scene for a frame before each read (a `pointermove` on `window`, which only the room's redraw hears) and waits for `data-camera` to be written. The scene draws on demand and writes `data-camera` per drawn frame, so a plain read can't tell a camera at rest from one whose next frame is late: slow frames under load gave two equal reads mid-ease (#330). Read the camera at rest with it, not with `waitUntilStill` over `data-camera`. `tests/wait-until-still.spec.ts` delays every frame to check it
 - One spec in the session: `heavy npx playwright test tests/<spec> --workers=1`
 
 ## What CI runs
