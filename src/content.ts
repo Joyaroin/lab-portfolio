@@ -96,10 +96,10 @@ export const ui = {
   backToRoom: "Back to the overview",
   nextStation: "Next page",
   startTour: "Start the tour",
-  /** the line under the meter at a named page: "Projects · MediaSafe · 2 of 3" */
-  stopLine: "{station} · {page} · {n} of {total}",
-  /** the same on a station's list page (the Projects list), which has no name of its own: "Projects · 2 of 3" */
-  listStopLine: "{station} · {n} of {total}",
+  /** the line under the meter at a named page: "Monitor 2 of 3 · Projects · MediaSafe" */
+  stopLine: "Monitor {n} of {total} · {station} · {page}",
+  /** the same on a station's list page (the Projects list), which has no name of its own: "Monitor 2 of 3 · Projects" */
+  listStopLine: "Monitor {n} of {total} · {station}",
   /** the tab title on a named page: "MediaSafe · Projects · Adham Sedik" */
   stationTitle: "{page} · {station} · {name}",
   /** the tab title on a list page: "Projects · Adham Sedik" */
@@ -158,7 +158,7 @@ const PLACEHOLDERS: Record<string, string[]> = {
 };
 export const fill = (template: string, values: Record<string, string | number>) =>
   template.replace(/\{(\w+)\}/g, (m, k) => (k in values ? String(values[k]) : m));
-/** The line under the meter at a page: "{station} · {page} · {n} of {total}", or "{station} · {n} of {total}" on a list page. `n` is the station's number. */
+/** The line under the meter at a page: "Monitor {n} of {total} · {station} · {page}", or "Monitor {n} of {total} · {station}" on a list page. `n` is the station's number. */
 export function stopLineText(s: Station, p: Page, n: number, total: number): string {
   return p.list ? fill(ui.listStopLine, { station: s.name, n, total }) : fill(ui.stopLine, { station: s.name, page: p.label, n, total });
 }
