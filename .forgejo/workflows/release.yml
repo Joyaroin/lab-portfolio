@@ -4,7 +4,12 @@
 # Staging moves only when both pass, so it never gets a commit whose release specs failed. Once staging has moved, the
 # browser-light job runs the light specs on main (make browser-light); staging doesn't wait for it, and a red run is
 # reported on "CI failures on main". PR CI (ci.yml) runs no browser specs (#352), so this is the only place they run. The runner takes
-# one job at a time (adham/core-infra#3), so a PR's CI job can make the release specs here wait.
+# 3 jobs at a time (adham/core-infra#5), but a release job must run alone (#361): the gate, browser, staging and browser-light jobs start with the runner gate
+# (scripts/runner-gate.mjs, right after checkout, since the script is in the repo), which waits until no job is running that started before it and isn't
+# in this run. Jobs that started later are ignored, and ci.yml's jobs wait for a release job that started before them, so the two can't deadlock. The image job runs in
+# the kaniko container, which has no node and no checkout, so it can't run the gate: the gate job runs it first, and image and browser both need that job.
+# Within a run, image and browser still run at the same time, since a run's own jobs don't block each other. Time spent waiting in the gate counts toward
+# the release clock, and the gate's log line says how long it waited.
 # Nothing here pushes to main, so a deploy adds no commit there. The staging job pushes only when the run's commit is main's tip, so a run
 # started on another branch can't move staging. Run it again by hand to try again after a flaky failure: Forgejo can't re-run one job.
 # The release clock runs from the run's start to the end of the staging push. When staging moved, the browser job retried
@@ -14,7 +19,25 @@ name: release
 on:
   workflow_dispatch:
 jobs:
+  # Waits until no job that started before the release is running (scripts/runner-gate.mjs), then lets image and browser start. The browser job
+  # gates again: a CI job can start in the seconds between this job ending and browser starting.
+  gate:
+    runs-on: docker
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      # The runner gate (#361): see the comment at the top of this file.
+      - name: Runner gate
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SERVER_URL: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_NUMBER: ${{ github.run_number }}
+          JOB: gate
+        run: node scripts/runner-gate.mjs release
   image:
+    needs: gate
     runs-on: docker
     # Start time (epoch seconds), for the release clock when the runs API can't be read.
     outputs:
@@ -43,6 +66,7 @@ jobs:
             --destination "$host/$REPO:$SHA"
   # The release specs only: @timing and @render.
   browser:
+    needs: gate
     runs-on: docker
     # start: when the job began (epoch seconds). retried: "true" if any test ran more than once, "false" if none did, empty if
     # the report couldn't be read. load: the load average when the tests ended. All three feed the staging job's clock warning.
@@ -70,6 +94,15 @@ jobs:
         id: checkout
         with:
           persist-credentials: false
+      # The runner gate (#361): see the comment at the top of this file.
+      - name: Runner gate
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SERVER_URL: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_NUMBER: ${{ github.run_number }}
+          JOB: browser
+        run: node scripts/runner-gate.mjs release
       # CI only: Mesa's llvmpipe and the virtual display it draws through.
       - name: Install Mesa and Xvfb
         id: drivers
@@ -145,6 +178,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
+      # The runner gate (#361): see the comment at the top of this file.
+      - name: Runner gate
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SERVER_URL: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_NUMBER: ${{ github.run_number }}
+          JOB: staging
+        run: node scripts/runner-gate.mjs release
       - name: Move the staging branch
         id: move
         env:
@@ -223,6 +265,15 @@ jobs:
         id: checkout
         with:
           persist-credentials: false
+      # The runner gate (#361): see the comment at the top of this file.
+      - name: Runner gate
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SERVER_URL: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_NUMBER: ${{ github.run_number }}
+          JOB: browser-light
+        run: node scripts/runner-gate.mjs release
       # CI only: Mesa's llvmpipe and the virtual display it draws through.
       - name: Install Mesa and Xvfb
         id: drivers

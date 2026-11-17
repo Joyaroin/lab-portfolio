@@ -1,7 +1,9 @@
 # Runs on every branch except staging and production, including main after each merge. A PR needs every job green before it merges.
 # No browser specs run here (#352): release.yml runs the release specs (@timing, @render) before staging moves and the light specs after it,
-# and a builder runs the light specs it touched in its own session. The runner takes one job at a time (adham/core-infra#3), so a long job here can make
-# the release's @timing job wait.
+# and a builder runs the light specs it touched in its own session. The runner takes 3 jobs at a time (adham/core-infra#5), but a release job must run alone
+# (#361), so every job here starts with the runner gate (scripts/runner-gate.mjs, right after checkout, since the script is in the repo): it waits while a
+# release.yml job that started before it is running (a release job that starts later waits for this job instead, so the two can't deadlock). Waiting
+# holds a runner slot and uses no CPU; it gives up and fails the job after 60 minutes.
 # On main there is no open PR, so the steps that post to a PR log "nothing to post" and pass, except the failure reports: those are added to the standing "CI failures on main" issue.
 name: ci
 on:
@@ -19,6 +21,15 @@ jobs:
         id: checkout
         with:
           persist-credentials: false
+      # The runner gate (#361): see the comment at the top of this file.
+      - name: Runner gate
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SERVER_URL: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_NUMBER: ${{ github.run_number }}
+          JOB: frontend
+        run: node scripts/runner-gate.mjs ci
       - name: Run make frontend
         id: run
         run: |
@@ -54,6 +65,15 @@ jobs:
         id: checkout
         with:
           persist-credentials: false
+      # The runner gate (#361): see the comment at the top of this file.
+      - name: Runner gate
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SERVER_URL: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_NUMBER: ${{ github.run_number }}
+          JOB: facts
+        run: node scripts/runner-gate.mjs ci
       - name: Run make facts
         id: run
         run: |
@@ -89,6 +109,15 @@ jobs:
         id: checkout
         with:
           persist-credentials: false
+      # The runner gate (#361): see the comment at the top of this file.
+      - name: Runner gate
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SERVER_URL: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_NUMBER: ${{ github.run_number }}
+          JOB: backend
+        run: node scripts/runner-gate.mjs ci
       - name: Run make backend
         id: run
         run: |
@@ -124,6 +153,15 @@ jobs:
         id: checkout
         with:
           persist-credentials: false
+      # The runner gate (#361): see the comment at the top of this file.
+      - name: Runner gate
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SERVER_URL: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_NUMBER: ${{ github.run_number }}
+          JOB: integration
+        run: node scripts/runner-gate.mjs ci
       - name: Run make integration
         id: run
         run: |
@@ -172,6 +210,15 @@ jobs:
         id: checkout
         with:
           persist-credentials: false
+      # The runner gate (#361): see the comment at the top of this file.
+      - name: Runner gate
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SERVER_URL: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_NUMBER: ${{ github.run_number }}
+          JOB: screenshots
+        run: node scripts/runner-gate.mjs ci
       - name: Find the open PR
         id: pr
         env:
@@ -238,6 +285,15 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      # The runner gate (#361): see the comment at the top of this file.
+      - name: Runner gate
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SERVER_URL: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_NUMBER: ${{ github.run_number }}
+          JOB: secret-scan
+        run: node scripts/runner-gate.mjs ci
       - name: Download gitleaks
         id: download
         run: |

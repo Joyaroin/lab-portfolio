@@ -55,6 +55,7 @@ pull request ──► CI ──► merge to main ──► (by hand) release: t
   path, command or test tag that no longer exists.
 - **Release:** started by hand on main, not by a merge. The timing and rendering specs run, with WebGL drawn in software on a runner with no GPU.
   Staging moves only if they pass. The other browser specs run on main once staging has moved. A failure there is found and fixed after the release, since PR CI runs no browser specs.
+  A release job runs alone on the runner: CI jobs that start after it wait for it, and it waits for the jobs that were already running (`scripts/runner-gate.mjs`).
 - **Hosting:** a Docker image, deployed by Argo CD from the Helm chart in [`deploy/`](deploy) to a single-node k3s cluster on
   one of my two Proxmox hosts at home. Traffic comes in through a Cloudflare Tunnel, so no ports are open.
 
