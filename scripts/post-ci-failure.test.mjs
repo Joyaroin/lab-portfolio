@@ -437,7 +437,7 @@ describe("main against a fake Forgejo", () => {
 // The workflows are read as text: the repo has no YAML parser. A job is the block from its key to the next two-space key.
 const jobIn = (yml, name) => yml.slice(yml.indexOf(`\n  ${name}:\n`) + 1).split(/\n  (?=[a-z-]+:\n)/)[0];
 const stepsIn = (yml, name) => jobIn(yml, name).split(/\n      - /).slice(1);
-// What a browser job that runs the light specs sets up, the same in ci.yml and release.yml.
+// What a release.yml browser job sets up, for the release specs and the light specs alike (ci.yml has no browser job).
 const BROWSER_SETUP = ['CI: "true"', "LAB_WEBGL: llvmpipe", 'LIBGL_ALWAYS_SOFTWARE: "1"', 'LP_NUM_THREADS: "4"', "xvfb-run -a", 'make browser-light PW_ARGS="--reporter=list,json"', "libgl1-mesa-dri"];
 const reportSteps = (yml) => yml.split(/\n      - /).filter((b) => b.includes("node scripts/browser-report.mjs"));
 // The report: scripts/browser-report.mjs, its own script, so the post-ci-failure assertions don't cover its steps.

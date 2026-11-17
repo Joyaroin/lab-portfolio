@@ -1,4 +1,4 @@
-// The split between the light browser specs (every PR, and main after staging) and the release specs (before staging).
+// The split between the light browser specs (on main after staging, and in a builder's own session; PR CI runs none) and the release specs (before staging).
 // It reads both selections from the Makefile itself (`make -n`, which prints the command without running it), lists each
 // with Playwright's list mode, which starts no browser and no web server (about 1 s a run), and checks the two sets don't
 // overlap and together are the whole suite. A test in neither would run nowhere; a test in both would run twice.
