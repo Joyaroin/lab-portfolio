@@ -606,16 +606,18 @@ describe("interface words", () => {
     expect([ui.keyPrev, ui.keyRoom, ui.keyNext, ui.keyStart]).toEqual(["PREV", "ROOM", "NEXT", "START"]);
     expect([ui.prevStation, ui.backToRoom, ui.nextStation, ui.startTour]).toEqual(
       ["Previous page", "Back to the overview", "Next page", "Start the tour"]);
-    expect(fill(ui.stopLine, { station: "Work", page: "Solace", n: 1, total: 3 })).toBe("Work · Solace · 1 of 3");
-    expect(fill(ui.listStopLine, { station: "Projects", n: 2, total: 3 })).toBe("Projects · 2 of 3");
+    expect(fill(ui.stopLine, { station: "Work", page: "Solace", n: 1, total: 3 })).toBe("Monitor 1 of 3 · Work · Solace");
+    expect(fill(ui.listStopLine, { station: "Projects", n: 2, total: 3 })).toBe("Monitor 2 of 3 · Projects");
     expect(fill(ui.stationTitle, { page: "Solace", station: "Work", name: "Adham Sedik" })).toBe("Solace · Work · Adham Sedik");
     expect(fill(ui.listTitle, { station: "Projects", name: "Adham Sedik" })).toBe("Projects · Adham Sedik");
   });
   it("the line under the meter names the page, and the Projects list has none", () => {
     const [work, projects] = content.stations;
-    expect(stopLineText(work, work.pages[0], 1, 3)).toBe("Work · Solace · 1 of 3");
-    expect(stopLineText(projects, projects.pages[0], 2, 3)).toBe("Projects · 2 of 3");
-    expect(stopLineText(projects, projects.pages[2], 2, 3)).toBe("Projects · MediaSafe · 2 of 3");
+    expect(stopLineText(work, work.pages[0], 1, 3)).toBe("Monitor 1 of 3 · Work · Solace");
+    expect(stopLineText(projects, projects.pages[0], 2, 3)).toBe("Monitor 2 of 3 · Projects");
+    expect(stopLineText(projects, projects.pages[2], 2, 3)).toBe("Monitor 2 of 3 · Projects · MediaSafe");
+    const about = content.stations[2];
+    expect(stopLineText(about, about.pages[1], 3, 3)).toBe("Monitor 3 of 3 · About me · Off the keyboard");
   });
   it.each([
     ["stopLine", ["station", "page", "n", "total"]], ["listStopLine", ["station", "n", "total"]],
