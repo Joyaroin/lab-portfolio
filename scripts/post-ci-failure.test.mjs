@@ -561,8 +561,11 @@ describe("release.yml", () => {
     expect(all[clock]).not.toContain("run_number: "); // the API id, not the run number, finds the run
     expect(all[clock].match(/TOKEN: (.*)/g)?.every((l) => l.endsWith("${{ secrets.GITHUB_TOKEN }}"))).toBe(true);
   });
-  it("can be run by hand, to try again after a flaky failure", () => {
-    expect(yml).toMatch(/^  workflow_dispatch:/m);
+  it("runs only when started by hand, never on a push", () => {
+    const on = yml.slice(yml.indexOf("\non:\n"), yml.indexOf("\njobs:"));
+    expect(on).toMatch(/^  workflow_dispatch:/m);
+    expect(on).not.toMatch(/^  push:/m);
+    expect(on.match(/^  \S/gm)).toHaveLength(1);
   });
 });
 
