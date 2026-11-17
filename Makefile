@@ -20,7 +20,7 @@ backend:
 	@echo "Nothing to check: the site is static files served by nginx, with no server code."
 integration: frontend
 	node tests/integration.mjs
-# Browsers and system packages are installed only in CI. The Mac has Playwright's browsers installed. The whole suite: CI runs it as browser-light and browser-release.
+# Browsers and system packages are installed only in CI. The Mac has Playwright's browsers installed. The whole suite: release.yml runs it as browser-release and browser-light.
 browser:
 	npm ci
 ifdef CI
@@ -29,7 +29,7 @@ endif
 	npx playwright test $(PW_ARGS)
 # The release specs: the @timing and @render tests. The two targets below take their pattern from here, so they can't drift apart.
 RELEASE_SPECS := @timing|@render
-# The browser recipe without the release specs. ci.yml runs it on every PR, and release.yml on main after staging has moved.
+# The browser recipe without the release specs. release.yml runs it on main after staging has moved. PR CI doesn't run it.
 browser-light:
 	$(MAKE) browser PW_ARGS='--grep-invert "$(RELEASE_SPECS)" $(PW_ARGS)'
 # The browser recipe with only the release specs. release.yml runs it before staging moves.
