@@ -163,7 +163,7 @@ jobs:
             fi
             git fetch origin main
             if [ "$(git rev-parse FETCH_HEAD)" != "$SHA" ]; then
-              echo "main has moved past $SHA, so a newer run owns staging. Not pushing."
+              echo "main has moved past $SHA, so this release is out of date. Not pushing: start a new release on main."
               echo "moved=false" >> "$GITHUB_OUTPUT"
               exit 0
             fi
@@ -203,7 +203,7 @@ jobs:
   browser-light:
     runs-on: docker
     needs: staging
-    # Only when staging moved: not when main had moved past this commit and a newer run owns staging.
+    # Only when staging moved: not when main had moved past this commit (this release is out of date: start a new one on main).
     if: needs.staging.outputs.moved == 'true'
     env:
       # The Makefile installs the browser only when CI is set, so don't leave it to the runner.
