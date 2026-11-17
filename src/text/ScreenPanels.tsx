@@ -1,10 +1,11 @@
 import { useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { markMore } from "./more";
+import { imageMounted } from "./image";
 import { controlsFor, headingFor, type Button, type Controls, type PageStep } from "./controls";
 import { stations, ui, type Diagram, type PageList, type Station } from "../content";
 import type { Step } from "../walk";
 import type { Visit } from "../visit";
-import photoUrl from "../assets/adham.jpg";
+import portraitUrl from "../assets/adham.jpg";
 
 // Each station's text as real HTML. place.ts (run per frame by TextPins, which the room mounts)
 // pins each panel to its CRT screen and sets its position, size and opacity; this file holds how it looks: green phosphor with
@@ -13,8 +14,10 @@ import photoUrl from "../assets/adham.jpg";
 // buttons all ask the visit to go, and the panel follows what the visit says (src/text/controls.ts holds what they say and where they go).
 // When the text runs past the panel's height, a fade and a "more" hint sit at its bottom edge
 // until the visitor has scrolled to the end.
-// A phone on its side has a short panel (about 140 to 155 px): the photo is left out there so the text gets the space.
+// A phone on its side has a short panel (about 140 to 155 px): a page's image is left out there so the text gets the space.
 // theme.css's #287 block says the same in its comment; keep the two in step.
+// A page's image (Page.image in src/content.ts) names its file; this map turns the name into the file, which the content module can't import.
+const IMAGE_FILES: Record<string, string> = { "adham.jpg": portraitUrl };
 const SHORT_LANDSCAPE = "(orientation: landscape) and (max-height: 520px)";
 function useShortLandscape() {
   return useSyncExternalStore(
@@ -44,14 +47,22 @@ function StationPanel({ s, visit, step }: { s: Station; visit: Visit; step: Step
   const page = s.pages.find((p) => p.id === pageId) ?? s.pages[0];
   const at: PageStep = { kind: "page", station: s.id, page: page.id };
   const controls = controlsFor(at);
-  // The photo is on About me's first page only. Its <img> is mounted once that page has been shown, and not before: every panel mounts at
-  // boot, and the picture must not be fetched then. It stays while the panel fades out, and goes when the panel turns to another page.
-  const photoPage = s.id === "about" && page.id === s.pages[0].id;
-  const [photoOn, setPhotoOn] = useState(false);
+  // A page's image (the About me portrait) is mounted once its page has been shown, and not before: every panel mounts at boot, and the
+  // picture must not be fetched then. It stays while the panel fades out, and goes when the panel turns to a page with none (imageMounted).
+  const image = page.image;
+  const [imageOn, setImageOn] = useState(false);
   const shortLandscape = useShortLandscape();
-  if (photoOn !== (photoPage && (photoOn || here !== null))) setPhotoOn(!photoOn);
+  const wantImage = imageMounted(imageOn, !!image, here !== null);
+  if (imageOn !== wantImage) setImageOn(wantImage);
+  // A file that fails to load shows nothing: no broken image and no empty frame. The names that failed are kept, so it isn't retried on a revisit.
+  const [failed, setFailed] = useState<string[]>([]);
+  // Only the portrait's place, beside the top text, is drawn here. The image below the bullets and opening larger come with #342 and #344.
+  const topImage = imageOn && !shortLandscape && image?.place === "top" && !failed.includes(image.file) ? image : null;
   // A new page starts at its top, and the "more" cue is worked out for the new text.
   useLayoutEffect(() => { if (ref.current) { ref.current.scrollTop = 0; markMore(ref.current); } }, [page.id]);
+  // An image changes the panel's height when it arrives or fails, and the room draws only on demand, so the "more" cue is worked out again
+  // then: onLoad below, and here for a failure (which takes the image out). Mounting the image also comes through here.
+  useLayoutEffect(() => { if (ref.current) markMore(ref.current); }, [topImage]);
   // After a tab, a row or a button the visitor's focus goes to the new page's heading, so a screen reader says where it landed.
   // The arrow keys never do this: they are not a click on one of these. Only a move the visit made at once counts.
   const refocus = useRef(false);
@@ -77,13 +88,19 @@ function StationPanel({ s, visit, step }: { s: Station; visit: Visit; step: Step
     <section ref={ref} tabIndex={-1} data-screen={s.id} aria-label={s.name} className="crt-panel" style={{ ...panel, visibility: "hidden" }}
       onScroll={(e) => markMore(e.currentTarget)}>
       <Crumb c={controls.crumb} go={go} />
-      {/* the heading and the station's line, with the photo beside them (above them in portrait; see theme.css) */}
+      {/* the heading and the station's line, with the page's image beside them (above them in portrait; see theme.css) */}
       <div className="crt-top">
         <div className="crt-top-text">
           <h2 ref={headingRef} tabIndex={-1} data-heading style={heading}>{headingFor(at)}</h2>
           {s.line && <p data-line style={lead}>{s.line}</p>}
         </div>
-        {photoOn && !shortLandscape && <figure className="crt-photo" data-photo><img src={photoUrl} alt={ui.photo.alt} width={480} height={600} decoding="async" /></figure>}
+        {topImage && IMAGE_FILES[topImage.file] && (
+          <figure className="crt-photo" data-photo>
+            <img src={IMAGE_FILES[topImage.file]} alt={topImage.alt} width={480} height={600} decoding="async"
+              onLoad={() => { if (ref.current) markMore(ref.current); }}
+              onError={() => setFailed((f) => [...f, topImage.file])} />
+          </figure>
+        )}
       </div>
       {controls.tabs && <Tabs tabs={controls.tabs} station={s} go={go} />}
       {/* the open page's lead: it changes when the page turns */}

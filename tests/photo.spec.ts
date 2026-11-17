@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { goTo, openTour, panelOf, waitForPanel, stationIds } from "./lib/page";
-import { ui } from "../src/content";
+import { stations } from "../src/content";
 
 // #287: the photo on About me's first page. It is fetched only when that page is shown, never at boot.
 // The build gives the file a hashed name (adham-<hash>.jpg), so the requests are matched on the name's start.
@@ -11,7 +11,9 @@ const photoRequests = (page: Page) => {
   page.on("request", (r) => { if (isPhoto(r.url())) urls.push(r.url()); });
   return urls;
 };
-const img = (page: Page) => panelOf(page, "about").getByRole("img", { name: ui.photo.alt });
+// the portrait is About me's first page's image (#340); its words are in the content module
+const portrait = stations.find((s) => s.id === "about")!.pages[0].image!;
+const img = (page: Page) => panelOf(page, "about").getByRole("img", { name: portrait.alt });
 
 test("no request for the photo is made at boot", async ({ page }) => {
   const urls = photoRequests(page);
@@ -34,7 +36,8 @@ test("it loads on reaching About's first page, by clicking the HUD's About me li
   // the browser has fetched and decoded it, not just mounted the tag
   await expect.poll(() => img(page).evaluate((i: HTMLImageElement) => i.complete && i.naturalHeight)).toBeGreaterThan(0);
   expect(urls.length).toBeGreaterThan(0);
-  expect(await img(page).getAttribute("alt")).toBe("Adham Sedik, smiling, in glasses and a black polo");
+  expect(await img(page).getAttribute("alt")).toBe(portrait.alt);
+  expect(portrait.alt).toBe("Adham Sedik, smiling, in glasses and a black polo");
 });
 
 test("it is on the first page only: Off the keyboard has none", async ({ page }) => {
@@ -84,4 +87,80 @@ test("on a short landscape phone (667x375) the photo is not shown, nor fetched, 
   await expect(img(page)).toHaveCount(0);
   await expect(panelOf(page, "about").locator("[data-photo]")).toHaveCount(0);
   expect(urls).toEqual([]);
+});
+
+// #340: a file that fails to load shows nothing, and the "more" cue follows the image. The room draws only on demand, so an image that
+// arrives or fails after its page is shown changes the panel's height with nothing else to work the cue out again.
+const photoUrl = (u: URL) => isPhoto(u.href);
+/** A response the test releases by hand, so the image arrives at a moment it chooses and not after a timer. */
+const gate = () => {
+  let open!: () => void;
+  const opened = new Promise<void>((res) => (open = res));
+  return { opened, open };
+};
+/** What the cue should say for the panel as it is: the same sum markMore does (src/text/more.ts), read from the browser. */
+const cueShould = (page: Page) => panelOf(page, "about").evaluate((e) => String(e.scrollHeight - e.clientHeight - e.scrollTop > 4));
+// A window short enough that About's first page runs past its panel with the portrait beside the heading, but not without it.
+const CUE_HEIGHT = 670;
+
+test("a portrait whose file fails to load shows nothing: no image and no empty frame", async ({ page }) => {
+  let asked = 0;
+  await page.route(photoUrl, (r) => { asked++; return r.fulfill({ status: 404 }); });
+  await openTour(page);
+  await goTo(page, ABOUT);
+  await expect.poll(() => asked).toBeGreaterThan(0);
+  const panel = panelOf(page, "about");
+  await expect(panel.locator("[data-photo]")).toHaveCount(0);
+  await expect(panel.getByRole("img")).toHaveCount(0);
+  // the row that held the photo has only the heading's column left
+  await expect(panel.locator(".crt-top > *")).toHaveCount(1);
+  await expect(panel.locator("[data-heading]")).toBeVisible();
+});
+
+test("the more cue goes when the portrait fails to load after its page is shown", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: CUE_HEIGHT });
+  const held = gate();
+  await page.route(photoUrl, async (r) => { await held.opened; await r.fulfill({ status: 404 }); });
+  await openTour(page);
+  await goTo(page, ABOUT);
+  await waitForPanel(page, "about");
+  const panel = panelOf(page, "about");
+  // the photo's box is held open by its size attributes while it loads, so the page runs past the panel and the cue is up
+  await expect(panel.locator("[data-photo]")).toBeVisible();
+  await expect(panel).toHaveAttribute("data-more", "true");
+  held.open();
+  await expect(panel.locator("[data-photo]")).toHaveCount(0);
+  await expect(panel).toHaveAttribute("data-more", "false");
+  expect(await cueShould(page)).toBe("false");
+});
+
+test("the more cue is worked out again when the portrait arrives and changes the panel's height", async ({ page }) => {
+  const held = gate();
+  // a taller picture than the box the page held for it (the size attributes say 480x600), so its arrival makes the page longer
+  const tall = `<svg xmlns="http://www.w3.org/2000/svg" width="480" height="2400" viewBox="0 0 480 2400"><rect width="480" height="2400" fill="#888"/></svg>`;
+  await page.route(photoUrl, async (r) => { await held.opened; await r.fulfill({ status: 200, contentType: "image/svg+xml", body: tall }); });
+  await openTour(page);
+  await goTo(page, ABOUT);
+  await waitForPanel(page, "about");
+  const panel = panelOf(page, "about");
+  await expect(panel.locator("[data-photo]")).toBeVisible();
+  await expect(panel).toHaveAttribute("data-more", "false");
+  held.open();
+  await expect.poll(() => img(page).evaluate((i: HTMLImageElement) => i.complete && i.naturalHeight)).toBeGreaterThan(0);
+  await expect(panel).toHaveAttribute("data-more", "true");
+  expect(await cueShould(page)).toBe("true");
+});
+
+test("a portrait that arrives late, as the file it is, leaves the cue right for the panel", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: CUE_HEIGHT });
+  const held = gate();
+  await page.route(photoUrl, async (r) => { await held.opened; await r.continue(); });
+  await openTour(page);
+  await goTo(page, ABOUT);
+  await waitForPanel(page, "about");
+  held.open();
+  await expect.poll(() => img(page).evaluate((i: HTMLImageElement) => i.complete && i.naturalHeight)).toBeGreaterThan(0);
+  const panel = panelOf(page, "about");
+  await expect(panel).toHaveAttribute("data-more", await cueShould(page));
+  await expect(panel).toHaveAttribute("data-more", "true");
 });
