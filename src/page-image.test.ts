@@ -8,14 +8,15 @@ const portraitPage = (c = content) => about(c).pages[0];
 const problems = (c = good()) => validateContent(c).join("\n");
 
 describe("a page's image", () => {
-  it("is About me's first page's portrait, beside the top text, and no other page has one", () => {
+  it("is About me's first page's portrait, beside the top text", () => {
     expect(portraitPage().image).toEqual({
       file: "adham.jpg",
       alt: "Adham Sedik, smiling, in glasses and a black polo",
       place: "top",
     });
+    // not "and no other page has one": each later image's ticket (#341's screenshot, #342's photo) adds its own page, and its own test says which
     const withImage = content.stations.flatMap((s) => s.pages.filter((p) => p.image).map((p) => `${s.id}/${p.id}`));
-    expect(withImage).toEqual(["about/why-i-do-this"]);
+    expect(withImage).toContain("about/why-i-do-this");
   });
   it("has no import of a file in the content module: the build imports that module", () => {
     expect(typeof portraitPage().image!.file).toBe("string");
