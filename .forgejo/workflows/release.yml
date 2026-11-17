@@ -2,8 +2,8 @@
 # to staging: the staging job writes the tag into deploy/values-staging.yaml on the staging branch, the way promote does for production.
 # Staging moves only when both pass, so it never gets a commit whose release specs failed. Once staging has moved, the
 # browser-light job runs the light specs on main (make browser-light); staging doesn't wait for it, and a red run is
-# reported on "CI failures on main". The light specs also run on every PR (ci.yml), and so do the screenshots, so neither shares the
-# runner with the release specs here. The runner takes 2 jobs at once.
+# reported on "CI failures on main". PR CI (ci.yml) runs no browser specs (#352), so this is the only place they run. The runner takes
+# one job at a time (adham/core-infra#3), so a PR's CI job can make the release specs here wait.
 # Nothing here pushes to main, so a deploy adds no commit there and every merge to main runs this.
 # Run it by hand on main to try again after a flaky failure: Forgejo can't re-run one job.
 # The release clock runs from the run's start to the end of the staging push. When staging moved, the browser job retried
@@ -55,7 +55,7 @@ jobs:
       # The Makefile installs the browser only when CI is set, so don't leave it to the runner.
       CI: "true"
       # WebGL draws on Mesa's llvmpipe under Xvfb, not SwiftShader: measured on the runner, a third of the CPU at the same
-      # frame rate. 4 render threads per browser (2 halved the frame rate). The runner takes 2 jobs at once: release runs 526 and 527
+      # frame rate. 4 render threads per browser (2 halved the frame rate). The runner takes one job at a time (adham/core-infra#3); before that, release runs 526 and 527
       # overlapped and took 859 s and 795 s, against about 450 s alone. tests/webgl.spec.ts fails the job if Chromium falls back
       # to SwiftShader, which it does without a display.
       LAB_WEBGL: llvmpipe
@@ -115,7 +115,7 @@ jobs:
         run: node scripts/post-ci-failure.mjs
       # What the run cost: its time, load, flaky tests, slowest tests and boot time (scripts/browser-report.mjs). On main only a pass
       # with a flaky test posts anything (a failure's comment above names its flaky tests). It runs after "Post the failure", which
-      # the report links on a PR. Best effort: it never changes the job result.
+      # the report links. Best effort: it never changes the job result.
       - name: Report the run
         id: report
         if: always()
@@ -210,7 +210,7 @@ jobs:
       # The Makefile installs the browser only when CI is set, so don't leave it to the runner.
       CI: "true"
       # WebGL draws on Mesa's llvmpipe under Xvfb, not SwiftShader: measured on the runner, a third of the CPU at the same
-      # frame rate. 4 render threads per browser (2 halved the frame rate). The runner takes 2 jobs at once: release runs 526 and 527
+      # frame rate. 4 render threads per browser (2 halved the frame rate). The runner takes one job at a time (adham/core-infra#3); before that, release runs 526 and 527
       # overlapped and took 859 s and 795 s, against about 450 s alone. tests/webgl.spec.ts fails the job if Chromium falls back
       # to SwiftShader, which it does without a display.
       LAB_WEBGL: llvmpipe
@@ -260,7 +260,7 @@ jobs:
         run: node scripts/post-ci-failure.mjs
       # What the run cost: its time, load, flaky tests, slowest tests and boot time (scripts/browser-report.mjs). On main only a pass
       # with a flaky test posts anything (a failure's comment above names its flaky tests). It runs after "Post the failure", which
-      # the report links on a PR. Best effort: it never changes the job result.
+      # the report links. Best effort: it never changes the job result.
       - name: Report the run
         id: report
         if: always()
