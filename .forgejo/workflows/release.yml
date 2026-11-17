@@ -2,8 +2,8 @@
 # to staging: the staging job writes the tag into deploy/values-staging.yaml on the staging branch, the way promote does for production.
 # Staging moves only when both pass, so it never gets a commit whose release specs failed. Once staging has moved, the
 # browser-light job runs the light specs on main (make browser-light); staging doesn't wait for it, and a red run is
-# reported on "CI failures on main". The light specs also run on every PR (ci.yml), and so do the screenshots, so neither shares the
-# runner with the release specs here. The runner takes 2 jobs at once.
+# reported on "CI failures on main". PR CI (ci.yml) runs no browser specs (#352), so this is the only place they run. The runner takes
+# 2 jobs at once, so a PR's CI jobs can sit beside the release specs here.
 # Nothing here pushes to main, so a deploy adds no commit there and every merge to main runs this.
 # Run it by hand on main to try again after a flaky failure: Forgejo can't re-run one job.
 # The release clock runs from the run's start to the end of the staging push. When staging moved, the browser job retried
@@ -115,7 +115,7 @@ jobs:
         run: node scripts/post-ci-failure.mjs
       # What the run cost: its time, load, flaky tests, slowest tests and boot time (scripts/browser-report.mjs). On main only a pass
       # with a flaky test posts anything (a failure's comment above names its flaky tests). It runs after "Post the failure", which
-      # the report links on a PR. Best effort: it never changes the job result.
+      # the report links. Best effort: it never changes the job result.
       - name: Report the run
         id: report
         if: always()
@@ -260,7 +260,7 @@ jobs:
         run: node scripts/post-ci-failure.mjs
       # What the run cost: its time, load, flaky tests, slowest tests and boot time (scripts/browser-report.mjs). On main only a pass
       # with a flaky test posts anything (a failure's comment above names its flaky tests). It runs after "Post the failure", which
-      # the report links on a PR. Best effort: it never changes the job result.
+      # the report links. Best effort: it never changes the job result.
       - name: Report the run
         id: report
         if: always()

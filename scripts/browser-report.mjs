@@ -1,5 +1,6 @@
 // The browser job's report: what a browser run cost. A step after the job's tests, pass or fail.
 // It is its own script, not post-ci-failure.mjs: that one reports a failure, this one reports every run.
+// Only release.yml's browser jobs run it now (no browser job in ci.yml since #352), so the PR path below is unused by the workflows.
 // It reads the Playwright JSON report, the job's start file and loadavg(), and never changes the job result.
 //   On a PR:   creates or updates one marked comment. A pass shows the job's time, the load average, the flaky tests with
 //              their first error, the 10 slowest tests and the median and total boot time (the `boot-ms` annotation

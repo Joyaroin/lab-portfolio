@@ -459,36 +459,16 @@ function expectReportAfterPost(yml, name, job) {
 
 describe("ci.yml", () => {
   const yml = readFileSync(new URL("../.forgejo/workflows/ci.yml", import.meta.url), "utf8");
-  const browser = jobIn(yml, "browser");
   it("every post step has continue-on-error: true", () => {
     const posts = yml.split(/\n      - /).filter((b) => b.includes("post-ci-failure.mjs"));
-    expect(posts).toHaveLength(7);
+    expect(posts).toHaveLength(6);
     for (const p of posts) expect(p).toMatch(/continue-on-error: true/);
   });
-  it("the browser job runs the light specs, not the release specs or the whole suite", () => {
-    expect(browser).toContain('make browser-light PW_ARGS="--reporter=list,json"');
-    expect(browser).not.toContain("browser-release");
-    expect(yml.match(/make browser\b(?!-)/g)).toBeNull();
-  });
-  it("the browser job skips main, where the release runs the light specs after staging", () => {
-    expect(browser).toMatch(/^    if: github\.ref_name != 'main'$/m);
-  });
-  it("the browser job stops the old run on a new push, per ref", () => {
-    expect(browser).toMatch(/^    concurrency:\n      group: browser-\$\{\{ github\.ref \}\}\n      cancel-in-progress: true$/m);
-  });
-  it("the browser job has the release's browser setup", () => {
-    for (const part of BROWSER_SETUP) expect(browser, part).toContain(part);
-  });
-  it("the browser job posts its failure with the report, then reports the run", () => {
-    const post = stepsIn(yml, "browser").find((b) => b.includes("post-ci-failure.mjs"));
-    expect(post).toContain("JOB: browser\n");
-    expect(post).toContain("REPORT: ${{ runner.temp }}/playwright.json");
-    expect(post).toMatch(/MASK_ENV: TOKEN/);
-    expectReportAfterPost(yml, "browser", "browser");
-  });
-  it("every report step is continue-on-error", () => {
-    expect(reportSteps(yml)).toHaveLength(1);
-    for (const r of reportSteps(yml)) expect(r).toMatch(/continue-on-error: true/);
+  it("has no browser job and runs no browser specs: the release runs them (#352)", () => {
+    expect(yml).not.toMatch(/^  browser:/m);
+    expect(yml).not.toMatch(/make browser/);
+    expect(yml).not.toContain("browser-report.mjs");
+    expect(yml).not.toContain("JOB: browser\n");
   });
 });
 
