@@ -4,7 +4,7 @@
 # Staging moves only when both pass, so it never gets a commit whose release specs failed. Once staging has moved, the
 # browser-light job runs the light specs on main (make browser-light); staging doesn't wait for it, and a red run is
 # reported on "CI failures on main". PR CI (ci.yml) runs no browser specs (#352), so this is the only place they run. The runner takes
-# one job at a time (adham/core-infra#3), so a PR's CI job can make the release specs here wait.
+# 3 jobs at a time (adham/core-infra#5), so a PR's CI job can share it with the release specs here.
 # Nothing here pushes to main, so a deploy adds no commit there. The staging job pushes only when the run's commit is main's tip, so a run
 # started on another branch can't move staging. Run it again by hand to try again after a flaky failure: Forgejo can't re-run one job.
 # The release clock runs from the run's start to the end of the staging push. When staging moved, the browser job retried
@@ -54,7 +54,7 @@ jobs:
       # The Makefile installs the browser only when CI is set, so don't leave it to the runner.
       CI: "true"
       # WebGL draws on Mesa's llvmpipe under Xvfb, not SwiftShader: measured on the runner, a third of the CPU at the same
-      # frame rate. 4 render threads per browser (2 halved the frame rate). The runner takes one job at a time (adham/core-infra#3); before that, release runs 526 and 527
+      # frame rate. 4 render threads per browser (2 halved the frame rate). The runner takes 3 jobs at a time (adham/core-infra#5); at 2 jobs, release runs 526 and 527
       # overlapped and took 859 s and 795 s, against about 450 s alone. tests/webgl.spec.ts fails the job if Chromium falls back
       # to SwiftShader, which it does without a display.
       LAB_WEBGL: llvmpipe
@@ -209,7 +209,7 @@ jobs:
       # The Makefile installs the browser only when CI is set, so don't leave it to the runner.
       CI: "true"
       # WebGL draws on Mesa's llvmpipe under Xvfb, not SwiftShader: measured on the runner, a third of the CPU at the same
-      # frame rate. 4 render threads per browser (2 halved the frame rate). The runner takes one job at a time (adham/core-infra#3); before that, release runs 526 and 527
+      # frame rate. 4 render threads per browser (2 halved the frame rate). The runner takes 3 jobs at a time (adham/core-infra#5); at 2 jobs, release runs 526 and 527
       # overlapped and took 859 s and 795 s, against about 450 s alone. tests/webgl.spec.ts fails the job if Chromium falls back
       # to SwiftShader, which it does without a display.
       LAB_WEBGL: llvmpipe
