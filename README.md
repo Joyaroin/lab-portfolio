@@ -56,7 +56,7 @@ pull request ──► CI ──► merge to main ──► release: timing and 
 - **Release:** after each merge, the timing and rendering specs run, with WebGL drawn in software on a runner with no GPU.
   Staging moves only if they pass. The other browser specs run on main once staging has moved. A failure there is found and fixed after the merge, since PR CI runs no browser specs.
 - **Hosting:** a Docker image, deployed by Argo CD from the Helm chart in [`deploy/`](deploy) to a single-node k3s cluster on
-  a Proxmox host at home. Traffic comes in through a Cloudflare Tunnel, so no ports are open.
+  one of my two Proxmox hosts at home. Traffic comes in through a Cloudflare Tunnel, so no ports are open.
 
 ## Stack
 

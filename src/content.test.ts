@@ -220,7 +220,7 @@ describe("the three stations' copy", () => {
     expect(list.rows).toEqual([
       { page: "software-factory", name: "software-factory/", tag: "AI agents · CI/CD" },
       { page: "mediasafe", name: "mediasafe/", tag: "Next.js · Postgres · GitOps" },
-      { page: "home-lab", name: "home-lab/", tag: "Proxmox · k3s · Cloudflare" },
+      { page: "home-lab", name: "home-lab/", tag: "Proxmox · k3s · Terraform · Cloudflare" },
     ]);
     expect(list.foot).toBe("Pick a project to open it.");
   });
@@ -229,17 +229,27 @@ describe("the three stations' copy", () => {
     expect(projectPage("mediasafe").stat).toBe("170+ merged PRs since August 2026");
     expect(projectPage("home-lab").stat).toBe("No ports open at home");
     expect(projectPage("mediasafe").diagram?.steps).toEqual(["Git", "Argo CD", "Staging", "Production"]);
-    expect(projectPage("home-lab").links.map((l) => l.label)).toEqual(["This site's source"]);
+    expect(projectPage("home-lab").links).toEqual([]);
     expect(projectPage("mediasafe").links.map((l) => l.label)).toEqual(["MediaSafe repo", "Deploy repo", "mediasafe.space (Google sign-in)"]);
-    expect(projectPage("home-lab").lead).toBe("I run my own Kubernetes cluster at home, and this site runs on it.");
+    expect(projectPage("home-lab").lead).toBe("This site runs on my own Kubernetes cluster at home. All traffic comes in through a Cloudflare Tunnel.");
+    expect(projectPage("home-lab").body).toEqual([
+      "Two Proxmox hosts: joseph runs single-node k3s, my Git server and home DNS; jotaro runs only the CI runner.",
+      "Terraform and Ansible define the VMs, backups and access rules, and a weekly job checks for drift.",
+      "The CI runner is firewalled off from my home network.",
+    ]);
+    expect(projectPage("home-lab").diagram).toEqual({
+      description: "All traffic comes in through a Cloudflare Tunnel. joseph runs a single-node k3s cluster.",
+      steps: ["Cloudflare Tunnel", "joseph", "k3s cluster"],
+      hops: ["traffic", "runs"],
+    });
     expect(projectPage("software-factory").lead).toBe("My AI software factory: I plan, and agents build, review and merge. It built this site.");
     expect(projectPage("mediasafe").lead).toBe("My tracker for shows and films, built and run by me alone. Next.js 16 and Postgres.");
   });
-  // A page's stat line is that fact's one statement on the page (#337, reversing #280). Home lab still repeats its
-  // stat ("No ports are open at home" in bullet two) until #343 rewrites the page, which adds it to this list.
+  // A page's stat line is that fact's one statement on the page (#337, reversing #280).
   it.each([
     ["software-factory", /merged (pull requests|PRs)|\b100\b/i],
     ["mediasafe", /merged (pull requests|PRs)|\b170\b/i],
+    ["home-lab", /no ports/i],
   ])("Projects: no bullet of %s repeats its stat line's fact", (id, fact) => {
     for (const bullet of projectPage(id).body) expect(bullet).not.toMatch(fact);
   });
