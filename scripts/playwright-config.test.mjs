@@ -14,7 +14,7 @@ describe("playwright.config workers", () => {
     expect(await workers()).toBe(1);
   });
 
-  it("runs 3 workers in CI, so one job at a time (adham/core-infra#3) drawing WebGL on the runner's CPUs doesn't overload it (release runs 526 and 527 overlapped before that: 859 s and 795 s, against about 450 s alone)", async () => {
+  it("runs 3 workers in CI, because the runner draws WebGL on its CPUs and takes 3 jobs at a time (adham/core-infra#5); Playwright's default (half the CPUs, 6) overloaded it (at 2 jobs, release runs 526 and 527 overlapped and took 859 s and 795 s, against about 450 s alone)", async () => {
     vi.stubEnv("TEST_PORT", "");
     vi.stubEnv("CI", "true");
     expect(await workers()).toBe(3);

@@ -55,3 +55,14 @@ progress {
   .crt-top { flex-direction: column; gap: 0; }
   .crt-photo { order: -1; width: 5.5em; margin: 0.4em auto; }
 }
+/* #341: a project page's image (MediaSafe's Library screenshot). Its lead and stat line sit in the column beside it (ScreenPanels.tsx puts them
+   in .crt-top-text), and in portrait the image goes after the bullets, so it pushes no text down: the top row stops being a box (display:
+   contents), the panel's column takes its children, and the order puts the image after the bullets and before the Back and Next row and the cue. */
+@media (orientation: portrait) {
+  .crt-top[data-beside] { display: contents; }
+  .crt-top[data-beside] .crt-photo { order: 1; width: 100%; max-width: 16em; margin: 0.8em auto 0.4em; }
+  .crt-panel > .crt-foot { order: 2; }
+  .crt-panel > .crt-more { order: 3; }
+}
+/* #344 (opens larger): the styles of the small image's button and of the dialog go here. Nothing else edits this block. */
+/* #342 (below the bullets): the styles of an image below the bullets and of its caption go here. Nothing else edits this block. */

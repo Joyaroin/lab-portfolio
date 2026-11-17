@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { imageMounted } from "./image";
+import { imageBesideText, imageMounted } from "./image";
 
 // #340: the rule that a page's image is not mounted (so not fetched) before its page has been shown. Pure, because Vitest has no DOM here;
 // tests/photo.spec.ts checks the same rule in the browser, through the network.
@@ -19,5 +19,19 @@ describe("imageMounted", () => {
   });
   it("is not mounted for a page with no image", () => {
     expect(imageMounted(false, false, true)).toBe(false);
+  });
+});
+
+// #341: a project page (a stat line) with its image at the top has its lead and stat beside it; the About me portrait's page does not.
+describe("imageBesideText", () => {
+  it("is true for a page with an image at the top and a stat line", () => {
+    expect(imageBesideText({ image: { place: "top" }, stat: "170+ merged PRs" })).toBe(true);
+  });
+  it("is false for the portrait's page, which has no stat line", () => {
+    expect(imageBesideText({ image: { place: "top" } })).toBe(false);
+  });
+  it("is false for a page with no image, and for an image below the bullets", () => {
+    expect(imageBesideText({ stat: "No ports open at home" })).toBe(false);
+    expect(imageBesideText({ image: { place: "below" }, stat: "x" })).toBe(false);
   });
 });
