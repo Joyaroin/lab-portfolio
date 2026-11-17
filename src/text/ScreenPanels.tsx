@@ -7,6 +7,7 @@ import type { Step } from "../walk";
 import type { Visit } from "../visit";
 import portraitUrl from "../assets/adham.jpg";
 import libraryUrl from "../assets/mediasafe-library.jpg";
+import golfUrl from "../assets/golf-day.jpg";
 
 // Each station's text as real HTML. place.ts (run per frame by TextPins, which the room mounts)
 // pins each panel to its CRT screen and sets its position, size and opacity; this file holds how it looks: green phosphor with
@@ -23,6 +24,7 @@ import libraryUrl from "../assets/mediasafe-library.jpg";
 const IMAGE_FILES: Record<string, { url: string; width: number; height: number }> = {
   "adham.jpg": { url: portraitUrl, width: 480, height: 600 }, // the portrait, 480 x 600 on its page
   "mediasafe-library.jpg": { url: libraryUrl, width: 972, height: 540 }, // the Library screenshot, three titles of its first row
+  "golf-day.jpg": { url: golfUrl, width: 1000, height: 677 }, // the Solace team's golf day, below Off the keyboard's bullets
 };
 const SHORT_LANDSCAPE = "(orientation: landscape) and (max-height: 520px)";
 function useShortLandscape() {
@@ -64,6 +66,10 @@ function StationPanel({ s, visit, step }: { s: Station; visit: Visit; step: Step
   const [failed, setFailed] = useState<string[]>([]);
   // Only the place beside the top text is drawn here. The image below the bullets (#342) and opening larger (#344) have their marked places below.
   const topImage = imageOn && !shortLandscape && image?.place === "top" && !failed.includes(image.file) ? image : null;
+  // #342 (below the bullets): the same rules for the image under the bullets. Its caption goes with it: it is left out on a short landscape
+  // window and when the file fails to load. The cue is worked out again when it arrives or goes (its own effect, so the line above is not edited).
+  const belowImage = imageOn && !shortLandscape && image?.place === "below" && !failed.includes(image.file) ? image : null;
+  useLayoutEffect(() => { if (ref.current) markMore(ref.current); }, [belowImage]);
   // On a project page (one with a stat line) the page's lead and stat sit in the column beside the image, and in the portrait framing the image
   // goes after the bullets. A page without an image, and the About me portrait's page, are drawn as before. Decided by the page, not by whether
   // the image has arrived, so the text doesn't change width when it loads or fails.
@@ -134,7 +140,17 @@ function StationPanel({ s, visit, step }: { s: Station; visit: Visit; step: Step
       )}
       {page.diagram && <DiagramFigure d={page.diagram} />}
       <ul style={list}>{page.body.map((b, i) => <li key={i} style={item}>{b}</li>)}</ul>
-      {/* #342 (below the bullets): an image with place "below" and its caption are drawn here, after the bullets. Nothing else edits this line. */}
+      {/* #342 (below the bullets): an image with place "below" and its caption are drawn here, after the bullets. Nothing else edits this block. */}
+      {belowImage && IMAGE_FILES[belowImage.file] && (
+        <figure className="crt-below" data-below>
+          <div className="crt-below-img">
+            <img src={IMAGE_FILES[belowImage.file].url} alt={belowImage.alt} width={IMAGE_FILES[belowImage.file].width} height={IMAGE_FILES[belowImage.file].height} decoding="async"
+              onLoad={() => { if (ref.current) markMore(ref.current); }}
+              onError={() => setFailed((f) => [...f, belowImage.file])} />
+          </div>
+          {belowImage.caption && <figcaption data-caption>{belowImage.caption}</figcaption>}
+        </figure>
+      )}
       <Foot c={controls} go={go} footRef={footRef} />
       <div className="crt-more" aria-hidden="true"><span>{ui.more}</span></div>
     </section>

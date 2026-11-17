@@ -10,6 +10,7 @@ import { stations } from "./content";
 const IMAGES = [
   { file: "adham.jpg", maxPx: 600, capKB: 60 }, // the About me portrait, 600 px tall
   { file: "mediasafe-library.jpg", maxPx: 1400, capKB: 200 }, // the MediaSafe page's Library screenshot (#341)
+  { file: "golf-day.jpg", maxPx: 1000, capKB: 120 }, // the Off the keyboard page's golf day photo (#342)
 ];
 
 /** The marker and payload of each segment before the scan data. */
@@ -59,8 +60,8 @@ describe("the page images", () => {
 // #341: a page that names an image must have its row above, or the file's caps and metadata would go unchecked.
 describe("the images the content names", () => {
   const named = stations.flatMap((s) => s.pages.flatMap((p) => (p.image ? [p.image.file] : [])));
-  it("are some (the portrait and the MediaSafe screenshot)", () => {
-    expect(named).toEqual(expect.arrayContaining(["adham.jpg", "mediasafe-library.jpg"]));
+  it("are some (the portrait, the MediaSafe screenshot and the golf day photo)", () => {
+    expect(named).toEqual(expect.arrayContaining(["adham.jpg", "mediasafe-library.jpg", "golf-day.jpg"]));
   });
   it.each(named)("%s has a row in the table of images", (file) => {
     expect(IMAGES.map((i) => i.file)).toContain(file);

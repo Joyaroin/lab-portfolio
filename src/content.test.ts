@@ -516,6 +516,25 @@ describe("the MediaSafe page's image", () => {
   });
 });
 
+// #342: Off the keyboard's golf day photo, its alt text and caption word for word (approved on #334), below the bullets.
+describe("Off the keyboard's image", () => {
+  const page = () => station("about").pages.find((p) => p.id === "off-the-keyboard")!;
+  it("is the golf day photo below the bullets, with its approved alt text and caption", () => {
+    expect(page().image).toEqual({
+      file: "golf-day.jpg", alt: "Adham and his Solace teammates on a golf course.", caption: "Team golf day at Solace.", place: "below",
+    });
+  });
+  it("opens no larger", () => expect(page().image?.larger).toBeFalsy());
+  it("is rejected with its alt text or caption emptied", () => {
+    const c = good();
+    c.stations.find((s) => s.id === "about")!.pages[1].image!.alt = " ";
+    expect(validateContent(c).join("\n")).toContain("image.alt");
+    const d = good();
+    d.stations.find((s) => s.id === "about")!.pages[1].image!.caption = "";
+    expect(validateContent(d).join("\n")).toContain("image.caption");
+  });
+});
+
 // Every other word the app shows or announces: the HUD, the meter's labels, the boot log, the signal
 // lost screen, the gap's sentence. They move here from the components, so validation covers them.
 describe("interface words", () => {

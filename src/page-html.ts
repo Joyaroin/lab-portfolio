@@ -45,6 +45,8 @@ function pageHtml(s: Station, p: Page, heading: boolean): string[] {
   if (p.lead) parts.push(`<p>${e(p.lead)}</p>`);
   if (p.stat) parts.push(`<p>${e(p.stat)}</p>`);
   if (p.body.length) parts.push(list(p.body));
+  // an image's caption is page text (the image is not written here: nothing is fetched at boot)
+  if (p.image?.caption) parts.push(`<p>${e(p.image.caption)}</p>`);
   if (p.list) {
     // the Projects list: its prompt, one row per project (name, tag, stat) and its foot
     const rows = p.list.rows.map((r) => `${r.name} ${r.tag}, ${s.pages.find((x) => x.id === r.page)?.stat ?? ""}`.replace(/, $/, ""));

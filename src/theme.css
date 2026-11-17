@@ -65,4 +65,14 @@ progress {
   .crt-panel > .crt-more { order: 3; }
 }
 /* #344 (opens larger): the styles of the small image's button and of the dialog go here. Nothing else edits this block. */
-/* #342 (below the bullets): the styles of an image below the bullets and of its caption go here. Nothing else edits this block. */
+/* #342 (below the bullets): an image under the bullets, with its caption under it, centred, green with scanlines like the others. Sized in em so
+   the panel's one spare line (#336's "Last watched") still fits at the three sizes of the fold spec (1280x720, 1440x900, 1920x1080). */
+.crt-below { margin: 0.6em 0 0; padding: 0; text-align: center; }
+.crt-below-img { position: relative; isolation: isolate; line-height: 0; width: min(100%, 8.5em); margin: 0 auto;
+  background: #7dffb0; border: 1px solid #2f7a4d; border-radius: 4px; box-shadow: 0 0 14px rgba(60,255,140,0.3); overflow: hidden; }
+.crt-below-img img { display: block; width: 100%; height: auto; mix-blend-mode: multiply; filter: contrast(1.05) brightness(0.95); }
+.crt-below-img::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.28) 2px 3px); }
+.crt-below figcaption { margin: 0.3em 0 0; font-size: 0.8em; color: #ffb347; }
+/* In the portrait framing the panel scrolls and the fold isn't held there, so the photo is as wide as a phone's text column allows. */
+@media (orientation: portrait) { .crt-below-img { width: min(100%, 14em); } }

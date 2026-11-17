@@ -21,7 +21,8 @@ type Entry = {
 // Every page the spec covers is listed here, so a later ticket changes only its own entry.
 const PAGES: Entry[] = [
   { station: "projects", page: "mediasafe" },
-  { station: "about", page: "off-the-keyboard" },
+  // the golf photo and its caption (#342), and one line of text more under the bullets for #336's "Last watched" line, which must still fit
+  { station: "about", page: "off-the-keyboard", extraLines: 1 },
   { station: "projects", page: "home-lab" },
 ];
 

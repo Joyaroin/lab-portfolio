@@ -66,6 +66,17 @@ describe("#root before boot", () => {
     expect(root).not.toContain("<h2>Contact</h2>");
     expect(root).not.toContain("<h2>MediaSafe</h2>");
   });
+  it("writes a page's image caption as text, and the image itself not at all (#342)", () => {
+    const captions = stations.flatMap((s) => s.pages.flatMap((p) => (p.image?.caption ? [p.image.caption] : [])));
+    expect(captions).toContain("Team golf day at Solace.");
+    for (const c of captions) expect(root).toContain(`<p>${esc(c)}</p>`);
+    // nothing is fetched at boot: no <img> and no file name in the pre-boot HTML
+    expect(root).not.toContain("<img");
+    expect(root).not.toContain("golf-day");
+    const c: Content = structuredClone(content);
+    c.stations[2].pages[1].image!.caption = `a "b" <c>`;
+    expect(rootHtml(c)).toContain("<p>a &quot;b&quot; &lt;c&gt;</p>");
+  });
   it("writes a page with no bullets without an empty list", () => {
     const c: Content = structuredClone(content);
     c.stations[0].pages[0].body = [];

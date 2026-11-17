@@ -142,6 +142,8 @@ For any other page image, add `OUT`, `WIDTH` and `CAP`: `make photo SRC=<image> 
 
 The MediaSafe page's screenshot (`src/assets/mediasafe-library.jpg`) is the first three titles of the Library's first row, from a 2000×1230 capture: `make photo SRC=<capture> OUT=mediasafe-library.jpg WIDTH=1400 CAP=200 CROP=325,205,1297,745`. Look at the result before committing it: no sidebar, account name, avatar or email may show.
 
+The golf day photo (`src/assets/golf-day.jpg`, Off the keyboard) is the whole team, from a 5712×4284 capture that is on its side (heads to the left). The tool has no rotate, so turn a copy a quarter turn clockwise first (Pillow: `Image.open(src).convert("RGB").transpose(Image.Transpose.ROTATE_270).save(copy)`), then `make photo SRC=<the turned copy> OUT=golf-day.jpg WIDTH=1000 CAP=120 CROP=480,2300,3950,4650` (the crop is in the turned copy's pixels and keeps all eight people with some grass and trees round them). Look at the result before committing it.
+
 It needs Python 3 with Pillow. Run it on the Mac. The source stays on the Mac and is never committed: a photo carries the camera model and the date taken. The output is committed, and CI never runs it. `src/photo-metadata.test.ts` checks, for each page image in its table, that the committed file exists, has no metadata, is greyscale and is within its width or height and size cap.
 
 </details>

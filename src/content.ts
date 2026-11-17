@@ -315,6 +315,7 @@ export const content: Content = {
         },
         {
           id: "off-the-keyboard", label: "Off the keyboard",
+          image: { file: "golf-day.jpg", alt: "Adham and his Solace teammates on a golf course.", caption: "Team golf day at Solace.", place: "below" },
           body: [
             "Tennis. Most weeks, on a court somewhere in Ottawa.",
             "Films and shows. I log everything I watch in MediaSafe, the tracker I built.",
