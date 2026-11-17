@@ -6,6 +6,7 @@ import { Hud, usePortrait } from "./Hud";
 import { Pins } from "./PinView";
 import { barFor, createHover, stopLineFor, meterDigits, PREVIEW_REST_MS, previewStop, type BarKey } from "./bar";
 import { ScreenPanels } from "./text/ScreenPanels";
+import { larger } from "./text/larger";
 import { Meter } from "./Meter";
 import { gapLabel, type Gap } from "./gap";
 import { isCompact } from "./pin";
@@ -81,6 +82,7 @@ export function Tour({ gap, visit, meter, shift: shifts }: { gap: Gap | null; vi
     // A move starting or landing is what changes where the visitor is.
     const report = () => setHere(visit.where(performance.now()));
     const off = visit.subscribe((e) => {
+      larger.drop(); // any move of the tour shuts an image that is open larger, and the move goes on (#344)
       if (e.type === "land" && e.stop >= 1) setVisited(true);
       setStep(visit.step());
       if (e.type !== "page") report(); // a page move is not a move of the camera: the shift has nothing to hear
@@ -91,7 +93,8 @@ export function Tour({ gap, visit, meter, shift: shifts }: { gap: Gap | null; vi
       }
     });
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") visit.up();
+      // An image open larger is shut by Esc and nothing else: Esc does not also go up a level (#344).
+      if (e.key === "Escape") { if (larger.openId() !== null) larger.close(); else visit.up(); }
       if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
       if (e.key === "ArrowLeft") visit.prev();
       else if (e.key === "ArrowRight") visit.next();

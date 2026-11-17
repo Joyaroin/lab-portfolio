@@ -511,8 +511,15 @@ describe("page controls words", () => {
 describe("the MediaSafe page's image", () => {
   it("is the Library screenshot, at the top, with its approved alt text and no caption", () => {
     expect(projectPage("mediasafe").image).toEqual({
-      file: "mediasafe-library.jpg", alt: "MediaSafe's Library page, showing three of the shows Adham tracks.", place: "top",
+      file: "mediasafe-library.jpg", alt: "MediaSafe's Library page, showing three of the shows Adham tracks.", place: "top", larger: true,
     });
+  });
+  it("is the only image that opens larger: the portrait does not", () => {
+    const withImage = content.stations.flatMap((s) => s.pages).filter((p) => p.image);
+    expect(withImage.filter((p) => p.image!.larger).map((p) => p.id)).toEqual(["mediasafe"]);
+  });
+  it("has its two button names as copy (#344)", () => {
+    expect(ui.imageLarger).toEqual({ open: "Show the screenshot larger", close: "Close" });
   });
 });
 
@@ -539,7 +546,7 @@ describe("Off the keyboard's image", () => {
 // lost screen, the gap's sentence. They move here from the components, so validation covers them.
 describe("interface words", () => {
   const EMPTY_GROUPS: string[] = [];
-  const GROUPS = [...EMPTY_GROUPS, "pageControls", "hud", "pins", "ambient"];
+  const GROUPS = [...EMPTY_GROUPS, "pageControls", "hud", "pins", "ambient", "imageLarger"];
   const keys = Object.keys(ui).filter((k) => !GROUPS.includes(k));
   it("accepts the shipped words", () => {
     expect(validateContent(content)).toEqual([]);
