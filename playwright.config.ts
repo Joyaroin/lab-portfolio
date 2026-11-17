@@ -14,7 +14,7 @@ const llvmpipe = process.env.LAB_WEBGL === "llvmpipe"
 
 export default defineConfig({
   // Where TEST_PORT is set (agent sessions on the Mac) one worker, so one session can't take the CPU from the others.
-  // CI: 3, because the runner draws WebGL on its CPUs and the runner takes one job at a time (adham/core-infra#3; before that, release runs 526 and 527 overlapped
+  // CI: 3, because the runner draws WebGL on its CPUs and the runner takes 3 jobs at a time (adham/core-infra#5; at 2 jobs, release runs 526 and 527 overlapped
   // and took 859 s and 795 s, against about 450 s alone); Playwright's default (half the CPUs, 6) overloaded it and timing specs missed frames.
   // A Mac without TEST_PORT keeps the default.
   workers: process.env.TEST_PORT ? 1 : process.env.CI ? 3 : undefined,
