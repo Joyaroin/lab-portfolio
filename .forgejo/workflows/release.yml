@@ -1,18 +1,17 @@
-# A merge to main builds the image and runs the release specs (@timing and @render: make browser-release), then deploys
+# A release is started by hand on main (#355): Forgejo's "Run workflow" on main, or POST /repos/projects/lab/actions/workflows/release.yml/dispatches
+# with {"ref": "main"}. A merge to main doesn't start one. It builds the image and runs the release specs (@timing and @render: make browser-release), then deploys
 # to staging: the staging job writes the tag into deploy/values-staging.yaml on the staging branch, the way promote does for production.
 # Staging moves only when both pass, so it never gets a commit whose release specs failed. Once staging has moved, the
 # browser-light job runs the light specs on main (make browser-light); staging doesn't wait for it, and a red run is
 # reported on "CI failures on main". PR CI (ci.yml) runs no browser specs (#352), so this is the only place they run. The runner takes
 # one job at a time (adham/core-infra#3), so a PR's CI job can make the release specs here wait.
-# Nothing here pushes to main, so a deploy adds no commit there and every merge to main runs this.
-# Run it by hand on main to try again after a flaky failure: Forgejo can't re-run one job.
+# Nothing here pushes to main, so a deploy adds no commit there. The staging job pushes only when the run's commit is main's tip, so a run
+# started on another branch can't move staging. Run it again by hand to try again after a flaky failure: Forgejo can't re-run one job.
 # The release clock runs from the run's start to the end of the staging push. When staging moved, the browser job retried
 # no test and the clock is over 360 s, the staging job warns on the standing "Browser job times" issue (scripts/release-clock.mjs).
 # That step is best effort and never blocks staging.
 name: release
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 jobs:
   image:

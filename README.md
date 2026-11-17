@@ -42,19 +42,19 @@ An AI software factory built this site:
 2. Builder agents write each ticket test-first in their own git worktree and open a pull request.
 3. CI runs the unit and integration tests and takes screenshots of every station, on every PR. It runs no browser specs.
 4. A fresh reviewer agent decides whether the PR merges by itself, needs me, or goes back for a rebuild.
-5. The timing and rendering specs run before each deploy to staging. I promote to production by hand.
+5. When I start a release on main, the timing and rendering specs run before staging moves. I promote to production by hand.
 
 ## How it ships
 
 ```
-pull request ──► CI ──► merge to main ──► release: timing and rendering specs ──► staging ──► (by hand) production
+pull request ──► CI ──► merge to main ──► (by hand) release: timing and rendering specs ──► staging ──► (by hand) production
 ```
 
 - **CI** (Forgejo Actions on my own runner): type check, unit tests, the production build with its size budget,
   an integration test, station screenshots, a gitleaks secret scan, and `make facts`, which fails if a doc names a
   path, command or test tag that no longer exists.
-- **Release:** after each merge, the timing and rendering specs run, with WebGL drawn in software on a runner with no GPU.
-  Staging moves only if they pass. The other browser specs run on main once staging has moved. A failure there is found and fixed after the merge, since PR CI runs no browser specs.
+- **Release:** started by hand on main, not by a merge. The timing and rendering specs run, with WebGL drawn in software on a runner with no GPU.
+  Staging moves only if they pass. The other browser specs run on main once staging has moved. A failure there is found and fixed after the release, since PR CI runs no browser specs.
 - **Hosting:** a Docker image, deployed by Argo CD from the Helm chart in [`deploy/`](deploy) to a single-node k3s cluster on
   a Proxmox host at home. Traffic comes in through a Cloudflare Tunnel, so no ports are open.
 

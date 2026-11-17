@@ -10,7 +10,7 @@ Which tests exist, where each runs, and what CI runs: `docs/agents/testing.md`.
 `make facts` checks that every path, command and tag these docs name exists, so update a doc in the same PR as the change that makes it wrong.
 
 ## Deploys
-Merging to `main` deploys to staging once the release specs (`@timing` and `@render`) pass in `release.yml`. PR CI runs no browser specs: the light ones run in `release.yml` after staging has moved, and a builder runs the ones it touched in its session.
+Merging to `main` doesn't deploy: `release.yml` runs only when started by hand on `main` (Forgejo's "Run workflow", or `POST /repos/projects/lab/actions/workflows/release.yml/dispatches` with `{"ref": "main"}`), and deploys to staging once the release specs (`@timing` and `@render`) pass. PR CI runs no browser specs: the light ones run in `release.yml` after staging has moved, and a builder runs the ones it touched in its session.
 Staging follows the `staging` branch, which only `release.yml`
 moves. Production follows the `production` branch, which only the
 `promote` workflow moves. Adham runs it.
