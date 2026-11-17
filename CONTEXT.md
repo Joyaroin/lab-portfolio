@@ -121,6 +121,15 @@ The language of this project: its terms, what each one means, and what it doesn'
 - **Step**: one box in a diagram, such as "Argo CD".
 - **Hop**: the arrow between two steps, with an optional label such as "by hand". A diagram has one fewer
   hop than steps.
+- **Page image**: a page's optional picture (`Page.image` in `src/content.ts`): a file name, its alt text, an optional caption, where it sits
+  (`top`, beside the page's heading, lead and stat line, or `below` the bullets) and whether it opens larger. The content module holds only those
+  words and the file's name, never an import, because the build imports that module to write the page: `ScreenPanels.tsx` turns the name into the
+  file in `src/assets/`. `validateContent` checks the alt text and the caption like other text and rejects an image with no alt text; it can't check
+  that the file exists. Today one page has one: the About me portrait, on that station's first page, at `top`. It is shown green through its greyscale
+  file with scanlines (`theme.css`'s #287 block). It is mounted only once its page has been shown (`imageMounted` in `src/text/image.ts`), so nothing
+  is fetched at boot, and left out on a short landscape window. A file that fails to load shows nothing, no broken image and no empty frame. An image
+  that loads or fails after its page is shown changes the panel's height, and the room draws only on demand, so the panel works out its "more" cue
+  again then. Only the `top` place is drawn so far; `below` and opening larger come with later tickets.
 - **Meter**: the nixie tube display at the centre of the site. It is our own design, and it is both
   navigation and a live readout.
 - **Reading**: the number the meter shows. Each station has a fixed reading; the overview shows the gap, with its sentence in the long form ("MediaSafe: 9 staging deploys since the last prod release") or, on a short landscape window, the short form (see Meter bar).
