@@ -140,6 +140,8 @@ export const ui = {
     startOrLandscape: "or click a monitor",
     startOrPortrait: "or pick one below",
   },
+  /** #344: the small image's button and the open image's button. Both are names, not captions: the open image is named by its alt text. */
+  imageLarger: { open: "Show the screenshot larger", close: "Close" } as Record<string, string>,
   /** #293: the pins over the monitors */
   pins: { work: "1 Work", projects: "2 Projects", about: "3 About me" } as Record<string, string>,
   /** #290: the ambient screens on the spare CRTs. Drawn on a canvas, so not in the page's HTML.
@@ -265,7 +267,7 @@ export const content: Content = {
         },
         {
           id: "mediasafe", label: "MediaSafe",
-          image: { file: "mediasafe-library.jpg", alt: "MediaSafe's Library page, showing three of the shows Adham tracks.", place: "top" },
+          image: { file: "mediasafe-library.jpg", alt: "MediaSafe's Library page, showing three of the shows Adham tracks.", place: "top", larger: true },
           lead: "My tracker for shows and films, built and run by me alone. Next.js 16 and Postgres.",
           stat: "170+ merged PRs since August 2026",
           body: [

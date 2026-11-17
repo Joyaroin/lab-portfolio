@@ -65,4 +65,19 @@ progress {
   .crt-panel > .crt-more { order: 3; }
 }
 /* #344 (opens larger): the styles of the small image's button and of the dialog go here. Nothing else edits this block. */
+.crt-photo-btn { display: block; width: 100%; margin: 0; padding: 0; border: 0; background: none; font: inherit; color: inherit; line-height: 0; cursor: zoom-in; }
+/* the figure clips to its border, so the focus ring sits inside the image */
+.crt-photo-btn:focus-visible { outline-offset: -4px !important; }
+/* The open image: a dialog inside the panel, over all of what the visitor sees of it (ScreenPanels' LargeImage.tsx sets its top and height).
+   The panel stops scrolling while it is open. It opens and shuts at once, with no transition. */
+.crt-panel[data-larger] { overflow: hidden !important; }
+.crt-large { position: absolute; left: 0; width: 100%; z-index: 3; box-sizing: border-box; display: flex; flex-direction: column; gap: 0.6em; padding: 0.6em 1em;
+  background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.22) 2px 3px), #04140b; }
+.crt-panel[data-glass="true"] .crt-large { padding: 0.6em 1.2em; background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.18) 2px 3px), #020a05; }
+.crt-large-close { flex: none; align-self: flex-end; }
+.crt-large-stage { flex: 1 1 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
+.crt-large-shot { position: relative; isolation: isolate; flex: none; line-height: 0; background: #7dffb0; box-shadow: 0 0 0 1px #2f7a4d, 0 0 14px rgba(60,255,140,0.3); cursor: zoom-out; }
+.crt-large-shot img { display: block; width: 100%; height: 100%; mix-blend-mode: multiply; filter: contrast(1.05) brightness(0.95); }
+.crt-large-shot::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.28) 2px 3px); }
 /* #342 (below the bullets): the styles of an image below the bullets and of its caption go here. Nothing else edits this block. */

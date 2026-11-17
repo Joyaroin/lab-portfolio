@@ -1,6 +1,8 @@
 import { useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { markMore } from "./more";
 import { imageBesideText, imageMounted } from "./image";
+import { LargeImageButton } from "./LargeImage";
+import { larger } from "./larger";
 import { controlsFor, headingFor, type Button, type Controls, type PageStep } from "./controls";
 import { stations, ui, type Diagram, type PageList, type Station } from "../content";
 import type { Step } from "../walk";
@@ -73,6 +75,8 @@ function StationPanel({ s, visit, step }: { s: Station; visit: Visit; step: Step
   // An image changes the panel's height when it arrives or fails, and the room draws only on demand, so the "more" cue is worked out again
   // then: onLoad below, and here for a failure (which takes the image out). Mounting the image also comes through here.
   useLayoutEffect(() => { if (ref.current) markMore(ref.current); }, [topImage]);
+  // An image that opened larger goes with its small one (a window that turned short and landscape, a file that failed).
+  useLayoutEffect(() => { if (!topImage && larger.openId() === s.id) larger.drop(); }, [topImage, s.id]);
   // After a tab, a row or a button the visitor's focus goes to the new page's heading, so a screen reader says where it landed.
   // The arrow keys never do this: they are not a click on one of these. Only a move the visit made at once counts.
   const refocus = useRef(false);
@@ -109,9 +113,17 @@ function StationPanel({ s, visit, step }: { s: Station; visit: Visit; step: Step
         {topImage && IMAGE_FILES[topImage.file] && (
           <figure className="crt-photo" data-photo>
             {/* #344 (opens larger): the small image's button and the dialog it opens are drawn here, around this <img>. Nothing else edits this block. */}
-            <img src={IMAGE_FILES[topImage.file].url} alt={topImage.alt} width={IMAGE_FILES[topImage.file].width} height={IMAGE_FILES[topImage.file].height} decoding="async"
-              onLoad={() => { if (ref.current) markMore(ref.current); }}
-              onError={() => setFailed((f) => [...f, topImage.file])} />
+            {(() => {
+              const file = IMAGE_FILES[topImage.file];
+              const small = (
+                <img src={file.url} alt={topImage.alt} width={file.width} height={file.height} decoding="async"
+                  onLoad={() => { if (ref.current) markMore(ref.current); }}
+                  onError={() => setFailed((f) => [...f, topImage.file])} />
+              );
+              return topImage.larger
+                ? <LargeImageButton station={s.id} panel={ref} shot={{ ...file, alt: topImage.alt }}>{small}</LargeImageButton>
+                : small;
+            })()}
           </figure>
         )}
       </div>
