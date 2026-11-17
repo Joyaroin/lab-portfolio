@@ -43,7 +43,15 @@ export type Page = {
   /** optional line drawing of facts already in the lead and `body` */
   diagram?: Diagram;
   links: Link[];
+  /** #340: the page's image, if it has one. Only its words and its file's name are here, never an import: vite.config.ts imports this
+   *  module to write the page, so it can't load a picture. The panel (src/text/ScreenPanels.tsx) turns `file` into the file in src/assets/.
+   *  `alt` is its alt text, and `caption` an optional line of page text. `place` is where it sits: "top" beside the page's heading,
+   *  lead and stat line (the About me portrait; above them in a portrait window), or "below" the bullets. `larger` is whether it opens
+   *  larger on a click. validateContent checks the words, and rejects an image with no alt text; it can't check that the file exists. */
+  image?: PageImage;
 };
+/** A page's image (see `Page.image`). */
+export type PageImage = { file: string; alt: string; caption?: string; place: "top" | "below"; larger?: boolean };
 /** A list page: a shell prompt, one row per page of the same station (`name` is the row's text, `tag` its
  *  tech line; its stat is that page's `stat`), and a line at the foot. */
 export type PageList = { prompt: string; rows: { page: string; name: string; tag: string }[]; foot: string };
@@ -134,10 +142,6 @@ export const ui = {
   },
   /** #293: the pins over the monitors */
   pins: { work: "1 Work", projects: "2 Projects", about: "3 About me" } as Record<string, string>,
-  /** #287: the photo */
-  photo: {
-    alt: "Adham Sedik, smiling, in glasses and a black polo",
-  } as Record<string, string>,
   /** #290: the ambient screens on the spare CRTs. Drawn on a canvas, so not in the page's HTML.
    *  The commit lines come from src/commits-saved.json, not from here. */
   ambient: {
@@ -195,7 +199,7 @@ export const content: Content = {
     name: "Adham Sedik",
     title: "Software & Platform Engineer",
     pageTitle: "Adham Sedik · Lab",
-    availability: "Graduating Dec 2027. Open to co-op and full-time.",
+    availability: "Graduating Dec 2027.",
     /** the meta description, and the link preview's text */
     description:
       "Adham Sedik, Software & Platform Engineer. Tour a 3D home lab: my work, my projects (an AI software factory, MediaSafe, my home Kubernetes cluster) and about me.",
@@ -304,6 +308,7 @@ export const content: Content = {
       pages: [
         {
           id: "why-i-do-this", label: "Why I do this",
+          image: { file: "adham.jpg", alt: "Adham Sedik, smiling, in glasses and a black polo", place: "top" },
           lead: "I'm a software and platform engineer who cares about systems that stay up and stay easy to change. Reliability and maintainability are what I build for, and security is what keeps pulling me in: every system is a puzzle about how it could break.",
           body: [], links: [],
         },
@@ -311,13 +316,13 @@ export const content: Content = {
           id: "off-the-keyboard", label: "Off the keyboard",
           body: [
             "Tennis. Most weeks, on a court somewhere in Ottawa.",
-            "Home lab. A Proxmox box running k3s, my Git server and CI. This site runs on it.",
+            "Films and shows. I log everything I watch in MediaSafe, the tracker I built.",
           ],
           links: [],
         },
         {
           id: "contact", label: "Contact",
-          body: ["I graduate in December 2027.", "I'm open to co-op and full-time roles."],
+          body: ["I graduate in December 2027."],
           links: [
             { label: "adhamsedik@cmail.carleton.ca", href: "mailto:adhamsedik@cmail.carleton.ca" },
             LINKEDIN,
@@ -466,6 +471,13 @@ export function validateContent(c: Content): string[] {
         }
         linkList(`${q}.links`, pg.links);
         if (pg.diagram) diagram(`${q}.diagram`, pg.diagram);
+        if (pg.image) {
+          const im = pg.image;
+          text(`${q}.image.file`, im.file);
+          text(`${q}.image.alt`, im.alt);
+          if (im.caption !== undefined) text(`${q}.image.caption`, im.caption);
+          if (im.place !== "top" && im.place !== "below") problems.push(`${q}.image.place: must be top or below`);
+        }
       });
       // A station that keeps a whole text (Work) must have pages that add up to it.
       if (s.body !== undefined) {

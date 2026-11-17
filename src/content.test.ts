@@ -256,9 +256,9 @@ describe("the three stations' copy", () => {
     expect(a.pages[0].lead).toBe("I'm a software and platform engineer who cares about systems that stay up and stay easy to change. Reliability and maintainability are what I build for, and security is what keeps pulling me in: every system is a puzzle about how it could break.");
     expect(a.pages[1].body).toEqual([
       "Tennis. Most weeks, on a court somewhere in Ottawa.",
-      "Home lab. A Proxmox box running k3s, my Git server and CI. This site runs on it.",
+      "Films and shows. I log everything I watch in MediaSafe, the tracker I built.",
     ]);
-    expect(a.pages[2].body).toEqual(["I graduate in December 2027.", "I'm open to co-op and full-time roles."]);
+    expect(a.pages[2].body).toEqual(["I graduate in December 2027."]);
     expect(a.pages[2].links.map((l) => l.label)).toEqual(["adhamsedik@cmail.carleton.ca", "LinkedIn", "GitHub", "This site's source", "Résumé"]);
   });
   it("the sticky notes and plates", () => {
@@ -501,7 +501,7 @@ describe("page controls words", () => {
 // lost screen, the gap's sentence. They move here from the components, so validation covers them.
 describe("interface words", () => {
   const EMPTY_GROUPS: string[] = [];
-  const GROUPS = [...EMPTY_GROUPS, "photo", "pageControls", "hud", "pins", "ambient"];
+  const GROUPS = [...EMPTY_GROUPS, "pageControls", "hud", "pins", "ambient"];
   const keys = Object.keys(ui).filter((k) => !GROUPS.includes(k));
   it("accepts the shipped words", () => {
     expect(validateContent(content)).toEqual([]);
@@ -512,14 +512,6 @@ describe("interface words", () => {
     expect(validateContent(c).join("\n")).toContain(`ui.${k}: missing`);
     (c.ui as unknown as Record<string, string>)[k] = " ";
     expect(validateContent(c).join("\n")).toContain(`ui.${k}: missing`);
-  });
-  it("has the photo's alt text (#287), and validateContent walks the group", () => {
-    expect(ui.photo).toEqual({ alt: "Adham Sedik, smiling, in glasses and a black polo" });
-    const c = good();
-    delete (c.ui as Record<string, unknown>).photo;
-    expect(validateContent(c).join("\n")).toContain("ui.photo: missing");
-    (c.ui.photo as Record<string, string>) = { alt: " " };
-    expect(validateContent(c).join("\n")).toContain("ui.photo.alt: missing");
   });
   it.each(EMPTY_GROUPS)("has an empty %s group for a later ticket, which validateContent walks", (g) => {
     const group = (ui as Record<string, unknown>)[g];

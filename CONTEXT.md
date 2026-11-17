@@ -96,7 +96,7 @@ The language of this project: its terms, what each one means, and what it doesn'
   and adds none, and never reads as a live status or result. Only the three project pages (Software factory,
   MediaSafe and Home lab) have one, and they are a left-to-right chain of steps joined by hops.
 - **Page**: one part of a station's text, shown one at a time. Every station has at least one. A page has a
-  lead (a page may have none), up to three bullets (none is allowed), and its diagram and links. Work has
+  lead (a page may have none), up to three bullets (none is allowed), and its diagram and links (a page with no links draws no links row, so its text moves up by the row's margin: Why I do this and Off the keyboard. A row that is drawn is marked `data-links`). Work has
   two (Solace and Barracuda, the only pages with dates and months), Projects four (the list, then Software
   factory, MediaSafe and Home lab) and About me three (Why I do this, Off the keyboard, Contact). A project
   page has one stat line, which is the one statement of that fact on the page (no bullet repeats it; this reverses #280's rule that it repeated a fact the copy already stated; Home lab still repeats its stat until #343), and the list page has a `list`: a prompt, a row for each project with its tag and its
@@ -121,6 +121,15 @@ The language of this project: its terms, what each one means, and what it doesn'
 - **Step**: one box in a diagram, such as "Argo CD".
 - **Hop**: the arrow between two steps, with an optional label such as "by hand". A diagram has one fewer
   hop than steps.
+- **Page image**: a page's optional picture (`Page.image` in `src/content.ts`): a file name, its alt text, an optional caption, where it sits
+  (`top`, beside the page's heading, lead and stat line, or `below` the bullets) and whether it opens larger. The content module holds only those
+  words and the file's name, never an import, because the build imports that module to write the page: `ScreenPanels.tsx` turns the name into the
+  file in `src/assets/`. `validateContent` checks the alt text and the caption like other text and rejects an image with no alt text; it can't check
+  that the file exists. Today one page has one: the About me portrait, on that station's first page, at `top`. It is shown green through its greyscale
+  file with scanlines (`theme.css`'s #287 block). It is mounted only once its page has been shown (`imageMounted` in `src/text/image.ts`), so nothing
+  is fetched at boot, and left out on a short landscape window. A file that fails to load shows nothing, no broken image and no empty frame. An image
+  that loads or fails after its page is shown changes the panel's height, and the room draws only on demand, so the panel works out its "more" cue
+  again then. Only the `top` place is drawn so far; `below` and opening larger come with later tickets.
 - **Meter**: the nixie tube display at the centre of the site. It is our own design, and it is both
   navigation and a live readout.
 - **Reading**: the number the meter shows. Each station has a fixed reading; the overview shows the gap, with its sentence in the long form ("MediaSafe: 9 staging deploys since the last prod release") or, on a short landscape window, the short form (see Meter bar).
@@ -163,7 +172,7 @@ The language of this project: its terms, what each one means, and what it doesn'
   drift, which Argo CD keeps at zero.
 - **Boot screen**: the instant lightweight first screen with Adham's name, title and real load progress.
 - **Signal lost**: the one static screen shown when 3D can't start. Not a second site.
-- **HUD**: the always-on overlay: a name block (name, title, availability), the Overview link (`ui.room`) that goes back to the overview, the
+- **HUD**: the always-on overlay: a name block (name, title, availability: the graduation date only, "Graduating Dec 2027."), the Overview link (`ui.room`) that goes back to the overview, the
   station links (Work, Projects, About me) and the outside links (Résumé, LinkedIn, GitHub, which open a new tab and carry a ↗). On a landscape window
   at least `ONE_ROW_MIN_W` (1060 px) wide the name block is at the top left and one row of links at the top right: Overview and the
   stations, a divider, the outside links. Narrower, the row moves to its own line under the name block, and under
