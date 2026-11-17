@@ -47,9 +47,11 @@ function LargeDialog({ panel, shot }: { panel: HTMLElement; shot: Shot }) {
     return () => { ro.disconnect(); panel.removeAttribute("data-larger"); };
   }, [panel, shot]);
   return (
-    <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={shot.alt} className="crt-large"
-      // Close is the only thing in the dialog to focus, so Tab stays on it. (Esc is the tour's window listener, TourView.tsx.)
-      onKeyDown={(e) => { if (e.key === "Tab") e.preventDefault(); }}>
+    <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={shot.alt} className="crt-large" tabIndex={-1}
+      // Close is the only thing in the dialog to focus, so Tab stays on it. tabIndex -1 makes a click on the dialog's empty glass land
+      // focus on the dialog, not on the panel behind it (where Tab would reach the page's links and scroll the panel to them), so
+      // this handler still hears Tab and puts focus back on Close. (Esc is the tour's window listener, TourView.tsx.)
+      onKeyDown={(e) => { if (e.key === "Tab") { e.preventDefault(); closeRef.current?.focus({ preventScroll: true }); } }}>
       <button ref={closeRef} type="button" className="crt-btn crt-large-close" onClick={() => larger.close()}>{ui.imageLarger.close}</button>
       <div ref={stageRef} className="crt-large-stage">
         {/* the dialog is named by the alt text, so the picture inside needs none of its own */}

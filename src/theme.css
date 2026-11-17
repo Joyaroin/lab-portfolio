@@ -74,6 +74,7 @@ progress {
 .crt-large { position: absolute; left: 0; width: 100%; z-index: 3; box-sizing: border-box; display: flex; flex-direction: column; gap: 0.6em; padding: 0.6em 1em;
   background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.22) 2px 3px), #04140b; }
 .crt-panel[data-glass="true"] .crt-large { padding: 0.6em 1.2em; background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.18) 2px 3px), #020a05; }
+.crt-large:focus { outline: none; }
 .crt-large-close { flex: none; align-self: flex-end; }
 .crt-large-stage { flex: 1 1 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
 .crt-large-shot { position: relative; isolation: isolate; flex: none; line-height: 0; background: #7dffb0; box-shadow: 0 0 0 1px #2f7a4d, 0 0 14px rgba(60,255,140,0.3); cursor: zoom-out; }

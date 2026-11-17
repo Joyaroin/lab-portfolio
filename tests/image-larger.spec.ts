@@ -178,6 +178,31 @@ for (const [w, h] of [[1280, 720], [390, 844]] as const) {
     expect(await inside(bigImage(page), panel(page))).toBe(true);
     expect(await inside(close(page), panel(page))).toBe(true);
   });
+  test(`at ${w}x${h} a click on the dialog's empty padding does not let Tab out of it`, async ({ page }) => {
+    await page.setViewportSize({ width: w, height: h });
+    await openMediaSafe(page);
+    await opener(page).click();
+    await expect(dialog(page)).toBeVisible();
+    await expect.poll(async () => (await bigImage(page).boundingBox())?.width ?? 0).toBeGreaterThan(100);
+    const top = await panel(page).evaluate((p) => p.scrollTop);
+    const box = (await dialog(page).boundingBox())!;
+    const stage = (await dialog(page).locator(".crt-large-stage").boundingBox())!;
+    const big = (await bigImage(page).boundingBox())!;
+    // two clicks on empty glass: the dialog's left padding, and the stage beside (or above) the image
+    const empties = [{ x: box.x + 6, y: box.y + box.height / 2 }, { x: stage.x + 2, y: stage.y + 2 }];
+    for (const at of empties) {
+      expect(at.x < big.x || at.y < big.y, "the click is not on the image").toBe(true);
+      await page.mouse.click(at.x, at.y);
+      await expect(dialog(page), "a click on its background does not shut it").toBeVisible();
+      for (const key of ["Tab", "Tab", "Shift+Tab", "Tab"]) {
+        await page.keyboard.press(key);
+        expect(await page.evaluate(() => !!document.activeElement?.closest(".crt-large")), `focus is in the dialog after ${key}`).toBe(true);
+        await expect(close(page)).toBeFocused();
+      }
+      expect(await panel(page).evaluate((p) => p.scrollTop), "the panel has not scrolled").toBe(top);
+      expect(await inside(dialog(page), panel(page)), "the dialog still covers the panel's view").toBe(true);
+    }
+  });
 }
 
 test("the portrait has no button", async ({ page }) => {
