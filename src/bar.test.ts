@@ -232,20 +232,20 @@ describe("what the meters show outside a preview", () => {
 describe("the line under the device", () => {
   const page = (station: string, p: string): Step => ({ kind: "page", station, page: p });
   it("names the station, the page and the station's number at a station", () => {
-    expect(stopLineFor(1, page("work", "solace"))).toBe("Work · Solace · 1 of 3");
-    expect(stopLineFor(1, page("work", "barracuda"))).toBe("Work · Barracuda · 1 of 3");
-    expect(stopLineFor(2, page("projects", "mediasafe"))).toBe("Projects · MediaSafe · 2 of 3");
-    expect(stopLineFor(3, page("about", "contact"))).toBe("About me · Contact · 3 of 3");
+    expect(stopLineFor(1, page("work", "solace"))).toBe("Monitor 1 of 3 · Work · Solace");
+    expect(stopLineFor(1, page("work", "barracuda"))).toBe("Monitor 1 of 3 · Work · Barracuda");
+    expect(stopLineFor(2, page("projects", "mediasafe"))).toBe("Monitor 2 of 3 · Projects · MediaSafe");
+    expect(stopLineFor(3, page("about", "contact"))).toBe("Monitor 3 of 3 · About me · Contact");
   });
   it("is the station and its number alone on the Projects list", () => {
-    expect(stopLineFor(2, page("projects", "list"))).toBe("Projects · 2 of 3");
+    expect(stopLineFor(2, page("projects", "list"))).toBe("Monitor 2 of 3 · Projects");
   });
   it("follows a page move: the same station, another page, another line", () => {
     expect(stopLineFor(1, page("work", "solace"))).not.toBe(stopLineFor(1, page("work", "barracuda")));
   });
   it("shows the station's first page when the visit is on another station (a flight to it)", () => {
-    expect(stopLineFor(3, page("work", "barracuda"))).toBe("About me · Why I do this · 3 of 3");
-    expect(stopLineFor(2, OVERVIEW)).toBe("Projects · 2 of 3");
+    expect(stopLineFor(3, page("work", "barracuda"))).toBe("Monitor 3 of 3 · About me · Why I do this");
+    expect(stopLineFor(2, OVERVIEW)).toBe("Monitor 2 of 3 · Projects");
   });
   it("a move inside a station changes neither the reading nor the scramble", () => {
     const before = meterDigits({ who: "bar", where: at(1), preview: null, deploys: 5, now: 5000, playing: null, reduced: false });

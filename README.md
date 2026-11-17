@@ -134,9 +134,13 @@ change to one means rendering again. The images are committed (ADR-0006), and CI
 </details>
 
 <details>
-<summary>The About me photo</summary>
+<summary>The About me photo and other page images</summary>
 
-`make photo SRC=<jpeg> PREVIEW=<png>` runs `tools/photo/make.py` and writes `src/assets/adham.jpg`. `PREVIEW` is optional: it also writes a phosphor-green copy with scanlines, for looking at the result, and that copy is not committed. The script crops the source to head and shoulders, makes it greyscale, darkens the edges so the face is the brightest part, scales it to 600 px tall and writes a JPEG with no EXIF, XMP, IPTC or comment. It needs Python 3 with Pillow. Run it on the Mac. The source photo stays on the Mac and is never committed: it carries the camera model and the date taken. The output is committed, and CI never runs it. `src/photo-metadata.test.ts` checks that the committed file has no metadata.
+`make photo SRC=<image> PREVIEW=<png>` runs `tools/photo/make.py` and writes `src/assets/adham.jpg`. The source is any image Pillow reads (a PNG or a JPEG). `PREVIEW` is optional: it also writes a phosphor-green copy with scanlines, for looking at the result, and that copy is not committed. The script crops the source to head and shoulders, makes it greyscale, stretches the contrast (the darkest point goes to black, the lightest to white), darkens the edges so the face is the brightest part, scales it to 600 px tall and writes a JPEG with no EXIF, XMP, IPTC or comment.
+
+For any other page image, add `OUT`, `WIDTH` and `CAP`: `make photo SRC=<image> OUT=<name.jpg> WIDTH=<px> CAP=<KB> CROP=<left,top,right,bottom>`. It writes `src/assets/<name.jpg>`: greyscale with the same contrast step, no darkened edges, never scaled up and no wider than `WIDTH`, and no metadata. It lowers the JPEG quality from 78 until the file is within `CAP`, and fails, saying so, if it can't by quality 50. `CROP` is optional and keeps only that box of the source, in the source's pixels.
+
+It needs Python 3 with Pillow. Run it on the Mac. The source stays on the Mac and is never committed: a photo carries the camera model and the date taken. The output is committed, and CI never runs it. `src/photo-metadata.test.ts` checks, for each page image in its table, that the committed file exists, has no metadata, is greyscale and is within its width or height and size cap.
 
 </details>
 

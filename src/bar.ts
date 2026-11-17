@@ -21,7 +21,7 @@ export function barFor(where: Where, framing: Framing["name"]): Bar {
   return { keys: framing === "portrait" ? ["prev", "next"] : ["prev", "room", "next"], stop };
 }
 
-/** The line under the device at station `stop` (1..): "Work · Solace · 1 of 3", or "Projects · 2 of 3" on the list. It names `step`'s
+/** The line under the device at station `stop` (1..): "Monitor 1 of 3 · Work · Solace", or "Monitor 2 of 3 · Projects" on the list. It names `step`'s
  *  page when the visit is on that station, and the station's first page when it is elsewhere (a flight to it, a fade's first half). */
 export function stopLineFor(stop: number, step: Step): string {
   const at = stopOf(step) === stop ? step : stepAt(stop);

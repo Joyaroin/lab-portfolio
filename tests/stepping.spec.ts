@@ -96,12 +96,23 @@ test.describe("the keys", () => {
     const s = stations[PROJECTS - 1];
     const bar = page.locator("[data-meter-bar]");
     const reading = page.getByRole("img", { name: fill(ui.meterReading, { digits: formatReading(s.reading) }) });
-    await expect(bar.getByText(stopLineText(s, s.pages[0], PROJECTS, stations.length), { exact: true })).toBeVisible(); // "Projects · 2 of 3"
+    await expect(bar.getByText(stopLineText(s, s.pages[0], PROJECTS, stations.length), { exact: true })).toBeVisible(); // "Monitor 2 of 3 · Projects"
     await expect(reading).toBeVisible();
     await barKey(page, "next").click();
-    await expect(bar.getByText(stopLineText(s, s.pages[1], PROJECTS, stations.length), { exact: true })).toBeVisible(); // "Projects · Software factory · 2 of 3"
+    await expect(bar.getByText(stopLineText(s, s.pages[1], PROJECTS, stations.length), { exact: true })).toBeVisible(); // "Monitor 2 of 3 · Projects · Software factory"
     await expect(reading, "a page move does not change the reading").toBeVisible();
   });
+  // The words themselves, not the content module's: "Monitor 1 of 3" says which monitor, where "1 of 3" alone reads as a page count (#338).
+  for (const [width, height] of [[1280, 720], [390, 844]]) {
+    test(`the bar's line reads "Monitor {n} of {total} · {station} · {page}" at ${width}x${height}`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await goTo(page, WORK);
+      const bar = page.locator("[data-meter-bar]");
+      await expect(bar.getByText("Monitor 1 of 3 · Work · Solace", { exact: true })).toBeVisible();
+      await goTo(page, PROJECTS);
+      await expect(bar.getByText("Monitor 2 of 3 · Projects", { exact: true })).toBeVisible();
+    });
+  }
 });
 
 test.describe("the arrow keys", () => {
