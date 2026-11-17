@@ -1,5 +1,5 @@
 # A release is started by hand on main (#355): Forgejo's "Run workflow" on main, or POST /repos/projects/lab/actions/workflows/release.yml/dispatches
-# with {"ref": "main"}. A merge to main doesn't start one. It builds the image and runs the release specs (@timing and @render: make browser-release), then deploys
+# with {"ref": "main"}. A merge to main doesn't start one. A release builds the image and runs the release specs (@timing and @render: make browser-release), then deploys
 # to staging: the staging job writes the tag into deploy/values-staging.yaml on the staging branch, the way promote does for production.
 # Staging moves only when both pass, so it never gets a commit whose release specs failed. Once staging has moved, the
 # browser-light job runs the light specs on main (make browser-light); staging doesn't wait for it, and a red run is
