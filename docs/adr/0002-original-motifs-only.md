@@ -6,3 +6,5 @@ and the meter is our own design rather than a copy of the prop. Readings must no
 the series. This is a professional site on public GitHub, so the risk isn't worth a closer homage.
 
 The world-line labels were dropped from the site in spec #280. The list above stays as history; the rule is unchanged.
+
+The names the lab's machines and its deploy repo really have (joseph, jotaro, hermit, echoes, morioh-cho-gitops) may appear as plain names, because that is what they are called. Everything else here stands.

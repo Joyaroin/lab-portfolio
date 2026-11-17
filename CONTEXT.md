@@ -96,7 +96,7 @@ The language of this project: its terms, what each one means, and what it doesn'
   and adds none, and never reads as a live status or result. Only the three project pages (Software factory,
   MediaSafe and Home lab) have one, and they are a left-to-right chain of steps joined by hops.
 - **Page**: one part of a station's text, shown one at a time. Every station has at least one. A page has a
-  lead (a page may have none), up to three bullets (none is allowed), and its diagram and links. Work has
+  lead (a page may have none), up to three bullets (none is allowed), and its diagram and links (a page with no links draws no links row, so its text moves up by the row's margin: Why I do this and Off the keyboard. A row that is drawn is marked `data-links`). Work has
   two (Solace and Barracuda, the only pages with dates and months), Projects four (the list, then Software
   factory, MediaSafe and Home lab) and About me three (Why I do this, Off the keyboard, Contact). A project
   page has one stat line, which is the one statement of that fact on the page (no bullet repeats it; this reverses #280's rule that it repeated a fact the copy already stated; Home lab still repeats its stat until #343), and the list page has a `list`: a prompt, a row for each project with its tag and its
@@ -163,7 +163,7 @@ The language of this project: its terms, what each one means, and what it doesn'
   drift, which Argo CD keeps at zero.
 - **Boot screen**: the instant lightweight first screen with Adham's name, title and real load progress.
 - **Signal lost**: the one static screen shown when 3D can't start. Not a second site.
-- **HUD**: the always-on overlay: a name block (name, title, availability), the Overview link (`ui.room`) that goes back to the overview, the
+- **HUD**: the always-on overlay: a name block (name, title, availability: the graduation date only, "Graduating Dec 2027."), the Overview link (`ui.room`) that goes back to the overview, the
   station links (Work, Projects, About me) and the outside links (Résumé, LinkedIn, GitHub, which open a new tab and carry a ↗). On a landscape window
   at least `ONE_ROW_MIN_W` (1060 px) wide the name block is at the top left and one row of links at the top right: Overview and the
   stations, a divider, the outside links. Narrower, the row moves to its own line under the name block, and under
