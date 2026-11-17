@@ -497,6 +497,15 @@ describe("page controls words", () => {
   });
 });
 
+// #341: the MediaSafe page's image, its alt text word for word (approved on #334).
+describe("the MediaSafe page's image", () => {
+  it("is the Library screenshot, at the top, with its approved alt text and no caption", () => {
+    expect(projectPage("mediasafe").image).toEqual({
+      file: "mediasafe-library.jpg", alt: "MediaSafe's Library page, showing three of the shows Adham tracks.", place: "top",
+    });
+  });
+});
+
 // Every other word the app shows or announces: the HUD, the meter's labels, the boot log, the signal
 // lost screen, the gap's sentence. They move here from the components, so validation covers them.
 describe("interface words", () => {

@@ -265,6 +265,7 @@ export const content: Content = {
         },
         {
           id: "mediasafe", label: "MediaSafe",
+          image: { file: "mediasafe-library.jpg", alt: "MediaSafe's Library page, showing three of the shows Adham tracks.", place: "top" },
           lead: "My tracker for shows and films, built and run by me alone. Next.js 16 and Postgres.",
           stat: "170+ merged PRs since August 2026",
           body: [
