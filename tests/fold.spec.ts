@@ -22,8 +22,7 @@ type Entry = {
 const PAGES: Entry[] = [
   { station: "projects", page: "mediasafe" },
   { station: "about", page: "off-the-keyboard" },
-  // Home lab still hides text at 1280x720 until #343 rewrites it. #343 removes this mark.
-  { station: "projects", page: "home-lab", fixme: "Home lab's copy is too tall for the glass until #343" },
+  { station: "projects", page: "home-lab" },
 ];
 
 for (const { station, page: pageId, extraLines = 0, fixme } of PAGES) {

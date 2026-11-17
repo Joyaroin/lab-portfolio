@@ -56,7 +56,7 @@ pull request ──► CI ──► merge to main ──► (by hand) release: t
 - **Release:** started by hand on main, not by a merge. The timing and rendering specs run, with WebGL drawn in software on a runner with no GPU.
   Staging moves only if they pass. The other browser specs run on main once staging has moved. A failure there is found and fixed after the release, since PR CI runs no browser specs.
 - **Hosting:** a Docker image, deployed by Argo CD from the Helm chart in [`deploy/`](deploy) to a single-node k3s cluster on
-  a Proxmox host at home. Traffic comes in through a Cloudflare Tunnel, so no ports are open.
+  one of my two Proxmox hosts at home. Traffic comes in through a Cloudflare Tunnel, so no ports are open.
 
 ## Stack
 
@@ -139,6 +139,8 @@ change to one means rendering again. The images are committed (ADR-0006), and CI
 `make photo SRC=<image> PREVIEW=<png>` runs `tools/photo/make.py` and writes `src/assets/adham.jpg`. The source is any image Pillow reads (a PNG or a JPEG). `PREVIEW` is optional: it also writes a phosphor-green copy with scanlines, for looking at the result, and that copy is not committed. The script crops the source to head and shoulders, makes it greyscale, stretches the contrast (the darkest point goes to black, the lightest to white), darkens the edges so the face is the brightest part, scales it to 600 px tall and writes a JPEG with no EXIF, XMP, IPTC or comment.
 
 For any other page image, add `OUT`, `WIDTH` and `CAP`: `make photo SRC=<image> OUT=<name.jpg> WIDTH=<px> CAP=<KB> CROP=<left,top,right,bottom>`. It writes `src/assets/<name.jpg>`: greyscale with the same contrast step, no darkened edges, never scaled up and no wider than `WIDTH`, and no metadata. It lowers the JPEG quality from 78 until the file is within `CAP`, and fails, saying so, if it can't by quality 50. `CROP` is optional and keeps only that box of the source, in the source's pixels.
+
+The MediaSafe page's screenshot (`src/assets/mediasafe-library.jpg`) is the first three titles of the Library's first row, from a 2000×1230 capture: `make photo SRC=<capture> OUT=mediasafe-library.jpg WIDTH=1400 CAP=200 CROP=325,205,1297,745`. Look at the result before committing it: no sidebar, account name, avatar or email may show.
 
 It needs Python 3 with Pillow. Run it on the Mac. The source stays on the Mac and is never committed: a photo carries the camera model and the date taken. The output is committed, and CI never runs it. `src/photo-metadata.test.ts` checks, for each page image in its table, that the committed file exists, has no metadata, is greyscale and is within its width or height and size cap.
 

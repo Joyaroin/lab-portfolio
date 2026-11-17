@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
+import { stations } from "./content";
 
 // `make photo` prepares the page images in src/assets/. A source carries the camera model and the date taken, so
 // each committed file must have no EXIF or XMP (APP1), IPTC (APP13) or comment (COM) segment.
@@ -8,6 +9,7 @@ import { readFileSync } from "node:fs";
  *  #341 and #342 each add a row. */
 const IMAGES = [
   { file: "adham.jpg", maxPx: 600, capKB: 60 }, // the About me portrait, 600 px tall
+  { file: "mediasafe-library.jpg", maxPx: 1400, capKB: 200 }, // the MediaSafe page's Library screenshot (#341)
 ];
 
 /** The marker and payload of each segment before the scan data. */
@@ -51,6 +53,17 @@ describe("the page images", () => {
   it.each(IMAGES)("$file exists in src/assets/ and has no metadata, is greyscale and is within its caps", ({ file, maxPx, capKB }) => {
     const bytes = readFileSync(`src/assets/${file}`); // throws, so the test fails, if the file is missing
     expect(problems(bytes, maxPx, capKB)).toEqual([]);
+  });
+});
+
+// #341: a page that names an image must have its row above, or the file's caps and metadata would go unchecked.
+describe("the images the content names", () => {
+  const named = stations.flatMap((s) => s.pages.flatMap((p) => (p.image ? [p.image.file] : [])));
+  it("are some (the portrait and the MediaSafe screenshot)", () => {
+    expect(named).toEqual(expect.arrayContaining(["adham.jpg", "mediasafe-library.jpg"]));
+  });
+  it.each(named)("%s has a row in the table of images", (file) => {
+    expect(IMAGES.map((i) => i.file)).toContain(file);
   });
 });
 

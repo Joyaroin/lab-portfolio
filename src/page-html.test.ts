@@ -58,7 +58,7 @@ describe("#root before boot", () => {
     expect(root).toContain(`<p>${esc(list.prompt)}</p>`);
     expect(root).toContain("<li>software-factory/ AI agents · CI/CD, 100+ merged PRs since 5 November 2026</li>");
     expect(root).toContain("<li>mediasafe/ Next.js · Postgres · GitOps, 170+ merged PRs since August 2026</li>");
-    expect(root).toContain("<li>home-lab/ Proxmox · k3s · Cloudflare, No ports open at home</li>");
+    expect(root).toContain("<li>home-lab/ Proxmox · k3s · Terraform · Cloudflare, No ports open at home</li>");
     expect(root).toContain(`<p>${esc(list.foot)}</p>`);
   });
   it("writes the new stations' words and none of the old stations'", () => {

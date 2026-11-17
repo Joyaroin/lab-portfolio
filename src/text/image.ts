@@ -7,3 +7,12 @@
 export function imageMounted(mounted: boolean, pageHasImage: boolean, shown: boolean): boolean {
   return pageHasImage && (mounted || shown);
 }
+
+/**
+ * Does a page draw its lead and stat line in the column beside its image (and, in the portrait framing, put the image after the bullets)?
+ * A project page does: a page whose image is at `top` and that has a stat line. The About me portrait's page has none, so it is drawn as it
+ * was (the portrait beside the heading and the station's line, the lead below, and the portrait above them in portrait).
+ */
+export function imageBesideText(page: { image?: { place: "top" | "below" }; stat?: string }): boolean {
+  return page.image?.place === "top" && page.stat !== undefined;
+}

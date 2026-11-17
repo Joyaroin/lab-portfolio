@@ -1,11 +1,12 @@
 import { useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { markMore } from "./more";
-import { imageMounted } from "./image";
+import { imageBesideText, imageMounted } from "./image";
 import { controlsFor, headingFor, type Button, type Controls, type PageStep } from "./controls";
 import { stations, ui, type Diagram, type PageList, type Station } from "../content";
 import type { Step } from "../walk";
 import type { Visit } from "../visit";
 import portraitUrl from "../assets/adham.jpg";
+import libraryUrl from "../assets/mediasafe-library.jpg";
 
 // Each station's text as real HTML. place.ts (run per frame by TextPins, which the room mounts)
 // pins each panel to its CRT screen and sets its position, size and opacity; this file holds how it looks: green phosphor with
@@ -17,7 +18,12 @@ import portraitUrl from "../assets/adham.jpg";
 // A phone on its side has a short panel (about 140 to 155 px): a page's image is left out there so the text gets the space.
 // theme.css's #287 block says the same in its comment; keep the two in step.
 // A page's image (Page.image in src/content.ts) names its file; this map turns the name into the file, which the content module can't import.
-const IMAGE_FILES: Record<string, string> = { "adham.jpg": portraitUrl };
+// Each file also has its own width and height, which the <img> carries so its box has the file's shape before it loads and nothing shifts when it does.
+// Keep each in step with its file (src/photo-metadata.test.ts holds the caps; `make photo` prints the size it wrote).
+const IMAGE_FILES: Record<string, { url: string; width: number; height: number }> = {
+  "adham.jpg": { url: portraitUrl, width: 480, height: 600 }, // the portrait, 480 x 600 on its page
+  "mediasafe-library.jpg": { url: libraryUrl, width: 972, height: 540 }, // the Library screenshot, three titles of its first row
+};
 const SHORT_LANDSCAPE = "(orientation: landscape) and (max-height: 520px)";
 function useShortLandscape() {
   return useSyncExternalStore(
@@ -56,8 +62,12 @@ function StationPanel({ s, visit, step }: { s: Station; visit: Visit; step: Step
   if (imageOn !== wantImage) setImageOn(wantImage);
   // A file that fails to load shows nothing: no broken image and no empty frame. The names that failed are kept, so it isn't retried on a revisit.
   const [failed, setFailed] = useState<string[]>([]);
-  // Only the portrait's place, beside the top text, is drawn here. The image below the bullets and opening larger come with #342 and #344.
+  // Only the place beside the top text is drawn here. The image below the bullets (#342) and opening larger (#344) have their marked places below.
   const topImage = imageOn && !shortLandscape && image?.place === "top" && !failed.includes(image.file) ? image : null;
+  // On a project page (one with a stat line) the page's lead and stat sit in the column beside the image, and in the portrait framing the image
+  // goes after the bullets. A page without an image, and the About me portrait's page, are drawn as before. Decided by the page, not by whether
+  // the image has arrived, so the text doesn't change width when it loads or fails.
+  const beside = imageBesideText(page);
   // A new page starts at its top, and the "more" cue is worked out for the new text.
   useLayoutEffect(() => { if (ref.current) { ref.current.scrollTop = 0; markMore(ref.current); } }, [page.id]);
   // An image changes the panel's height when it arrives or fails, and the room draws only on demand, so the "more" cue is worked out again
@@ -89,14 +99,17 @@ function StationPanel({ s, visit, step }: { s: Station; visit: Visit; step: Step
       onScroll={(e) => markMore(e.currentTarget)}>
       <Crumb c={controls.crumb} go={go} />
       {/* the heading and the station's line, with the page's image beside them (above them in portrait; see theme.css) */}
-      <div className="crt-top">
+      <div className="crt-top" data-beside={beside ? "true" : undefined}>
         <div className="crt-top-text">
           <h2 ref={headingRef} tabIndex={-1} data-heading style={heading}>{headingFor(at)}</h2>
           {s.line && <p data-line style={lead}>{s.line}</p>}
+          {beside && page.lead && <p data-lead style={lead}>{page.lead}</p>}
+          {beside && page.stat && <p data-stat style={stat}>{page.stat}</p>}
         </div>
         {topImage && IMAGE_FILES[topImage.file] && (
           <figure className="crt-photo" data-photo>
-            <img src={IMAGE_FILES[topImage.file]} alt={topImage.alt} width={480} height={600} decoding="async"
+            {/* #344 (opens larger): the small image's button and the dialog it opens are drawn here, around this <img>. Nothing else edits this block. */}
+            <img src={IMAGE_FILES[topImage.file].url} alt={topImage.alt} width={IMAGE_FILES[topImage.file].width} height={IMAGE_FILES[topImage.file].height} decoding="async"
               onLoad={() => { if (ref.current) markMore(ref.current); }}
               onError={() => setFailed((f) => [...f, topImage.file])} />
           </figure>
@@ -104,8 +117,8 @@ function StationPanel({ s, visit, step }: { s: Station; visit: Visit; step: Step
       </div>
       {controls.tabs && <Tabs tabs={controls.tabs} station={s} go={go} />}
       {/* the open page's lead: it changes when the page turns */}
-      {page.lead && <p data-lead style={lead}>{page.lead}</p>}
-      {page.stat && <p data-stat style={stat}>{page.stat}</p>}
+      {!beside && page.lead && <p data-lead style={lead}>{page.lead}</p>}
+      {!beside && page.stat && <p data-stat style={stat}>{page.stat}</p>}
       {page.list && <ProjectList list={page.list} s={s} go={go} />}
       {/* links first, so they are on screen without scrolling even in a phone's short panel */}
       {/* a page with no links draws no row, so its text doesn't start a margin lower (#339) */}
@@ -121,6 +134,7 @@ function StationPanel({ s, visit, step }: { s: Station; visit: Visit; step: Step
       )}
       {page.diagram && <DiagramFigure d={page.diagram} />}
       <ul style={list}>{page.body.map((b, i) => <li key={i} style={item}>{b}</li>)}</ul>
+      {/* #342 (below the bullets): an image with place "below" and its caption are drawn here, after the bullets. Nothing else edits this line. */}
       <Foot c={controls} go={go} footRef={footRef} />
       <div className="crt-more" aria-hidden="true"><span>{ui.more}</span></div>
     </section>

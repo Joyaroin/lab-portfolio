@@ -99,7 +99,7 @@ The language of this project: its terms, what each one means, and what it doesn'
   lead (a page may have none), up to three bullets (none is allowed), and its diagram and links (a page with no links draws no links row, so its text moves up by the row's margin: Why I do this and Off the keyboard. A row that is drawn is marked `data-links`). Work has
   two (Solace and Barracuda, the only pages with dates and months), Projects four (the list, then Software
   factory, MediaSafe and Home lab) and About me three (Why I do this, Off the keyboard, Contact). A project
-  page has one stat line, which is the one statement of that fact on the page (no bullet repeats it; this reverses #280's rule that it repeated a fact the copy already stated; Home lab still repeats its stat until #343), and the list page has a `list`: a prompt, a row for each project with its tag and its
+  page has one stat line, which is the one statement of that fact on the page (no bullet repeats it; this reverses #280's rule that it repeated a fact the copy already stated), and the list page has a `list`: a prompt, a row for each project with its tag and its
   stat, and a foot. A station may have a `line` under its heading (Work's, About me's). Where a station keeps a
   whole text (Work's `body`), its pages hold exactly that text, in order; the other stations keep theirs on their
   pages only. The glass shows the visit's current page (`ScreenPanels`
@@ -125,11 +125,11 @@ The language of this project: its terms, what each one means, and what it doesn'
   (`top`, beside the page's heading, lead and stat line, or `below` the bullets) and whether it opens larger. The content module holds only those
   words and the file's name, never an import, because the build imports that module to write the page: `ScreenPanels.tsx` turns the name into the
   file in `src/assets/`. `validateContent` checks the alt text and the caption like other text and rejects an image with no alt text; it can't check
-  that the file exists. Today one page has one: the About me portrait, on that station's first page, at `top`. It is shown green through its greyscale
+  that the file exists. Today two pages have one: the About me portrait, on that station's first page, and the MediaSafe project page's Library screenshot (`mediasafe-library.jpg`, cropped to the first three titles of the Library's first row), both at `top`. It is shown green through its greyscale
   file with scanlines (`theme.css`'s #287 block). It is mounted only once its page has been shown (`imageMounted` in `src/text/image.ts`), so nothing
   is fetched at boot, and left out on a short landscape window. A file that fails to load shows nothing, no broken image and no empty frame. An image
   that loads or fails after its page is shown changes the panel's height, and the room draws only on demand, so the panel works out its "more" cue
-  again then. Only the `top` place is drawn so far; `below` and opening larger come with later tickets.
+  again then. **On a project page** (a page with an image at `top` and a stat line: `imageBesideText` in `src/text/image.ts`) the image sits at the right of the panel's top row, 9.5em wide, and the page's heading, lead and stat line are in the column to its left (the lead and stat are drawn lower on a page without an image, and on the About me portrait's page); in the portrait framing it comes after the bullets, so it pushes no text down, and on a short landscape window it is left out. Each image's own width and height are next to its file's import in `src/text/ScreenPanels.tsx` (`IMAGE_FILES`), so its box has the file's shape before it loads. Only the `top` place is drawn so far. `below` (#342) and opening larger (#344) have marked places in `ScreenPanels.tsx` and `src/theme.css`, each named by its ticket, so those two tickets don't edit the same lines.
 - **Meter**: the nixie tube display at the centre of the site. It is our own design, and it is both
   navigation and a live readout.
 - **Reading**: the number the meter shows. Each station has a fixed reading; the overview shows the gap, with its sentence in the long form ("MediaSafe: 9 staging deploys since the last prod release") or, on a short landscape window, the short form (see Meter bar).
