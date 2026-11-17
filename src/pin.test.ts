@@ -130,11 +130,11 @@ describe("clearances", () => {
     for (const t of stopLines) expect(compact).toContain(t);
     // every page of every station has its line, the Projects list's without a page name, and the longest is the real one
     expect(stopLines).toHaveLength(stations.reduce((n, s) => n + s.pages.length, 0));
-    expect(stopLines).toContain("Work · Solace · 1 of 3");
-    expect(stopLines).toContain("Projects · 2 of 3");
-    expect(stopLines).toContain("Projects · Software factory · 2 of 3");
-    expect(stopLines).toContain("About me · Off the keyboard · 3 of 3");
-    expect(Math.max(...stopLines.map((t) => t.length))).toBe("About me · Off the keyboard · 3 of 3".length);
+    expect(stopLines).toContain("Monitor 1 of 3 · Work · Solace");
+    expect(stopLines).toContain("Monitor 2 of 3 · Projects");
+    expect(stopLines).toContain("Monitor 2 of 3 · Projects · Software factory");
+    expect(stopLines).toContain("Monitor 3 of 3 · About me · Off the keyboard");
+    expect(Math.max(...stopLines.map((t) => t.length))).toBe("Monitor 3 of 3 · About me · Off the keyboard".length);
   });
   it("every short landscape window has the line under the device on one line and the panel at least MIN_PANEL_H, down to the height the compact HUD can give", () => {
     // 560 to 960 wide, 320 to 480 tall. The compact HUD's top (76 px two lines from COMPACT_MIN_W, 107 px three) plus the panel's floor
