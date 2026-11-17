@@ -46,6 +46,6 @@ og-image:
 # Makes public/favicon.png and public/apple-touch-icon.png from the meter's committed images. Run on purpose, through heavy, on the Mac. Run it again after make meter. CI does not run it.
 favicon:
 	node tools/favicon.mjs
-# Prepares src/assets/adham.jpg (the About me photo) from the source JPEG: `make photo SRC=<path>`. Needs Python 3 with Pillow. Run on purpose, on the Mac. CI does not run it.
+# Prepares a page image from a source image (any Pillow reads): `make photo SRC=<path>` makes src/assets/adham.jpg, the About me photo. With OUT, `make photo SRC=<path> OUT=<name.jpg> WIDTH=<px> CAP=<KB> [CROP=left,top,right,bottom]` makes src/assets/<name.jpg>. Needs Python 3 with Pillow. Run on purpose, on the Mac. CI does not run it.
 photo:
-	python3 tools/photo/make.py "$(SRC)" $(if $(PREVIEW),--preview "$(PREVIEW)")
+	python3 tools/photo/make.py "$(SRC)" $(if $(PREVIEW),--preview "$(PREVIEW)") $(if $(OUT),--out "$(OUT)") $(if $(WIDTH),--width "$(WIDTH)") $(if $(CAP),--cap "$(CAP)") $(if $(CROP),--crop "$(CROP)")
