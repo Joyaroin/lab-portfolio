@@ -99,7 +99,7 @@ The language of this project: its terms, what each one means, and what it doesn'
   lead (a page may have none), up to three bullets (none is allowed), and its diagram and links. Work has
   two (Solace and Barracuda, the only pages with dates and months), Projects four (the list, then Software
   factory, MediaSafe and Home lab) and About me three (Why I do this, Off the keyboard, Contact). A project
-  page has one stat line, and the list page has a `list`: a prompt, a row for each project with its tag and its
+  page has one stat line, which is the one statement of that fact on the page (no bullet repeats it; this reverses #280's rule that it repeated a fact the copy already stated; Home lab still repeats its stat until #343), and the list page has a `list`: a prompt, a row for each project with its tag and its
   stat, and a foot. A station may have a `line` under its heading (Work's, About me's). Where a station keeps a
   whole text (Work's `body`), its pages hold exactly that text, in order; the other stations keep theirs on their
   pages only. The glass shows the visit's current page (`ScreenPanels`

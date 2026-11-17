@@ -33,7 +33,7 @@ export type Station = {
 /** One page of a station: its lead (a page may have none), its bullets (at most three, and none for a
  *  list page), and the diagram and links that go with them. `label` names it. `dates` and `months` are
  *  only on Work's job pages: `dates` show on the job's tab, and `months` is how long it ran. `stat` is a project
- *  page's one stat line, a fact its copy already states. `list` is the Projects list page's prompt, rows
+ *  page's one stat line, the one statement of that fact on the page: no bullet repeats it. `list` is the Projects list page's prompt, rows
  *  and foot. */
 export type Page = {
   id: string; label: string; dates?: string; months?: number;
@@ -250,7 +250,7 @@ export const content: Content = {
           body: [
             "I plan a feature with an orchestrator agent, which cuts it into small tickets. Builder agents write each ticket test-first on my Mac and open a pull request.",
             "Every PR runs CI on my own runner. Then a fresh reviewer agent decides whether it merges by itself, needs me, or goes back for a rebuild.",
-            "This site has 100+ merged pull requests since 5 November 2026. Production moves only when I promote it.",
+            "Production moves only when I promote it.",
           ],
           diagram: {
             description: "I plan, agents build each ticket and open a PR, a reviewer agent decides, and it merges.",
@@ -266,7 +266,6 @@ export const content: Content = {
           body: [
             "Git is the only way it changes: Argo CD ships every merge to staging, and I promote to production by hand.",
             "Secrets live in Vault, backed up nightly to Cloudflare R2, with a restore I've tested.",
-            "170+ merged pull requests since August 2026.",
           ],
           diagram: {
             description: "Git is the only way it changes. Argo CD ships every merge to staging. I promote to production by hand.",

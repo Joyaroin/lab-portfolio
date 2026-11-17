@@ -120,10 +120,10 @@ describe("validateContent", () => {
   });
 });
 
-// A count goes stale, so each says since when.
+// A count goes stale, so each says since when. The stat line is where the count is stated (#337).
 it.each([["mediasafe"], ["software-factory"]])("%s: its pull request count says since a date", (id) => {
-  const bullets = projectPage(id).body;
-  expect(bullets.filter((b) => /pull requests/i.test(b)).join(" ")).toMatch(/\d\+? merged pull requests since (\d+ )?[A-Z][a-z]+ 2026/);
+  expect(projectPage(id).stat).toMatch(/^\d+\+ merged PRs since /);
+  expect(projectPage(id).stat).toMatch(/\d\+? merged PRs since (\d+ )?[A-Z][a-z]+ 2026$/);
 });
 
 // Every station has pages. Each page is a lead, at most three bullets, or a list.
@@ -235,9 +235,13 @@ describe("the three stations' copy", () => {
     expect(projectPage("software-factory").lead).toBe("My AI software factory: I plan, and agents build, review and merge. It built this site.");
     expect(projectPage("mediasafe").lead).toBe("My tracker for shows and films, built and run by me alone. Next.js 16 and Postgres.");
   });
-  it("Projects: a stat line repeats a fact the page's copy already states", () => {
-    const facts: [string, RegExp][] = [["software-factory", /100\+ merged pull requests since 5 November 2026/], ["mediasafe", /170\+ merged pull requests since August 2026/], ["home-lab", /No ports are open at home/]];
-    for (const [id, fact] of facts) expect(projectPage(id).body.join(" "), id).toMatch(fact);
+  // A page's stat line is that fact's one statement on the page (#337, reversing #280). Home lab still repeats its
+  // stat ("No ports are open at home" in bullet two) until #343 rewrites the page, which adds it to this list.
+  it.each([
+    ["software-factory", /merged (pull requests|PRs)|\b100\b/i],
+    ["mediasafe", /merged (pull requests|PRs)|\b170\b/i],
+  ])("Projects: no bullet of %s repeats its stat line's fact", (id, fact) => {
+    for (const bullet of projectPage(id).body) expect(bullet).not.toMatch(fact);
   });
   it("Projects: Esc on a project page goes up to the list", () => {
     expect(station("projects").upToFirstPage).toBe(true);
@@ -689,9 +693,10 @@ describe("no copy outside the content module", () => {
 });
 
 describe("the pull request count", () => {
-  it("says 100+ in Software factory's last bullet, and nothing says 76", () => {
+  it("says 100+ in Software factory's stat line, not its last bullet, and nothing says 76", () => {
     const factory = projectPage("software-factory");
-    expect(factory.body.at(-1)).toContain("This site has 100+ merged pull requests since 5 November 2026.");
+    expect(factory.stat).toContain("100+ merged PRs");
+    expect(factory.body.at(-1)).toBe("Production moves only when I promote it.");
     expect(JSON.stringify(content)).not.toMatch(/\b76\b/);
   });
 });
