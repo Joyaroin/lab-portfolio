@@ -114,6 +114,15 @@ describe("transformPage", () => {
   });
 });
 
+// The header says only the graduation date (#339). "Co-op" in a job title or "Two platform co-ops" is not availability, so the
+// check is for the two availability phrases, not the word.
+describe("availability words", () => {
+  const AVAILABILITY = /full-time|open to co-op/i;
+  it("the header line is the graduation date only", () => expect(identity.availability).toBe("Graduating Dec 2027."));
+  it("nothing in the content module says them", () => expect(JSON.stringify(content)).not.toMatch(AVAILABILITY));
+  it("nothing in the page the build writes says them", () => expect(transformPage(readFileSync("index.html", "utf8"), content)).not.toMatch(AVAILABILITY));
+});
+
 describe("index.html", () => {
   it("holds only what isn't copy", () => {
     const html = readFileSync("index.html", "utf8");

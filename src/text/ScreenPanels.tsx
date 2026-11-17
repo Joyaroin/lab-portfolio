@@ -121,14 +121,17 @@ function StationPanel({ s, visit, step }: { s: Station; visit: Visit; step: Step
       {!beside && page.stat && <p data-stat style={stat}>{page.stat}</p>}
       {page.list && <ProjectList list={page.list} s={s} go={go} />}
       {/* links first, so they are on screen without scrolling even in a phone's short panel */}
-      <p style={linkRow}>
-        {page.links.map((l) => (
-          <a key={l.label + l.href} href={l.href} style={link}
-            {...(l.href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
-            {l.label}
-          </a>
-        ))}
-      </p>
+      {/* a page with no links draws no row, so its text doesn't start a margin lower (#339) */}
+      {page.links.length > 0 && (
+        <p data-links style={linkRow}>
+          {page.links.map((l) => (
+            <a key={l.label + l.href} href={l.href} style={link}
+              {...(l.href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
+              {l.label}
+            </a>
+          ))}
+        </p>
+      )}
       {page.diagram && <DiagramFigure d={page.diagram} />}
       <ul style={list}>{page.body.map((b, i) => <li key={i} style={item}>{b}</li>)}</ul>
       {/* #342 (below the bullets): an image with place "below" and its caption are drawn here, after the bullets. Nothing else edits this line. */}

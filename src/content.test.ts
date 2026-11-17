@@ -256,9 +256,9 @@ describe("the three stations' copy", () => {
     expect(a.pages[0].lead).toBe("I'm a software and platform engineer who cares about systems that stay up and stay easy to change. Reliability and maintainability are what I build for, and security is what keeps pulling me in: every system is a puzzle about how it could break.");
     expect(a.pages[1].body).toEqual([
       "Tennis. Most weeks, on a court somewhere in Ottawa.",
-      "Home lab. A Proxmox box running k3s, my Git server and CI. This site runs on it.",
+      "Films and shows. I log everything I watch in MediaSafe, the tracker I built.",
     ]);
-    expect(a.pages[2].body).toEqual(["I graduate in December 2027.", "I'm open to co-op and full-time roles."]);
+    expect(a.pages[2].body).toEqual(["I graduate in December 2027."]);
     expect(a.pages[2].links.map((l) => l.label)).toEqual(["adhamsedik@cmail.carleton.ca", "LinkedIn", "GitHub", "This site's source", "Résumé"]);
   });
   it("the sticky notes and plates", () => {

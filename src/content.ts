@@ -199,7 +199,7 @@ export const content: Content = {
     name: "Adham Sedik",
     title: "Software & Platform Engineer",
     pageTitle: "Adham Sedik · Lab",
-    availability: "Graduating Dec 2027. Open to co-op and full-time.",
+    availability: "Graduating Dec 2027.",
     /** the meta description, and the link preview's text */
     description:
       "Adham Sedik, Software & Platform Engineer. Tour a 3D home lab: my work, my projects (an AI software factory, MediaSafe, my home Kubernetes cluster) and about me.",
@@ -317,13 +317,13 @@ export const content: Content = {
           id: "off-the-keyboard", label: "Off the keyboard",
           body: [
             "Tennis. Most weeks, on a court somewhere in Ottawa.",
-            "Home lab. A Proxmox box running k3s, my Git server and CI. This site runs on it.",
+            "Films and shows. I log everything I watch in MediaSafe, the tracker I built.",
           ],
           links: [],
         },
         {
           id: "contact", label: "Contact",
-          body: ["I graduate in December 2027.", "I'm open to co-op and full-time roles."],
+          body: ["I graduate in December 2027."],
           links: [
             { label: "adhamsedik@cmail.carleton.ca", href: "mailto:adhamsedik@cmail.carleton.ca" },
             LINKEDIN,
