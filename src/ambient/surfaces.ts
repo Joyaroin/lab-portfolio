@@ -3,11 +3,14 @@ import type { SavedCommit } from "../commits";
 import { CRT_GLASS, phosphorFrame, spares } from "../crts";
 import { CLOCK_H, CLOCK_W, createClock } from "./clock";
 import { createDeskPhone, PHONE_H, PHONE_W } from "./desk-phone";
+import { drawFan, FAN_FRONT_M, FAN_H, FAN_W } from "./fan";
+import { inFront } from "./front";
 import { drawGitlog } from "./gitlog";
 import { drawIronWisp, WISP_H, WISP_W } from "./iron-wisp";
 import { drawOscilloscope, SCOPE_H, SCOPE_W } from "./oscilloscope";
 import { drawPuzzle } from "./puzzle";
 import { drawRackLights, RACK_H, RACK_W } from "./rack-lights";
+import { drawRadio, RADIO_FRONT_M, RADIO_H, RADIO_W } from "./radio";
 import { SCREEN_H, SCREEN_W, STILL_T } from "./still";
 import { drawTraffic } from "./traffic";
 
@@ -70,12 +73,6 @@ export function layoutPlane(id: string, props: LayoutProp[] | undefined = (layou
   return { position: [p.centre[0], p.centre[1], p.centre[2]], yaw: rad(p.yaw), tilt: rad(p.tilt ?? 0), width: p.size[0], height: p.size[1] };
 }
 
-/** `plane` moved `d` metres toward the camera along its face's normal (the normal ends at (sin yaw cos tilt, sin tilt, cos yaw cos tilt)). */
-export function inFront(plane: Plane, d: number): Plane {
-  const n = [Math.sin(plane.yaw) * Math.cos(plane.tilt), Math.sin(plane.tilt), Math.cos(plane.yaw) * Math.cos(plane.tilt)];
-  return { ...plane, position: [plane.position[0] + n[0] * d, plane.position[1] + n[1] * d, plane.position[2] + n[2] * d] };
-}
-
 /** The desk phone's display plane stands this far in front of its `room-layout.json` entry (#383): the baked display's face is the entry's plane, and two planes in one place z-fight. */
 export const PHONE_NUDGE_M = 0.002;
 /** The clock's hands stand this far in front of its entry (#383), which is the baked face at x 1.864. The face's twelve ticks stand 0.5 and 2.5 mm in front of it (x 1.8635
@@ -119,8 +116,8 @@ export const ambientSurfaces = (commits: SavedCommit[]): Entry[] => [
   layoutSurface("oscilloscope", { w: SCOPE_W, h: SCOPE_H }, drawOscilloscope), // #381
   layoutSurface("rack-lights", { w: RACK_W, h: RACK_H }, drawRackLights), // #381
   layoutSurface("iron-wisp", { w: WISP_W, h: WISP_H }, drawIronWisp), // #381
-  placeholder("fan"), // #382
-  placeholder("radio"), // #382
+  { id: "fan", size: { w: FAN_W, h: FAN_H }, plane: inFront(layoutPlane("fan"), FAN_FRONT_M), draw: drawFan }, // #382
+  { id: "radio", size: { w: RADIO_W, h: RADIO_H }, plane: inFront(layoutPlane("radio"), RADIO_FRONT_M), draw: drawRadio }, // #382
   { id: "desk-phone", size: { w: PHONE_W, h: PHONE_H }, plane: inFront(layoutPlane("desk-phone"), PHONE_NUDGE_M), draw: createDeskPhone() }, // #383
   { id: "clock", size: { w: CLOCK_W, h: CLOCK_H }, plane: inFront(layoutPlane("clock"), CLOCK_HANDS_M), draw: createClock() }, // #383
   placeholder("laptop"), // #384
