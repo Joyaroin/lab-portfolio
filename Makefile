@@ -11,7 +11,7 @@ setup:
 frontend:
 	npm ci
 	npm run typecheck
-	npm test
+	npm test -- --reporter=default --reporter=json --outputFile.json=test-results/vitest.json
 	npm run build
 # The paths, commands and tags the docs name exist. Needs only node.
 facts:

@@ -35,6 +35,12 @@ jobs:
         run: |
           set -o pipefail
           make frontend 2>&1 | tee "${{ runner.temp }}/out.log" || { c=$?; echo "$c" > "${{ runner.temp }}/exit"; exit "$c"; }
+      # Flags unit tests over 1000 ms as ::warning:: annotations (#416), from the JSON report `make frontend` writes. It only
+      # warns: it never fails the job, and a missing report is logged.
+      - name: Slow unit tests
+        if: always()
+        continue-on-error: true
+        run: node scripts/slow-tests.mjs test-results/vitest.json
       # Forgejo has no job-log API, so put the failure on the PR. Best effort: it never changes
       # the job result, and a failed post is only logged.
       - name: Post the failure on the PR
