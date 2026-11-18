@@ -9,6 +9,8 @@ import {
 } from "./surfaces";
 
 const LATER = ["oscilloscope", "rack-lights", "iron-wisp", "fan", "radio", "desk-phone", "clock", "laptop"];
+/** The later surfaces some ticket has filled (#382's two), in list order. */
+const FILLED_LATER = ["fan", "radio"];
 const plane = { position: [0, 1, 0] as [number, number, number], yaw: 0, tilt: 0, width: 0.1, height: 0.1 };
 
 /** A filled surface that records the times it is drawn at. */
@@ -32,16 +34,16 @@ describe("the list", () => {
   const list = ambientSurfaces([]);
   it("starts with the three spare CRTs' screens, 400×300, planes where phosphorFrame puts them", () => {
     const filled = list.filter(isFilled);
-    expect(filled.map((s) => s.id)).toEqual(spares.map((c) => c.id));
-    for (const [k, s] of filled.entries()) {
+    expect(filled.map((s) => s.id)).toEqual([...spares.map((c) => c.id), ...FILLED_LATER]);
+    for (const [k, s] of filled.slice(0, spares.length).entries()) {
       expect(s.size).toEqual({ w: SCREEN_W, h: SCREEN_H });
       const f = phosphorFrame(spares[k]);
       expect(s.plane).toMatchObject({ position: f.position, yaw: f.yaw, tilt: 0, width: 0.46, height: 0.36 });
     }
   });
-  it("has one placeholder for each later surface, with its id and reserved size, and nothing else", () => {
+  it("has one placeholder for each later surface not yet filled, with its id and reserved size, and nothing else", () => {
     const placeholders = list.filter((e) => !isFilled(e));
-    expect(placeholders.map((p) => p.id)).toEqual(LATER);
+    expect(placeholders.map((p) => p.id)).toEqual(LATER.filter((id) => !FILLED_LATER.includes(id)));
     expect(Object.keys(RESERVED).sort()).toEqual([...LATER].sort());
     for (const p of placeholders) expect(p.size).toEqual(RESERVED[p.id]);
   });
@@ -126,7 +128,7 @@ describe("the stop", () => {
     const { driver, uploads } = drive(ambientSurfaces([{ sha7: "abc1234", subject: "a commit" }]));
     driver.tick(1000);
     driver.still();
-    expect(Object.values(uploads)).toEqual([2, 2, 2]);
+    expect(Object.values(uploads)).toEqual(Array(3 + FILLED_LATER.length).fill(2));
   });
 });
 

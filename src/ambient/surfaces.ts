@@ -1,8 +1,11 @@
 import layout from "../room-layout.json" with { type: "json" };
 import type { SavedCommit } from "../commits";
 import { CRT_GLASS, phosphorFrame, spares } from "../crts";
+import { drawFan, FAN_FRONT_M, FAN_H, FAN_W } from "./fan";
+import { inFront } from "./front";
 import { drawGitlog } from "./gitlog";
 import { drawPuzzle } from "./puzzle";
+import { drawRadio, RADIO_FRONT_M, RADIO_H, RADIO_W } from "./radio";
 import { SCREEN_H, SCREEN_W, STILL_T } from "./still";
 import { drawTraffic } from "./traffic";
 
@@ -99,8 +102,8 @@ export const ambientSurfaces = (commits: SavedCommit[]): Entry[] => [
   placeholder("oscilloscope"), // #381
   placeholder("rack-lights"), // #381
   placeholder("iron-wisp"), // #381
-  placeholder("fan"), // #382
-  placeholder("radio"), // #382
+  { id: "fan", size: { w: FAN_W, h: FAN_H }, plane: inFront(layoutPlane("fan"), FAN_FRONT_M), draw: drawFan }, // #382
+  { id: "radio", size: { w: RADIO_W, h: RADIO_H }, plane: inFront(layoutPlane("radio"), RADIO_FRONT_M), draw: drawRadio }, // #382
   placeholder("desk-phone"), // #383
   placeholder("clock"), // #383
   placeholder("laptop"), // #384

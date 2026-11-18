@@ -109,7 +109,7 @@ export function Phosphor({ where, reduced }: { where: MutableRefObject<Where>; r
       {ambient.planes.map(({ id, plane, t }) => (
         <mesh key={id} position={plane.position} rotation={planeRotation(plane)} raycast={() => null}>
           <planeGeometry args={[plane.width, plane.height]} />
-          <meshBasicMaterial map={t} toneMapped={false} />
+          <meshBasicMaterial map={t} transparent depthWrite={false} toneMapped={false} />
         </mesh>
       ))}
       {screens.map(({ crt, t, mat, mesh }) => {
