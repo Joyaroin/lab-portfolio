@@ -3,7 +3,7 @@
 // but with no saved value: a failed read shows nothing.
 //
 // This module imports nothing (at most ./content): a Playwright spec imports LAST_WATCHED_MAX from it, and
-// Playwright's loader can't load a module that imports JSON (docs/agents/testing.md).
+// Playwright's loader can't load a module that imports JSON (docs/agents/testing/meter.md).
 
 /**
  * Adham's share link on production MediaSafe (ADR-0008), given by him on #369. It is public by nature and sits in this public code: the whole
