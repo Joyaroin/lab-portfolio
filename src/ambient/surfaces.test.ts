@@ -143,7 +143,7 @@ describe("layoutPlane", () => {
   });
   it("throws when the entry isn't there, so a surface can't be filled without its place", () => {
     expect(() => layoutPlane("fan", props)).toThrow(/"fan"/);
-    expect(() => layoutPlane("fan", undefined)).toThrow();
+    expect(() => layoutPlane("fan", [])).toThrow(/"fan"/);
   });
 });
 
