@@ -214,6 +214,52 @@ describe("checkFacts", () => {
     });
   });
 
+  describe("the split testing files under docs/agents/testing/", () => {
+    it("reports a path that doesn't exist in a split file, with that file and line", () => {
+      const dir = repo({
+        "src/a.ts": "",
+        "docs/agents/testing.md": "# T\n",
+        "docs/agents/testing/room.md": "# Room\n- `src/a.ts` is here\n- `src/gone.ts` is not\n",
+      });
+      expect(said(checkFacts(dir))).toEqual(["docs/agents/testing/room.md:3 src/gone.ts doesn't exist"]);
+    });
+
+    it("checks make targets, npm scripts and tags in a split file too", () => {
+      const dir = repo({
+        "Makefile": "frontend:\n\ttrue\n",
+        "package.json": '{"scripts":{"build":"x"}}',
+        "tests/a.spec.ts": `test("x ${tag("timing")}", () => {});\n`,
+        "docs/agents/testing/panels.md": `- \`make ghost\`\n- \`npm run ghost\`\n- \`${tag("timing")}\` \`${tag("render")}\`\n`,
+      });
+      expect(said(checkFacts(dir))).toEqual([
+        "docs/agents/testing/panels.md:1 make ghost: no such target in the Makefile",
+        "docs/agents/testing/panels.md:2 npm run ghost: no such script in package.json",
+        `docs/agents/testing/panels.md:3 ${tag("render")} tags no test`,
+      ]);
+    });
+
+    it("reads every split file, and only markdown ones", () => {
+      const dir = repo({
+        "docs/agents/testing/room.md": "`src/one.ts`\n",
+        "docs/agents/testing/meter.md": "`src/two.ts`\n",
+        "docs/agents/testing/notes.txt": "`src/three.ts`\n",
+      });
+      expect(said(checkFacts(dir)).sort()).toEqual([
+        "docs/agents/testing/meter.md:1 src/two.ts doesn't exist",
+        "docs/agents/testing/room.md:1 src/one.ts doesn't exist",
+      ]);
+    });
+
+    it("doesn't read a CI job bullet in a split file as a CI job", () => {
+      const dir = repo({
+        ".forgejo/workflows/ci.yml": "jobs:\n  frontend:\n    runs-on: x\n",
+        "docs/agents/testing.md": "## What CI runs\n- `frontend`: x\n",
+        "docs/agents/testing/room.md": "## What CI runs\n- `ghost`: x\n",
+      });
+      expect(said(checkFacts(dir))).toEqual([]);
+    });
+  });
+
   it("checks the path in a node <path> span", () => {
     const dir = repo({
       "scripts/x.mjs": "",

@@ -1,5 +1,5 @@
 // Checks that the project's own docs name things that exist: paths, bare file names, make targets,
-// npm scripts, node scripts, and the test tags and CI jobs in docs/agents/testing.md. CI runs it, so a PR that leaves a doc
+// npm scripts, node scripts, and the test tags and CI jobs in docs/agents/testing.md (and the tags in the files under docs/agents/testing/). CI runs it, so a PR that leaves a doc
 // naming something gone goes red. It reads only code spans (`like this`), and only the project's
 // own docs: the generic tracker docs mention optional files on purpose.
 //   node scripts/check-facts.mjs [repo]    prints each problem as doc:line, exits 1 if any
@@ -7,8 +7,12 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const DOCS = ["CONTEXT.md", "CLAUDE.md", "AGENTS.md", "README.md", "docs/agents/testing.md"];
 const TESTING = "docs/agents/testing.md";
+// The per-area testing facts split out of the index (#415): every .md file in this directory is read like the index.
+const TESTING_DIR = "docs/agents/testing";
+const DOCS = ["CONTEXT.md", "CLAUDE.md", "AGENTS.md", "README.md", TESTING];
+// The index and the split files: tags are checked in all of them.
+const isTestingDoc = (doc) => doc === TESTING || doc.startsWith(`${TESTING_DIR}/`);
 // Extensions of real files. A span like `image.tag` or `shift.hold` is a key or a call, not a file.
 const FILE = /\.(md|mdx|ts|tsx|mts|cts|js|jsx|mjs|cjs|json|ya?ml|toml|sh|py|css|html|txt|glb|svg|png|jpe?g|webp)$/;
 const SKIP_DIRS = new Set([".git", "node_modules", "dist", "test-results", "playwright-report"]);
@@ -72,7 +76,11 @@ export function checkFacts(root) {
   }
   const ciJobs = jobs(join(workflows, "ci.yml"));
 
-  for (const doc of DOCS) {
+  const splitDocs = existsSync(join(root, TESTING_DIR))
+    ? readdirSync(join(root, TESTING_DIR)).filter((f) => f.endsWith(".md")).sort().map((f) => `${TESTING_DIR}/${f}`)
+    : [];
+
+  for (const doc of [...DOCS, ...splitDocs]) {
     const path = join(root, doc);
     if (!existsSync(path)) continue;
     let sawCiHeading = false;
@@ -121,7 +129,7 @@ export function checkFacts(root) {
           if (!scripts?.has(name)) say(`${span}: no such script in package.json`);
         } else if (/^node\s+[^\s-]/.test(span)) {
           checkPath(span.split(/\s+/)[1]);
-        } else if (doc === TESTING && /^@[a-z][a-z0-9-]*$/.test(span)) {
+        } else if (isTestingDoc(doc) && /^@[a-z][a-z0-9-]*$/.test(span)) {
           const whole = new RegExp(`${span}(?![A-Za-z0-9_-])`);
           const used = tests.some((p) => whole.test(readFileSync(join(root, p), "utf8")));
           if (!used) say(`${span} tags no test`);
