@@ -147,7 +147,7 @@ describe("layoutPlane", () => {
   });
   it("throws when the entry isn't there, so a surface can't be filled without its place", () => {
     expect(() => layoutPlane("fan", props)).toThrow(/"fan"/);
-    expect(() => layoutPlane("fan", [])).toThrow(); // not `undefined`: that reads the real file, which has the fan since #379
+    expect(() => layoutPlane("fan", [])).toThrow(/"fan"/);
   });
 });
 
