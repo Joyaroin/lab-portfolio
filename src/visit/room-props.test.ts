@@ -55,13 +55,19 @@ function hudBoxes(win: Win): Box[] {
 const POSES = ["at rest", "pointer at the bottom left", "pointer at the top left", "pointer at the bottom right", "pointer at the top right"];
 const TOP_LEFT = 2;
 
-/** What is wrong with a prop at one window and pose: out of the window, behind the camera, or within `PIN_CLEAR` of a HUD box. A prop's box is the
- *  box round its four projected corners. */
-function problems(p: Prop, pose: Pose, win: Win, boxes: Box[]): { what: string; box?: string }[] {
+/** A prop's box in a window: the box round its four projected corners, in px; null if any corner is behind the camera. */
+function bbox(p: Prop, pose: Pose, win: Win): { left: number; right: number; top: number; bottom: number } | null {
   const q = corners(p).map((c) => project(pose, c, win));
-  if (q.some((x) => x === null)) return [{ what: "behind the camera" }];
+  if (q.some((x) => x === null)) return null;
   const xs = q.map((x) => x![0]), ys = q.map((x) => x![1]);
-  const left = Math.min(...xs), right = Math.max(...xs), top = Math.min(...ys), bottom = Math.max(...ys);
+  return { left: Math.min(...xs), right: Math.max(...xs), top: Math.min(...ys), bottom: Math.max(...ys) };
+}
+
+/** What is wrong with a prop at one window and pose: out of the window, behind the camera, or within `PIN_CLEAR` of a HUD box. */
+function problems(p: Prop, pose: Pose, win: Win, boxes: Box[]): { what: string; box?: string }[] {
+  const b0 = bbox(p, pose, win);
+  if (!b0) return [{ what: "behind the camera" }];
+  const { left, right, top, bottom } = b0;
   const out: { what: string; box?: string }[] = [];
   if (left < 0 || top < 0 || right > win.width || bottom > win.height) out.push({ what: `outside the window (${left.toFixed(0)}-${right.toFixed(0)} x ${top.toFixed(0)}-${bottom.toFixed(0)})` });
   for (const b of boxes)
@@ -90,14 +96,20 @@ function sweep(list: Prop[], skip = exempt): string[] {
   return found;
 }
 
-const NAMED = ["oscilloscope", "rack-lights", "iron-wisp", "fan", "radio", "desk-phone", "clock", "laptop", "whiteboard", "rack", "racket", "ball-tube"];
+const NAMED = ["oscilloscope", "rack-lights", "iron-wisp", "fan", "radio", "desk-phone", "clock", "laptop", "whiteboard", "rack", "desk-phone-target", "racket", "ball-tube"];
+/** The smallest a click target may be (spec #335, #386): CSS px each way. */
+const MIN_TARGET = 44;
 
 describe("the room's props", () => {
-  it("are the ones the ticket names, each once, in the three kinds", () => {
+  it("are the ones the ticket names, each once, in the four kinds", () => {
     expect(props.map((p) => p.id)).toEqual(NAMED);
     expect(props.filter((p) => p.kind === "surface").map((p) => p.id)).toEqual(NAMED.slice(0, 8));
     expect(props.filter((p) => p.kind === "board").map((p) => p.id)).toEqual(["whiteboard"]);
-    expect(props.filter((p) => p.kind === "target").map((p) => p.id)).toEqual(["rack", "racket", "ball-tube"]);
+    expect(props.filter((p) => p.kind === "target").map((p) => p.id)).toEqual(["rack", "desk-phone-target"]);
+    expect(props.filter((p) => p.kind === "prop").map((p) => p.id)).toEqual(["racket", "ball-tube"]);
+  });
+  it("have exactly two clicks, the rack and the whole desk phone (the display is a surface, the racket and the tube are framing only)", () => {
+    expect(props.filter((p) => p.kind === "target").map((p) => p.id).sort()).toEqual(["desk-phone-target", "rack"]);
   });
   it("each have a centre, a yaw and a size", () => {
     for (const p of props) {
@@ -115,6 +127,21 @@ describe("the room's props", () => {
   });
 });
 
+/** The sweep's windows with the poses of `reach` at each: where the click targets are measured. */
+function everyView(): { win: Win; pose: Pose; i: number }[] {
+  return ASPECTS.flatMap(([, ratio]) => WIDTHS.flatMap((width) => {
+    const win = { width, height: Math.round(width * ratio) };
+    return reach(overviewPose(win)).map((pose, i) => ({ win, pose, i }));
+  }));
+}
+/** The widths and heights (px) of a click target at every window and pose of the sweep that fall short of `MIN_TARGET` either way. */
+function tooSmall(list: Prop[]): string[] {
+  return everyView().flatMap(({ win, pose, i }) => list.filter((p) => p.kind === "target").flatMap((p) => {
+    const b = bbox(p, pose, win)!, w = b.right - b.left, h = b.bottom - b.top;
+    return w < MIN_TARGET || h < MIN_TARGET ? [`${p.id} at ${win.width} x ${win.height}, ${POSES[i]}: ${w.toFixed(0)} x ${h.toFixed(0)} px`] : [];
+  }));
+}
+
 describe("the overview's framing rule over the props", () => {
   it("sweeps 1280 to 2560 px in steps of 8 at both aspects, on the poses of the mouse parallax's reach", () => {
     expect(WIDTHS.length).toBe(161);
@@ -131,6 +158,29 @@ describe("the overview's framing rule over the props", () => {
     const widths = all.map((l) => Number(l.match(/at (\d+) x/)![1]));
     expect(Math.min(...widths)).toBe(1280);
     expect(Math.max(...widths)).toBeLessThanOrEqual(1303);
+  });
+  it("gives the desk phone's target the whole phone's size at rest, 119 x 71 px at 1280 x 720 (the base alone is design/335's 103 x 67), against the display's 29 x 23", () => {
+    const win = { width: 1280, height: 720 }, pose = reach(overviewPose(win))[0], get = (id: string) => bbox(props.find((p) => p.id === id)!, pose, win)!;
+    const t = get("desk-phone-target"), d = get("desk-phone");
+    expect([t.right - t.left, t.bottom - t.top].map(Math.round)).toEqual([119, 71]); // the base alone (0.20 x 0.22 m) is design/335's 103 x 67; the handset reaches past it
+    expect(t.right - t.left).toBeGreaterThanOrEqual(103);
+    expect(t.bottom - t.top).toBeGreaterThanOrEqual(67);
+    expect(d.right - d.left).toBeLessThan(MIN_TARGET);
+    expect(t.left).toBeLessThanOrEqual(d.left);
+    expect(t.right).toBeGreaterThanOrEqual(d.right);
+    expect(t.top).toBeLessThanOrEqual(d.top);
+    expect(t.bottom).toBeGreaterThanOrEqual(d.bottom);
+  });
+  it("keeps every click target at least 44 x 44 px at every width, aspect and pose of the sweep", () => {
+    expect(tooSmall(props)).toEqual([]);
+  });
+  it("notices a desk phone target shrunk back to the display's size (the break check for the 44 px rule)", () => {
+    const display = props.find((p) => p.id === "desk-phone")!;
+    const shrunk = props.map((p) => p.id === "desk-phone-target" ? { ...p, size: display.size, tilt: display.tilt } : p);
+    const found = tooSmall(shrunk);
+    expect(found.length).toBeGreaterThan(0);
+    expect(found.every((l) => l.startsWith("desk-phone-target "))).toBe(true);
+    expect(found.some((l) => l.startsWith("desk-phone-target at 1280 x 720, at rest"))).toBe(true);
   });
   it("notices a whiteboard moved back under the name block (the break check)", () => {
     const moved = props.map((p) => p.id === "whiteboard" ? { ...p, centre: [0.68, 1.55, p.centre[2]] as V3 } : p);
