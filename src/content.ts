@@ -156,6 +156,20 @@ export const ui = {
     trafficCaption: "internet → home lab",
     wordReliable: "RELIABLE", wordMaintainable: "MAINTAINABLE", wordSecure: "SECURE",
     puzzleDecoding: "[ decoding… ]", puzzleSolved: "[ solved ]",
+    // #384: the laptop's lab notes (approved by Adham, 2026-11-17: #335, "The lab notes"), typed in this order. Written once from core-infra's
+    // commit history; nothing reads core-infra at build time. Texture at the overview: a few pixels tall, true but not meant to be read.
+    laptopCommand: "$ cat lab-notes.txt",
+    labNote01: "13 Nov · 01 · First VM built from Terraform, then thrown away.",
+    labNote02: "14 Nov · 02 · Backup jobs now live in code.",
+    labNote03: "14 Nov · 03 · hermit, the k3s node, brought under Terraform.",
+    labNote04: "14 Nov · 04 · Git server brought under Terraform.",
+    labNote05: "14 Nov · 05 · echoes, the CI runner, rebuilt from code.",
+    labNote06: "14 Nov · 06 · New Pi-hole built from code. Cut over the same day.",
+    labNote07: "14 Nov · 07 · Rebuild order written down, manual steps included.",
+    labNote08: "14 Nov · 08 · Tailnet access rules moved into Terraform.",
+    labNote09: "14 Nov · 09 · Weekly drift check added.",
+    labNote10: "14 Nov · 10 · Terraform state moved to Cloudflare R2.",
+    labNote11: "16 Nov · 11 · echoes moved to jotaro, the second host.",
   } as Record<string, string>,
   /** #387: what the line under the meter says while the pointer rests on a click target in the room, by its id in src/room-layout.json: where the click goes. */
   propHover: { rack: "Home lab", "desk-phone-target": "Contact" } as Record<string, string>,

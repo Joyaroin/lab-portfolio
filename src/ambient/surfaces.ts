@@ -7,6 +7,7 @@ import { drawFan, FAN_FRONT_M, FAN_H, FAN_W } from "./fan";
 import { inFront } from "./front";
 import { drawGitlog } from "./gitlog";
 import { drawIronWisp, WISP_H, WISP_W } from "./iron-wisp";
+import { drawLaptop, LAPTOP_H, LAPTOP_W } from "./laptop";
 import { drawOscilloscope, SCOPE_H, SCOPE_W } from "./oscilloscope";
 import { drawPuzzle } from "./puzzle";
 import { drawRackLights, RACK_H, RACK_W } from "./rack-lights";
@@ -79,8 +80,15 @@ export const PHONE_NUDGE_M = 0.002;
  *  and 1.8615), so the hands, 5.5 mm in front (x 1.8585), are 3 mm in front of the nearest tick and nothing cuts through them. */
 export const CLOCK_HANDS_M = 0.0055;
 
-/** A surface on a baked prop: its plane is its entry in room-layout.json (by id), its canvas is `size`. */
-const layoutSurface = (id: string, size: Size, draw: Drawing): Surface => ({ id, size, plane: layoutPlane(id), draw });
+/** `p` moved `metres` along its own normal (toward the camera, for a plane that faces it). */
+export const lifted = (p: Plane, metres: number): Plane => {
+  const n = [Math.sin(p.yaw) * Math.cos(p.tilt), Math.sin(p.tilt), Math.cos(p.yaw) * Math.cos(p.tilt)];
+  return { ...p, position: [p.position[0] + n[0] * metres, p.position[1] + n[1] * metres, p.position[2] + n[2] * metres] };
+};
+
+/** A surface on a baked prop: its plane is its entry in room-layout.json (by id), its canvas is `size`. `lift` (metres) stands it in front of
+ *  the baked face it covers, for a face the entry is coplanar with, so the two don't z-fight (#384: the laptop's screen). */
+const layoutSurface = (id: string, size: Size, draw: Drawing, lift = 0): Surface => ({ id, size, plane: lifted(layoutPlane(id), lift), draw });
 
 /** The glass over an ambient screen: scanlines and darker curved corners, as the station glass has. */
 function drawGlass(g: Ctx) {
@@ -120,7 +128,7 @@ export const ambientSurfaces = (commits: SavedCommit[]): Entry[] => [
   { id: "radio", size: { w: RADIO_W, h: RADIO_H }, plane: inFront(layoutPlane("radio"), RADIO_FRONT_M), draw: drawRadio }, // #382
   { id: "desk-phone", size: { w: PHONE_W, h: PHONE_H }, plane: inFront(layoutPlane("desk-phone"), PHONE_NUDGE_M), draw: createDeskPhone() }, // #383
   { id: "clock", size: { w: CLOCK_W, h: CLOCK_H }, plane: inFront(layoutPlane("clock"), CLOCK_HANDS_M), draw: createClock() }, // #383
-  placeholder("laptop"), // #384
+  layoutSurface("laptop", { w: LAPTOP_W, h: LAPTOP_H }, drawLaptop, 0.002), // #384: 2 mm in front of the baked screen
 ];
 
 /** Pixels a tick paints: the filled surfaces' canvases and the placeholders' reserved ones. */

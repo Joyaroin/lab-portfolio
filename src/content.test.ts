@@ -654,7 +654,9 @@ describe("interface words", () => {
       return validateContent(c).join("\n");
     };
     it("are the approved words", () => {
-      expect(ambient).toEqual({
+      // The laptop's lab notes (#384) are pinned, word for word, by src/ambient/laptop.test.ts.
+      const screens = Object.fromEntries(Object.entries(ambient).filter(([k]) => k !== "laptopCommand" && !k.startsWith("labNote")));
+      expect(screens).toEqual({
         gitlogCommand: "$ git log --oneline",
         tunnel: "Tunnel", proxmox: "Proxmox", k3s: "k3s",
         trafficCaption: "internet → home lab",
