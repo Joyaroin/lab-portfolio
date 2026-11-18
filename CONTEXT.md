@@ -134,6 +134,11 @@ The language of this project: its terms, what each one means, and what it doesn'
 - **Meter**: the nixie tube display at the centre of the site. It is our own design, and it is both
   navigation and a live readout.
 - **Reading**: the number the meter shows. Each station has a fixed reading; the overview shows the gap, with its sentence in the long form ("MediaSafe: 9 staging deploys since the last prod release") or, on a short landscape window, the short form (see Meter bar).
+- **Last watched line**: the line "Last watched: {title}" inside Off the keyboard's watching bullet (#336, ADR 0008): the title Adham last watched
+  in MediaSafe, read live from a MediaSafe share link by the visitor's browser (`readLastWatched` in `src/last-watched.ts`: a 200 as `text/plain`
+  whose trimmed body is 1 to `LAST_WATCHED_MAX` (80) Unicode code points with no control character; anything else, a failed call or no answer in 5 s
+  is "show nothing"). It is hidden, never saved, when the read fails. Not a **reading** (the number the meter shows) and not a station's "line"
+  (the line under its heading). It is the one text that may look like live data on a TV (ADR 0007).
 - **Desk meter**: the meter as built in the room: seven nixie tubes on the desk, drawn live. Clicking it means
   next. It is a display in the room only: the meter bar's digits do not depend on whether it is in frame. Its digits
   and scramble come from `meterDigits` in `src/bar.ts`, the one function the bar reads too, so through a hover preview

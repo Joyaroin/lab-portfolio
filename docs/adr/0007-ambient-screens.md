@@ -7,7 +7,8 @@ They are decoration, with no click and no hover.
 - **They aren't content.** ADR-0001 says text on the screens is real HTML. These screens carry no text a visitor
   needs: the words on them (`ui.ambient`) and the commit lines are texture, and the site's content is the same without
   them. So ADR-0001's real-HTML rule does not cover them, and they have no HTML twin. The live-status word rule
-  still applies to their words, because nothing on a TV may look like live data.
+  still applies to their words, because nothing on a TV may look like live data. (The one exception is the Last watched
+  line, a live title in page text: ADR-0008.)
 - **They redraw only at the landscape overview.** The room is drawn on demand, and a room at rest draws no frames.
   The screens move, so something must ask for frames. A timer redraws their textures and asks for a frame about every
   83 ms (about 12 a second), only while the visitor is at the overview, in the landscape framing, with no flight running
