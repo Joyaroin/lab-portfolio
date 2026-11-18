@@ -15,6 +15,7 @@ const task = (workflow, run, name, at, status = "running", id = nextId++) => ({
 });
 const ci = (run, name, at, status, id) => task("ci.yml", run, name, at, status, id);
 const rel = (run, name, at, status, id) => task("release.yml", run, name, at, status, id);
+const img = (run, name, at, status, id) => task("ci-image.yml", run, name, at, status, id);
 
 // The job asking: it is one of the tasks, and says which with its workflow, run number and job name.
 const me = (t) => ({ workflow: t.workflow_id, runNumber: t.run_number, job: t.name });
@@ -242,6 +243,15 @@ describe("the command, against a fake Forgejo", () => {
     expect(error.message).toMatch(/could not read the task list.*HTTP 403/);
     expect(urls).toHaveLength(3);
   });
+  it("a ci-image job finds itself, and waits for a release job that started before it", async () => {
+    const r = await run("ci-image", { RUN_NUMBER: "705", JOB: "gate" }, [img(705, "gate", 0), ci(704, "backend", -3)]);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toMatch(/CI job.*did not wait/);
+    const blocked = decide({ tasks: [img(705, "gate", 0), rel(701, "browser", -5)], run: { workflow: "ci-image.yml", runNumber: 705, job: "gate" } });
+    expect(blocked.wait).toBe(true);
+    const release = decide({ tasks: [img(705, "image", -5), rel(706, "gate", 0)], run: { workflow: "release.yml", runNumber: 706, job: "gate" } });
+    expect(release.wait).toBe(true);
+  });
   it("fails on an unknown mode", async () => {
     const r = await run("both", { RUN_NUMBER: "1", JOB: "x" }, []);
     expect(r.code).toBe(1);
@@ -252,16 +262,17 @@ describe("the command, against a fake Forgejo", () => {
 const jobIn = (yml, name) => yml.slice(yml.indexOf(`\n  ${name}:\n`) + 1).split(/\n  (?=[a-z-]+:\n)/)[0];
 const jobNames = (yml) => [...yml.slice(yml.indexOf("\njobs:\n")).matchAll(/^  ([a-z-]+):\n/gm)].map((m) => m[1]);
 const stepsIn = (yml, name) => jobIn(yml, name).split(/\n      - /).slice(1);
-// The release's image job runs in the kaniko debug container: no node, no checkout, so no scripts. The gate job runs the gate for it, and it needs that job.
-const UNGATED = ["release.yml image"];
-const GATED = { "ci.yml": "ci", "release.yml": "release" };
+// The image jobs (the release's and ci-image.yml's) run in the kaniko debug container: no node, no checkout, so no scripts. The gate job runs the gate for them, and they need that job.
+const UNGATED = ["release.yml image", "ci-image.yml image"];
+const GATED = { "ci.yml": "ci", "release.yml": "release", "ci-image.yml": "ci-image" };
+const LAST_JOB = { "ci.yml": "secret-scan", "release.yml": "browser-light", "ci-image.yml": "image" };
 
 describe.each(Object.entries(GATED))("%s has the gate in every job", (file, mode) => {
   const yml = readFileSync(new URL(`../.forgejo/workflows/${file}`, import.meta.url), "utf8");
   const jobs = jobNames(yml).filter((j) => !UNGATED.includes(`${file} ${j}`));
   it("finds the jobs", () => {
     expect(jobs.length).toBeGreaterThan(0);
-    expect(jobNames(yml)).toContain(file === "ci.yml" ? "secret-scan" : "browser-light");
+    expect(jobNames(yml)).toContain(LAST_JOB[file]);
   });
   it.each(jobs)("%s: the gate step runs the script in the workflow's mode, with the job's token, run number and job name", (name) => {
     const gateSteps = stepsIn(yml, name).filter((s) => s.includes("node scripts/runner-gate.mjs"));

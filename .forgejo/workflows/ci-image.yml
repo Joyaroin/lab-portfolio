@@ -4,7 +4,7 @@
 # release.yml's two container tags at the new one. Use a new tag rather than pushing the same one again: the runner keeps
 # the copy it already pulled and doesn't look for a newer one.
 # The kaniko job can't run the runner gate (no node, no checkout), so the gate job runs it first, as in release.yml. It gates
-# as a CI job: it waits for a release that started before it, and a release started after it waits for the build.
+# like a CI job (mode ci-image): it waits for a release that started before it, and a release started after it waits for the build.
 name: ci-image
 on:
   workflow_dispatch:
@@ -22,7 +22,7 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           RUN_NUMBER: ${{ github.run_number }}
           JOB: gate
-        run: node scripts/runner-gate.mjs ci
+        run: node scripts/runner-gate.mjs ci-image
   image:
     needs: gate
     runs-on: docker
