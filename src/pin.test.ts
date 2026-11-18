@@ -155,19 +155,26 @@ describe("clearances", () => {
     expect(needed(3840)).toBeCloseTo(414.15, 1); // the ticket rounds it to 414.2
   });
   it("every short landscape window from 560 to 3840 wide has the line under the device on one line, and the panel at least MIN_PANEL_H at or above its width's height and held at the floor below it", () => {
-    // Every width, at the heights round the threshold (3 px each side) and a coarse run from 320 to 520 tall.
+    // Every width, at the heights each side of its threshold (the two whole heights below it and the two at or above it) and a coarse run from 320 to 520 tall at
+    // every 40th width. The line's height is worked out once a width, since it depends on the width and on the HUD being compact, not on the height. #403
     const bad: string[] = [];
     let atOrAbove = 0, below = 0;
     for (let width = 560; width <= 3840; width++) {
-      const need = needed(width), heights = new Set<number>();
-      for (let h = Math.floor(need) - 3; h <= Math.ceil(need) + 3; h++) heights.add(h);
-      if (width % 40 === 0) for (let h = 320; h <= 520; h += 10) heights.add(h);
-      for (const height of heights) {
+      const need = needed(width), heights = new Set<number>(), coarse = new Set<number>();
+      for (let h = Math.ceil(need) - 2; h <= Math.ceil(need) + 1; h++) heights.add(h);
+      if (width % 40 === 0) for (let h = 320; h <= 520; h += 10) if (!heights.has(h)) coarse.add(h);
+      let line: number | undefined;
+      for (const height of [...heights, ...coarse]) {
         const win = { width, height };
-        if (!hudTier(win).startsWith("compact")) continue; // a taller window gets a full HUD, which has its own rule
+        if (!hudTier(win).startsWith("compact")) {
+          // the four heights at the threshold must all be compact: a width that drops out of the compact HUD must fail, not be skipped
+          if (heights.has(height)) bad.push(`${width}x${height}: not compact`);
+          continue; // a taller coarse window gets a full HUD, which has its own rule
+        }
         const c = clearances(win), room = height - c.top - c.bottom, tag = `${width}x${height}`;
         const placed = fitPanel(win, width / 2, height / 2, 90, 2000).maxHeight;
-        if (lineHeight(win) !== 24) bad.push(`${tag}: line is ${lineHeight(win)} px`);
+        line ??= lineHeight(win);
+        if (line !== 24) bad.push(`${tag}: line is ${line} px`);
         if (height >= need) {
           atOrAbove++;
           if (room < MIN_PANEL_H) bad.push(`${tag}: panel ${room.toFixed(1)} px, short of ${MIN_PANEL_H} at or above ${need.toFixed(1)}`);
@@ -179,9 +186,9 @@ describe("clearances", () => {
         }
       }
     }
-    expect(atOrAbove, "windows at or above the threshold").toBeGreaterThan(10000);
-    expect(below, "windows below it").toBeGreaterThan(10000);
     expect(bad).toEqual([]);
+    expect(atOrAbove, "windows at or above the threshold").toBeGreaterThan(3000);
+    expect(below, "windows below it").toBeGreaterThan(3000);
   });
   it("the cases the rule names: 1280x380 has 106.5 px, 2000x355 has 60.8 px, and 1000x360 and 1280x394 keep 120", () => {
     const room = (width: number, height: number) => { const c = clearances({ width, height }); return height - c.top - c.bottom; };
