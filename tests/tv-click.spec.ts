@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { PerspectiveCamera, Vector3 } from "three";
-import { crts, spares } from "../src/crts";
+import { crts, DESK_METER, spares } from "../src/crts";
 import { boxAround, glassBox } from "../src/glass";
 import { BEZEL } from "../src/draw";
 import { framingFor } from "../src/framing";
@@ -23,6 +23,16 @@ function glassAt(i: number, stop: number, size: { width: number; height: number 
   const x = b.left + b.width / 2, y = b.top + b.height / 2;
   const m = 30;
   return { x, y, inFrame: x > m && x < size.width - m && y > m && y < size.height - m };
+}
+
+/** Where the desk meter's middle tube is in the window as the camera sees it at the overview, projected the way glassAt projects a TV. */
+function deskMeterAt(size: { width: number; height: number }) {
+  const s = framingFor(size).cameraAt({ kind: "at", stop: 0 });
+  const cam = new PerspectiveCamera(s.fov, size.width / size.height, 0.01, 50);
+  cam.position.set(...s.camera); cam.lookAt(new Vector3(...s.look)); cam.updateMatrixWorld();
+  const [px, py, pz] = DESK_METER.position, c = Math.cos(DESK_METER.yaw), sn = Math.sin(DESK_METER.yaw), x = DESK_METER.tubeX(3), z = 0.03;
+  const p = new Vector3(px + x * c + z * sn, py + DESK_METER.tubeY, pz - x * sn + z * c).project(cam);
+  return { x: (p.x * 0.5 + 0.5) * size.width, y: (-p.y * 0.5 + 0.5) * size.height };
 }
 
 /** TV `i`'s whole bezel as a box in the window, as the camera sees it at `stop`; null when it is behind the camera. */
@@ -108,6 +118,23 @@ test.describe("desktop window", () => {
     // At the station nothing is hot: no cursor, no hover target.
     await expect.poll(() => hover(page)).toBeNull();
     await expect.poll(() => cursor(page)).toBe("");
+  });
+
+  // Under reduced motion, since the camera's parallax follows the pointer and the meter is small and near the window's
+  // edge: a few centimetres of parallax move it off a point projected from the camera at rest, and the click missed on 4 of 12 runs.
+  test("clicking the desk meter on the overview goes next: it lands on Work's first page", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await openTour(page);
+    await landedAt(page, 0);
+    await waitForCamera(page);
+    const m = deskMeterAt(page.viewportSize()!);
+    expect(await topAt(page, m.x, m.y), "the desk meter is the canvas there, under no HUD box").toBe("canvas");
+    await page.mouse.move(m.x, m.y);
+    await expect.poll(() => cursor(page), "the meter is hot").toBe("pointer");
+    await page.mouse.click(m.x, m.y);
+    await landedAt(page, 1);
+    await expect.poll(() => new URL(page.url()).hash).toBe("#work");
+    await expect(page.locator(`[data-screen="${stationIds[0]}"]`)).toBeVisible();
   });
 
   test("at a station, clicking where another TV is goes back to the overview", async ({ page }) => {

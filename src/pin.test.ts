@@ -136,24 +136,63 @@ describe("clearances", () => {
     expect(stopLines).toContain("Monitor 3 of 3 · About me · Off the keyboard");
     expect(Math.max(...stopLines.map((t) => t.length))).toBe("Monitor 3 of 3 · About me · Off the keyboard".length);
   });
-  it("every short landscape window has the line under the device on one line and the panel at least MIN_PANEL_H, down to the height the compact HUD can give", () => {
-    // 560 to 960 wide, 320 to 480 tall. The compact HUD's top (76 px two lines from COMPACT_MIN_W, 107 px three) plus the panel's floor
-    // plus the device (118.8 px under 966 wide), 16 px and one line (24 px) need 355 px and 386 px; shorter than that no HUD can leave
-    // the floor, and the panel is held at it (`fitPanel`).
+  // The height a short landscape window needs to keep MIN_PANEL_H, from the boxes, written out and not read from `hudTier`: the compact HUD's top (76 px
+  // two lines, 107 px three), the floor, 16 px and one line (24 px) are 236 px (267 px under COMPACT_MIN_W), plus the meter device's height, which
+  // is the only part that grows with width: 0.29 x width wide, 280 to 420 px, in a 660 x 280 shape. #390
+  const needed = (width: number) => {
+    const deviceW = Math.min(Math.max(280, 0.29 * width), 420);
+    return (width >= COMPACT_MIN_W ? 236 : 267) + (deviceW * 280) / 660;
+  };
+  it("the height a short landscape window needs for MIN_PANEL_H is 385.8 px under 655 wide, 354.8 from 655 to 965, 236 + 0.123 x width from 966 to 1447 and 414.2 from 1448", () => {
+    expect(needed(654)).toBeCloseTo(385.8, 1);
+    expect(needed(655)).toBeCloseTo(354.8, 1);
+    expect(needed(965)).toBeCloseTo(354.8, 1);
+    expect(needed(966)).toBeCloseTo(236 + 0.123 * 966, 0);
+    expect(needed(1000)).toBeCloseTo(359.03, 1);
+    expect(needed(1280)).toBeCloseTo(393.5, 1);
+    expect(needed(1447)).toBeCloseTo(236 + 0.123 * 1447, 0);
+    expect(needed(1448)).toBeCloseTo(414.15, 1);
+    expect(needed(3840)).toBeCloseTo(414.15, 1); // the ticket rounds it to 414.2
+  });
+  it("every short landscape window from 560 to 3840 wide has the line under the device on one line, and the panel at least MIN_PANEL_H at or above its width's height and held at the floor below it", () => {
+    // Every width, at the heights round the threshold (3 px each side) and a coarse run from 320 to 520 tall.
     const bad: string[] = [];
-    let compactWindows = 0;
-    for (let width = 560; width <= 960; width += 20) {
-      for (let height = 320; height <= 480; height += 10) {
+    let atOrAbove = 0, below = 0;
+    for (let width = 560; width <= 3840; width++) {
+      const need = needed(width), heights = new Set<number>();
+      for (let h = Math.floor(need) - 3; h <= Math.ceil(need) + 3; h++) heights.add(h);
+      if (width % 40 === 0) for (let h = 320; h <= 520; h += 10) heights.add(h);
+      for (const height of heights) {
         const win = { width, height };
-        if (!hudTier(win).startsWith("compact")) continue;
-        compactWindows++;
-        const c = clearances(win), room = height - c.top - c.bottom;
-        if (lineHeight(win) !== 24) bad.push(`${width}x${height}: line is ${lineHeight(win)} px`);
-        if (height >= (width >= COMPACT_MIN_W ? 355 : 386) && room < MIN_PANEL_H) bad.push(`${width}x${height}: panel ${room.toFixed(1)} px`);
+        if (!hudTier(win).startsWith("compact")) continue; // a taller window gets a full HUD, which has its own rule
+        const c = clearances(win), room = height - c.top - c.bottom, tag = `${width}x${height}`;
+        const placed = fitPanel(win, width / 2, height / 2, 90, 2000).maxHeight;
+        if (lineHeight(win) !== 24) bad.push(`${tag}: line is ${lineHeight(win)} px`);
+        if (height >= need) {
+          atOrAbove++;
+          if (room < MIN_PANEL_H) bad.push(`${tag}: panel ${room.toFixed(1)} px, short of ${MIN_PANEL_H} at or above ${need.toFixed(1)}`);
+          if (placed < MIN_PANEL_H) bad.push(`${tag}: placed panel ${placed.toFixed(1)} px`);
+        } else {
+          below++;
+          if (room >= MIN_PANEL_H) bad.push(`${tag}: panel has ${room.toFixed(1)} px below ${need.toFixed(1)}`);
+          if (placed !== MIN_PANEL_H) bad.push(`${tag}: placed panel ${placed.toFixed(1)} px, not held at the floor`);
+        }
       }
     }
-    expect(compactWindows, "the grid holds compact windows").toBeGreaterThan(100);
+    expect(atOrAbove, "windows at or above the threshold").toBeGreaterThan(10000);
+    expect(below, "windows below it").toBeGreaterThan(10000);
     expect(bad).toEqual([]);
+  });
+  it("the cases the rule names: 1280x380 has 106.5 px, 2000x355 has 60.8 px, and 1000x360 and 1280x394 keep 120", () => {
+    const room = (width: number, height: number) => { const c = clearances({ width, height }); return height - c.top - c.bottom; };
+    expect(hudTier({ width: 1280, height: 380 })).toBe("compactTwo");
+    expect(room(1280, 380)).toBeCloseTo(106.5, 1);
+    expect(room(2000, 355)).toBeCloseTo(60.8, 1);
+    expect(room(2000, 400)).toBeCloseTo(105.8, 1);
+    expect(room(1000, 360)).toBeGreaterThanOrEqual(MIN_PANEL_H); // 359.03 needed: the ticket's 359 is rounded down
+    expect(room(1000, 359)).toBeLessThan(MIN_PANEL_H);
+    expect(room(1280, 394)).toBeGreaterThanOrEqual(MIN_PANEL_H);
+    expect(room(1280, 393)).toBeLessThan(MIN_PANEL_H);
   });
   it("and 1 px at a time across 560 to 700 wide, where the line used to wrap, and 355 to 480 tall", () => {
     let dips = 0, checked = 0;

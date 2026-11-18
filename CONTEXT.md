@@ -197,8 +197,9 @@ The language of this project: its terms, what each one means, and what it doesn'
   short when its width's tier would leave the panel under `MIN_PANEL_H` (120 px): `height < tier top + 120 + bottom clearance` (the bottom as the full HUD has it)
   (`hudTier(win)` in `src/pin.ts`, a pure rule of the window): about 461 px under 616 wide (three lines, and the full HUD's saved gap sentence, 82 characters, wraps to two lines), 425 at 616 to 746, 407 at 747 to 967, about 419 at
   1059 (two lines), then 383 at 1060 (the one-row HUD) and about 410 at 1279. The compact tops are 76 px (two lines) and 107 px (three), from `COMPACT_LINE_H` and `COMPACT_GAP`; with them the glass and
-  the panel stay above the device down to about 355 px tall (two lines) and 386 px (three), under which `MIN_PANEL_H` holds them
-  at 120 px and they reach the meter. On a portrait window the
+  the panel keep `MIN_PANEL_H` on a short landscape window at least 236 px (267 px under 655 wide) plus the meter device's height tall, the device being the one part that grows with
+  width (`deviceSize`: 0.29 x width wide, 280 to 420 px, so 118.8 to 178.2 px tall): 385.8 px under 655 wide, 354.8 px from 655 to 965, 236 + 0.123 x width from 966 to 1447 (359 at 1000, 393.5 at 1280) and 414.2 px from 1448 up.
+  Shorter than that no HUD leaves the room and the panel is held at 120 px and reaches the meter (1280x380 has 106.5 px, 2000x400 105.8 px). On a portrait window the
   name block spans the top with the name, title and outside links (no availability line, Résumé a button), and Overview and the stations are the
   **phone bar**, one row of four buttons along the bottom, each at least 44 px tall (`PHONE_ROWS` is 1, so the bar is 56.8 px); the text panel stays above the meter bar, which rises above the bar,
   and has the room the second row gave up. All HUD text is at least 14 px.
@@ -215,7 +216,7 @@ The language of this project: its terms, what each one means, and what it doesn'
   at least as wide as tall): each station's own square stop, worked out from the window; the text is laid
   over the glass; no mouse parallax at a station. **Portrait** (taller than wide): the pull-back, or the phone
   stop where a station has one; the text pinned beside the CRT; full parallax. Chosen from the current
-  window each time, so rotating or resizing switches it. In code: `framingFor(window)` in `src/framing`. On a short landscape window the text panel and glass keep at least `MIN_PANEL_H` between the HUD and the meter bar, which the compact HUD tiers and the one-line (short) text under the device make room for, at every width from 560 px up, with no exception (`src/pin.test.ts` sweeps the short landscape windows). Under 355 px tall (386 px under 655 px wide) no HUD leaves that room and the panel is held at the floor.
+  window each time, so rotating or resizing switches it. In code: `framingFor(window)` in `src/framing`. On a short landscape window the text panel and glass keep at least `MIN_PANEL_H` between the HUD and the meter bar, when the window is at least 236 px (267 px under 655 px wide) plus the meter device's height tall: 385.8 px under 655 px wide, 354.8 px from 655 to 965, 236 + 0.123 x width from 966 to 1447 and 414.2 px from 1448 up. The compact HUD tiers and the one-line (short) text under the device are all the room that can be made, so below that height the panel is held at the floor. `src/pin.test.ts` sweeps the short landscape windows from 560 to 3840 px wide against that formula.
 - **Where**: where the visitor is, as a value: at a stop (0 is the overview, 1..n a station), or flying from one stop
   to another with `f`, the share of the flight done. `visit.where(now)` gives it; the framing and the text's
   strength take it.
