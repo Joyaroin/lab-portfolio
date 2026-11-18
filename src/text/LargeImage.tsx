@@ -28,6 +28,9 @@ function LargeDialog({ panel, shot }: { panel: HTMLElement; shot: Shot }) {
   const stageRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
+  // The effect depends on the file's numbers, not on `shot`: the panel passes a new object on every render, and a re-render
+  // while the dialog is open must not reset its top or pull focus back to Close (a screen reader user would lose their place).
+  const { width, height } = shot;
   useLayoutEffect(() => {
     const dialog = dialogRef.current, stage = stageRef.current;
     if (!dialog || !stage) return;
@@ -37,7 +40,7 @@ function LargeDialog({ panel, shot }: { panel: HTMLElement; shot: Shot }) {
     dialog.style.top = `${panel.scrollTop}px`;
     const fit = () => {
       dialog.style.height = `${panel.clientHeight}px`;
-      setSize(fitWithin({ width: stage.clientWidth, height: stage.clientHeight }, shot));
+      setSize(fitWithin({ width: stage.clientWidth, height: stage.clientHeight }, { width, height }));
     };
     fit();
     const ro = new ResizeObserver(fit);
@@ -45,7 +48,7 @@ function LargeDialog({ panel, shot }: { panel: HTMLElement; shot: Shot }) {
     ro.observe(stage);
     closeRef.current?.focus({ preventScroll: true });
     return () => { ro.disconnect(); panel.removeAttribute("data-larger"); };
-  }, [panel, shot]);
+  }, [panel, width, height]);
   return (
     <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={shot.alt} className="crt-large" tabIndex={-1}
       // Close is the only thing in the dialog to focus, so Tab stays on it. tabIndex -1 makes a click on the dialog's empty glass land

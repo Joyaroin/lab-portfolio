@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { stations } from "./content";
+import { IMAGE_FILES } from "./text/image-files";
 
 // `make photo` prepares the page images in src/assets/. A source carries the camera model and the date taken, so
 // each committed file must have no EXIF or XMP (APP1), IPTC (APP13) or comment (COM) segment.
@@ -13,27 +14,42 @@ const IMAGES = [
   { file: "golf-day.jpg", maxPx: 1000, capKB: 120 }, // the Off the keyboard page's golf day photo (#342)
 ];
 
-/** The marker and payload of each segment before the scan data. */
-const jpegSegments = (b: Uint8Array) => {
+/** The marker and payload of each segment outside the scan data, and where the image ends: `end` is the index just after the
+ *  EOI marker, or -1 if the file has none. Anything from `end` on is bytes the picture doesn't draw. */
+const jpegStructure = (b: Uint8Array) => {
   expect(b[0]).toBe(0xff);
   expect(b[1]).toBe(0xd8); // SOI
-  const out: { marker: number; data: Uint8Array }[] = [];
+  const segments: { marker: number; data: Uint8Array }[] = [];
   let i = 2;
-  while (i + 4 <= b.length) {
-    expect(b[i]).toBe(0xff);
+  while (i + 2 <= b.length) {
+    if (b[i] !== 0xff) { // the scan data's bytes: skip to the next marker
+      i++;
+      continue;
+    }
     const marker = b[i + 1];
-    if (marker === 0xda) break; // SOS: the image data follows
+    if (marker === 0xff) { i++; continue; } // fill byte
+    if (marker === 0x00 || (marker >= 0xd0 && marker <= 0xd7)) { i += 2; continue; } // a stuffed 0xFF, or a restart marker: still scan data
+    if (marker === 0xd9) return { segments, end: i + 2 }; // EOI
     const len = (b[i + 2] << 8) | b[i + 3];
-    out.push({ marker, data: b.subarray(i + 4, i + 2 + len) });
+    if (marker !== 0xda) segments.push({ marker, data: b.subarray(i + 4, i + 2 + len) }); // SOS's header isn't one to check
     i += 2 + len;
   }
-  return out;
+  return { segments, end: -1 };
+};
+
+/** A JPEG's own width and height, from its frame header. */
+const frameSize = (bytes: Uint8Array) => {
+  const sof = jpegStructure(bytes).segments.find((s) => s.marker === 0xc0 || s.marker === 0xc2);
+  expect(sof, "has a frame header").toBeDefined();
+  return { width: (sof!.data[3] << 8) | sof!.data[4], height: (sof!.data[1] << 8) | sof!.data[2] };
 };
 
 /** What is wrong with a JPEG's bytes, as a list of sentences: empty when it is fine. */
 const problems = (bytes: Uint8Array, maxPx: number, capKB: number): string[] => {
-  const segments = jpegSegments(bytes);
+  const { segments, end } = jpegStructure(bytes);
   const out: string[] = [];
+  if (end === -1) out.push("has no end of image marker");
+  else if (end < bytes.length) out.push(`has ${bytes.length - end} bytes after the end of the image`);
   const names: Record<number, string> = { 0xe1: "an APP1 (EXIF or XMP)", 0xed: "an APP13 (IPTC)", 0xfe: "a COM (comment)" };
   for (const s of segments) if (names[s.marker]) out.push(`has ${names[s.marker]} segment`);
   for (const s of segments.filter((s) => s.marker >= 0xe0 && s.marker <= 0xef)) {
@@ -58,8 +74,8 @@ describe("the page images", () => {
 });
 
 // #341: a page that names an image must have its row above, or the file's caps and metadata would go unchecked.
+const named = stations.flatMap((s) => s.pages.flatMap((p) => (p.image ? [p.image.file] : [])));
 describe("the images the content names", () => {
-  const named = stations.flatMap((s) => s.pages.flatMap((p) => (p.image ? [p.image.file] : [])));
   it("are some (the portrait, the MediaSafe screenshot and the golf day photo)", () => {
     expect(named).toEqual(expect.arrayContaining(["adham.jpg", "mediasafe-library.jpg", "golf-day.jpg"]));
   });
@@ -68,15 +84,30 @@ describe("the images the content names", () => {
   });
 });
 
+// #388: the panel draws each image from IMAGE_FILES (src/text/image-files.ts). A page whose image has no entry there draws none, silently,
+// and an entry's width and height set the <img>'s box before it loads, so they must be the file's own.
+describe("IMAGE_FILES", () => {
+  it.each(named)("has an entry for %s", (file) => {
+    expect(Object.keys(IMAGE_FILES)).toContain(file);
+  });
+  it.each(Object.entries(IMAGE_FILES))("%s's width and height are the file's own", (file, { width, height }) => {
+    expect({ width, height }).toEqual(frameSize(readFileSync(`src/assets/${file}`)));
+  });
+  it("has no entry for an image no page names", () => {
+    expect(Object.keys(IMAGE_FILES).sort()).toEqual([...new Set(named)].sort());
+  });
+});
+
 describe("the checks are not blind", () => {
-  /** A small JPEG's header bytes: SOI, the given segments, a frame header and SOS, padded to `size` bytes. */
-  const jpeg = (opts: { extra?: number[][]; components?: number; w?: number; h?: number; size?: number }) => {
+  /** A small JPEG's header bytes: SOI, the given segments, a frame header and SOS, zero scan data to `size` bytes, then EOI and any `after` bytes. */
+  const jpeg = (opts: { extra?: number[][]; components?: number; w?: number; h?: number; size?: number; after?: number[]; eoi?: boolean }) => {
     const seg = (marker: number, payload: number[]) => [0xff, marker, (payload.length + 2) >> 8, (payload.length + 2) & 255, ...payload];
     const jfif = seg(0xe0, [0x4a, 0x46, 0x49, 0x46, 0]);
     const { w = 100, h = 100, components = 1 } = opts;
     const sof = seg(0xc0, [8, h >> 8, h & 255, w >> 8, w & 255, components]);
-    const head = [0xff, 0xd8, ...jfif, ...(opts.extra ?? []).flat(), ...sof, 0xff, 0xda];
-    return Uint8Array.from([...head, ...new Array(Math.max(0, (opts.size ?? 0) - head.length)).fill(0)]);
+    const head = [0xff, 0xd8, ...jfif, ...(opts.extra ?? []).flat(), ...sof, ...seg(0xda, [1, 1, 0, 0, 63, 0])];
+    const scan = new Array(Math.max(0, (opts.size ?? 0) - head.length - 2)).fill(0);
+    return Uint8Array.from([...head, ...scan, ...(opts.eoi === false ? [] : [0xff, 0xd9]), ...(opts.after ?? [])]);
   };
   const exif = [0xff, 0xe1, 0x00, 0x04, 0x45, 0x78];
 
@@ -95,6 +126,15 @@ describe("the checks are not blind", () => {
     expect(problems(jpeg({ size: 61 * 1024 }), 600, 60)).toHaveLength(1);
     expect(problems(jpeg({ w: 601 }), 600, 60)).toHaveLength(1);
     expect(problems(jpeg({ h: 601 }), 600, 60)).toHaveLength(1);
+  });
+  it("finds bytes after the end of the image, and a missing end", () => {
+    expect(problems(jpeg({ after: [0x50, 0x4b, 0x03, 0x04] }), 600, 60)).toEqual(["has 4 bytes after the end of the image"]);
+    expect(problems(jpeg({ eoi: false }), 600, 60)).toEqual(["has no end of image marker"]);
+  });
+  it("does not take a stuffed 0xFF or a restart marker in the scan data for the end", () => {
+    const b = jpeg({});
+    const withScan = Uint8Array.from([...b.subarray(0, b.length - 2), 0xff, 0x00, 0xff, 0xd0, 0x12, 0xff, 0xd9]);
+    expect(problems(withScan, 600, 60)).toEqual([]);
   });
   it("finds a colour JPEG", () => {
     expect(problems(jpeg({ components: 3 }), 600, 60)).toHaveLength(1);

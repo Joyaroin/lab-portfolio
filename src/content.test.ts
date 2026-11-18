@@ -761,8 +761,36 @@ describe("no copy outside the content module", () => {
   const files = (dir: string): string[] =>
     readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
       e.isDirectory() ? files(`${dir}/${e.name}`) : /\.tsx?$/.test(e.name) && !/\.test\./.test(e.name) && e.name !== "content.ts" ? [`${dir}/${e.name}`] : []);
-  const sources = files("src").map((f) => [f, readFileSync(f, "utf8")] as const);
-  const words = [...Object.values(ui), ...Object.values(identity)].filter((w): w is string => typeof w === "string" && w.length >= 4);
+  // A comment may quote a word ("Tunnel", in a note on the traffic dots); only code counts. This keeps strings and drops // and /* */ comments.
+  const withoutComments = (src: string) => {
+    let out = "", i = 0;
+    while (i < src.length) {
+      const c = src[i], two = src.slice(i, i + 2);
+      if (c === '"' || c === "'" || c === "`") {
+        let j = i + 1;
+        while (j < src.length && src[j] !== c) j += src[j] === "\\" ? 2 : 1;
+        out += src.slice(i, j + 1);
+        i = j + 1;
+      } else if (two === "//") {
+        while (i < src.length && src[i] !== "\n") i++;
+      } else if (two === "/*") {
+        const end = src.indexOf("*/", i + 2);
+        i = end === -1 ? src.length : end + 2;
+      } else {
+        out += c;
+        i++;
+      }
+    }
+    return out;
+  };
+  it("drops comments but keeps strings", () => {
+    expect(withoutComments('a("x // y"); // "Tunnel"\n/* "SECURE" */ b(\'z\')')).toBe('a("x // y"); \n b(\'z\')');
+  });
+  const sources = files("src").map((f) => [f, withoutComments(readFileSync(f, "utf8"))] as const);
+  // every string in ui and identity, in nested groups too (ui.imageLarger, for one)
+  const strings = (v: unknown): string[] => typeof v === "string" ? [v] : v && typeof v === "object" ? Object.values(v).flatMap(strings) : [];
+  const words = [...strings(ui), ...strings(identity)].filter((w) => w.length >= 4);
+  it("walks the nested groups: the image dialog's words are among those checked", () => expect(words).toContain(ui.imageLarger.close));
   it("finds the source files", () => expect(sources.length).toBeGreaterThan(15));
   it.each(sources)("%s", (_f, src) => {
     for (const w of words) {
