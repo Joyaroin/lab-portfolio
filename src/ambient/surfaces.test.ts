@@ -9,8 +9,8 @@ import {
 } from "./surfaces";
 
 const LATER = ["oscilloscope", "rack-lights", "iron-wisp", "fan", "radio", "desk-phone", "clock", "laptop"];
-/** The later surfaces some ticket has filled (#382's two), in list order. */
-const FILLED_LATER = ["fan", "radio"];
+/** The later surfaces some ticket has filled (#381's three, #382's two), in list order. */
+const FILLED_LATER = ["oscilloscope", "rack-lights", "iron-wisp", "fan", "radio"];
 const plane = { position: [0, 1, 0] as [number, number, number], yaw: 0, tilt: 0, width: 0.1, height: 0.1 };
 
 /** A filled surface that records the times it is drawn at. */
@@ -47,12 +47,14 @@ describe("the list", () => {
     expect(Object.keys(RESERVED).sort()).toEqual([...LATER].sort());
     for (const p of placeholders) expect(p.size).toEqual(RESERVED[p.id]);
   });
-  it("reserves sizes that are multiples of 8, up from design/335's on-screen size × 1.5", () => {
+  it("reserves sizes that are multiples of 8, up from design/335's on-screen size × 1.5, except the ones a ticket raised (#381: the oscilloscope's and the iron wisp's)", () => {
     const px1280: Record<string, [number, number]> = {
       "oscilloscope": [30, 31], "rack-lights": [55, 129], "iron-wisp": [3, 32], "fan": [29, 23],
       "radio": [101, 58], "desk-phone": [103, 67], "clock": [49, 48], "laptop": [90, 71],
     };
+    const raised: Record<string, { w: number; h: number }> = { "oscilloscope": { w: 96, h: 72 }, "iron-wisp": { w: 16, h: 48 } };
     for (const [id, [w, h]] of Object.entries(px1280)) {
+      if (raised[id]) { expect(RESERVED[id]).toEqual(raised[id]); continue; }
       expect(RESERVED[id]).toEqual({ w: Math.ceil((w * 1.5) / 8) * 8, h: Math.ceil((h * 1.5) / 8) * 8 });
     }
   });

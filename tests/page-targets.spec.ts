@@ -3,6 +3,7 @@ import { PerspectiveCamera, Vector3 } from "three";
 import { framingFor } from "../src/framing";
 import { pageTargets, targetFrame } from "../src/page-targets";
 import { startBox } from "../src/pin";
+import { ui } from "../src/content";
 import { goTo, landedAt, openTour, readDrawnCamera, waitForCamera } from "./lib/page";
 
 // The rack and the desk phone as clicks (#386): at the landscape overview, from 1280 x 720 up, a click on the rack lands on Projects / Home lab and a click on
@@ -86,6 +87,75 @@ test.describe("at the overview, 1280 x 720", () => {
   });
 });
 
+// The hover (#387): while the pointer rests on either at the overview the cursor is a pointer and the line under the meter says where the click goes. The digits
+// never change, and there is no glow. Touch and focus get no preview. The timing (the line at once) is src/bar.test.ts's; this is the real pointer.
+const barLine = (page: Page) => page.locator("[data-meter-bar] > span[data-live]");
+const digits = (page: Page) => page.locator("[data-meter-bar] [role=img]").getAttribute("aria-label");
+const cursor = (page: Page) => page.evaluate(() => document.body.style.cursor);
+const WORDS: Record<string, string> = { rack: "Home lab", "desk-phone-target": "Contact" };
+
+test.describe("the hover at the overview, 1280 x 720", () => {
+  test.use({ viewport: { width: 1280, height: 720 } });
+  test.beforeEach(async ({ page }) => {
+    await page.route("https://api.github.com/**", (r) => r.fulfill({ status: 403, json: {} }));
+    await openTour(page);
+    await landedAt(page, 0);
+    await waitForCamera(page);
+    await expect(barLine(page)).not.toHaveText(ui.readingPending);
+  });
+
+  for (const id of [rack, phone]) {
+    test(`the pointer on ${id === rack ? "the rack" : "the desk phone"} sets the pointer cursor and names ${WORDS[id]} under the meter, with the digits and glow unchanged; leaving clears it`, async ({ page }) => {
+      const gapLine = (await barLine(page).textContent())!, gapDigits = await digits(page);
+      expect(gapLine).not.toBe(WORDS[id]);
+      const at = await pointOver(page, id, 0);
+      await expect(barLine(page)).toHaveText(WORDS[id]);
+      await expect.poll(() => cursor(page)).toBe("pointer");
+      await expect(page.locator("canvas").first()).toHaveAttribute("data-hover", id);
+      await page.waitForTimeout(600); // past the digits' rest (150 ms) and the glow's ease
+      expect(await digits(page), "the digits stay the gap's").toBe(gapDigits);
+      await expect(page.locator("canvas").first(), "no glow").not.toHaveAttribute("data-lit", /.*/);
+      await page.mouse.move(at.x, 2);
+      await expect(barLine(page)).toHaveText(gapLine);
+      await expect.poll(() => cursor(page)).toBe("");
+    });
+  }
+
+  test("the pointer going from the rack to the desk phone changes the line from Home lab to Contact", async ({ page }) => {
+    await pointOver(page, rack, 0);
+    await expect(barLine(page)).toHaveText(WORDS[rack]);
+    await pointOver(page, phone, 0);
+    await expect(barLine(page)).toHaveText(WORDS[phone]);
+  });
+});
+
+test.describe("a touch at the overview, 1280 x 720", () => {
+  test.use({ viewport: { width: 1280, height: 720 }, hasTouch: true });
+  test.beforeEach(async ({ page }) => {
+    await page.route("https://api.github.com/**", (r) => r.fulfill({ status: 403, json: {} }));
+    await openTour(page);
+    await landedAt(page, 0);
+    await waitForCamera(page);
+    await expect(barLine(page)).not.toHaveText(ui.readingPending);
+  });
+
+  test("a touch held on either shows no line", async ({ page }) => {
+    const gapLine = (await barLine(page).textContent())!;
+    const cdp = await page.context().newCDPSession(page);
+    for (const id of [rack, phone]) {
+      const at = await pointOver(page, id, 0);
+      await page.mouse.move(at.x, 2);
+      await expect(barLine(page)).toHaveText(gapLine);
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: at.x, y: at.y }] });
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: at.x + 2, y: at.y + 2 }] }); // the room hears a pointer over only from a move
+      await page.waitForTimeout(500); // the touch is held: the pointer is over the target, and no click has happened yet
+      expect(await cursor(page), "the touch is over the target (the cursor is the TV's rule, a touch included)").toBe("pointer");
+      await expect(barLine(page), `a touch on ${id}`).toHaveText(gapLine);
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchCancel", touchPoints: [] });
+    }
+  });
+});
+
 // Under the gate neither is a click: a window just under 1280 wide or 720 tall, and 1024 x 768. (A portrait window has no press to make: at 390 x 844 and 820 x 1180 the middle of neither prop is inside the window. That the gate is off there is a unit test.)
 for (const [width, height] of [[1279, 720], [1280, 719], [1024, 768]]) {
   test.describe(`${width} x ${height}, under the gate`, () => {
@@ -99,6 +169,14 @@ for (const [width, height] of [[1279, 720], [1280, 719], [1024, 768]]) {
         expect(await topAt(page, at.x, at.y)).toBe("canvas");
         await page.mouse.click(at.x, at.y);
         await staysAtOverview(page);
+      });
+      test(`the pointer on ${id === rack ? "the rack" : "the desk phone"} shows no line and no pointer cursor`, async ({ page }) => {
+        await openTour(page);
+        await landedAt(page, 0);
+        await pointOver(page, id, 0);
+        await page.waitForTimeout(600);
+        expect(await cursor(page)).toBe("");
+        await expect(barLine(page)).not.toHaveText(WORDS[id]);
       });
     }
   });

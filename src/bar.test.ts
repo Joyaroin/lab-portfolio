@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { barFor, createHover, meterDigits, previewStop, PREVIEW_REST_MS, stopLineFor, type Preview } from "./bar";
-import { stations } from "./content";
+import { barFor, createHover, meterDigits, previewLine, previewStop, PREVIEW_REST_MS, stopLineFor, type Preview } from "./bar";
+import { stations, ui } from "./content";
 import { formatReading } from "./gap";
 import { STATION_COUNT } from "./hold";
 import { SHIFT_SECONDS } from "./nixie";
@@ -253,5 +253,76 @@ describe("the line under the device", () => {
     expect(after).toEqual(before);
     expect(after.scramble).toBeNull();
     expect(after.reading).toBe(stations[0].reading);
+  });
+});
+
+// ---- the hover on the rack and the desk phone (#387)
+// Resting on either at the overview changes the line at once to where it goes. The digits never change: no station is previewed.
+describe("the rack and the desk phone as a hover source (#387)", () => {
+  const RACK = "rack", PHONE = "desk-phone-target";
+
+  it("resting on the rack names Home lab and on the desk phone Contact, at t = 0, and leaving clears it", () => {
+    const c = clock(), h = createHover(c.now);
+    h.point("prop", RACK);
+    expect(previewLine(at(0), h.preview())).toBe("Home lab");
+    h.point("prop", null);
+    expect(h.preview()).toBeNull();
+    expect(previewLine(at(0), h.preview())).toBeNull();
+    h.point("prop", PHONE);
+    expect(previewLine(at(0), h.preview())).toBe("Contact");
+    h.point("prop", null);
+    expect(previewLine(at(0), h.preview())).toBeNull();
+  });
+
+  it("the digits don't change, on either meter, however long the pointer rests", () => {
+    const c = clock(), h = createHover(c.now);
+    for (const id of [RACK, PHONE]) {
+      h.point("prop", id);
+      const preview = h.preview();
+      for (const who of ["bar", "desk"] as const) {
+        const rest = digitsOf(who, at(0), null, 1000);
+        for (const now of [1000, 1149, 1150, 1300, 9000]) expect(digitsOf(who, at(0), preview, now), `${id} ${who} at ${now}`).toEqual(rest);
+      }
+      expect(previewStop(at(0), preview)).toBeNull();
+    }
+  });
+
+  it("shows nothing at a station or in a flight", () => {
+    const c = clock(), h = createHover(c.now);
+    h.point("prop", RACK);
+    for (let s = 1; s <= STATION_COUNT; s++) expect(previewLine(at(s), h.preview())).toBeNull();
+    for (const f of [0, 0.5, 1]) { expect(previewLine(flying(0, 2, f), h.preview())).toBeNull(); expect(previewLine(flying(2, 0, f), h.preview())).toBeNull(); }
+  });
+
+  it("is no glow: nothing is lit and no pin is on", () => {
+    const c = clock(), h = createHover(c.now);
+    h.point("prop", RACK);
+    expect(h.lit()).toBeNull();
+    expect(h.pinStop()).toBeNull();
+  });
+
+  it("a station's TV and a prop take the line from each other, and one leaving doesn't clear the other", () => {
+    const c = clock(), h = createHover(c.now);
+    h.point("tv", 2);
+    h.point("prop", RACK);
+    h.point("tv", null);
+    expect(previewLine(at(0), h.preview())).toBe("Home lab");
+    h.point("tv", 3);
+    h.point("prop", null);
+    expect(previewLine(at(0), h.preview())).toBe(stations[2].name);
+    expect(h.lit()).toBe(3);
+  });
+
+  it("tells its subscribers of each change, and of nothing else", () => {
+    const c = clock(), h = createHover(c.now);
+    let n = 0;
+    h.subscribe(() => n++);
+    h.point("prop", RACK); h.point("prop", RACK); h.point("prop", PHONE); h.point("prop", null); h.point("prop", null);
+    expect(n).toBe(3);
+  });
+
+  it("the line for a station is its name, and the words are the content's", () => {
+    expect(previewLine(at(0), { stop: 2, since: 0 })).toBe(stations[1].name);
+    expect(ui.propHover).toEqual({ rack: "Home lab", "desk-phone-target": "Contact" });
   });
 });

@@ -91,7 +91,7 @@ const gapLines = (short: boolean) => [
   { live: true, complete: true }, { live: true, complete: false }, { live: false, complete: true },
 ].map((g) => gapLabel({ deploys: MOST_DEPLOYS, ...g }, short));
 /** Every text the line under the device can show at a window of this HUD kind. */
-export const lineTexts = (compact: boolean) => [ui.readingPending, ...gapLines(compact), ...stopLines];
+export const lineTexts = (compact: boolean) => [ui.readingPending, ...gapLines(compact), ...stopLines, ...Object.values(ui.propHover)];
 /** The lines a text wraps to when `chars` characters fit on a line (words are not split unless one is longer than a line). */
 function wrapLines(text: string, chars: number): number {
   let lines = 1, used = 0;
