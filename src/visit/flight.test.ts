@@ -113,11 +113,6 @@ describe("flightPose", () => {
   it("keeps CAMERA_FOV between two station poses", () => {
     expect(flightPose(a, b, 0.5).fov).toBe(CAMERA_FOV);
   });
-  it("moves smoothly: no step between neighbouring samples is more than a few times the average", () => {
-    const pts = Array.from({ length: SAMPLES + 1 }, (_, i) => flightPose(a, b, i / SAMPLES).camera);
-    const steps = pts.slice(1).map((p, i) => Math.hypot(...sub(p, pts[i])));
-    expect(Math.max(...steps)).toBeLessThan(3 * (steps.reduce((x, y) => x + y) / steps.length));
-  });
 });
 
 // The stops the app really flies between: Square at two window sizes, Portrait, and both overviews.
@@ -149,6 +144,18 @@ describe("every flight between the stops", () => {
         if (i === j) continue;
         const p = problem(list[i], list[j]);
         if (p) failures.push(`${name}: ${i} to ${j}: ${p}`);
+      }
+    expect(failures).toEqual([]);
+  });
+  it("moves smoothly: no step between neighbouring samples is more than a few times the flight's average, on every real flight", () => {
+    const failures: string[] = [];
+    for (const [name, list] of lists)
+      for (let i = 0; i < list.length; i++) for (let j = 0; j < list.length; j++) {
+        if (i === j) continue;
+        const pts = Array.from({ length: SAMPLES + 1 }, (_, s) => flightPose(list[i], list[j], s / SAMPLES).camera);
+        const steps = pts.slice(1).map((p, s) => Math.hypot(...sub(p, pts[s])));
+        const mean = steps.reduce((x, y) => x + y) / steps.length;
+        if (Math.max(...steps) >= 3 * mean) failures.push(`${name}: ${i} to ${j}: largest step ${Math.max(...steps).toFixed(3)} m, average ${mean.toFixed(3)} m`);
       }
     expect(failures).toEqual([]);
   });

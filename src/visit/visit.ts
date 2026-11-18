@@ -108,7 +108,7 @@ export function createVisit({ reduced, now = () => performance.now() }: { reduce
     let dest = typeof place === "number" ? stepAt(clampStop(place)) : place;
     const to = stopOf(dest);
     // A stop (not a step) the visitor is at or flying to keeps its page: it is not a page move.
-    const here = move?.toStep ?? rest;
+    const here = step(); // reads a held press first: a stop pressed after a page press for that stop keeps the page
     if (typeof place === "number" && to === stopOf(here)) dest = here;
     const t = at ?? now();
     settle(t);

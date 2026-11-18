@@ -14,7 +14,9 @@
 # started on another branch can't move staging. Run it again by hand to try again after a flaky failure: Forgejo can't re-run one job.
 # The release clock runs from the run's start to the end of the staging push. When staging moved, the browser job retried
 # no test and the clock is over 360 s, the staging job warns on the standing "Browser job times" issue (scripts/release-clock.mjs).
-# That step is best effort and never blocks staging.
+# That step is best effort and never blocks staging. When the staging job skips its push because main has moved past the commit, the run still
+# passes, but the job logs a ::warning:: and comments on "CI failures on main" that staging didn't move, which commit it still runs and that a
+# new release is needed (scripts/staging-skipped.mjs; also best effort).
 name: release
 on:
   workflow_dispatch:
@@ -205,8 +207,13 @@ jobs:
             fi
             git fetch origin main
             if [ "$(git rev-parse FETCH_HEAD)" != "$SHA" ]; then
-              echo "main has moved past $SHA, so this release is out of date. Not pushing: start a new release on main."
+              echo "::warning::main has moved past $SHA, so this release is out of date. Not pushing: start a new release on main."
               echo "moved=false" >> "$GITHUB_OUTPUT"
+              # What staging still runs, for the warning step: the staging branch's head (seen) and the commit its image tag names.
+              echo "seen=$seen" >> "$GITHUB_OUTPUT"
+              if [ -n "$seen" ]; then
+                echo "runs=$(git show "$seen:deploy/values-staging.yaml" | sed -n -E 's/^[[:space:]]*tag:[[:space:]]*"?([0-9a-f]{40})"?.*/\1/p' | head -n 1)" >> "$GITHUB_OUTPUT"
+              fi
               exit 0
             fi
             git reset --hard "$SHA"
@@ -240,6 +247,23 @@ jobs:
           SHA: ${{ github.sha }}
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/release-clock.mjs warn
+      # When the push was skipped because main had moved past this commit, says so on "CI failures on main": staging didn't move, which
+      # commit it still runs, and that a new release is needed (nothing else will move it). The run still passes. Best effort: a post that
+      # fails is logged and passes (scripts/staging-skipped.mjs).
+      - name: Warn when staging did not move
+        id: skipped
+        if: steps.move.outputs.moved == 'false'
+        continue-on-error: true
+        env:
+          MOVED: ${{ steps.move.outputs.moved }}
+          SEEN: ${{ steps.move.outputs.seen }}
+          RUNS: ${{ steps.move.outputs.runs }}
+          RUN_NUMBER: ${{ github.run_number }}
+          SERVER_URL: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/staging-skipped.mjs
   # The light specs on main, after staging has moved, so they don't share the runner with the release specs. Staging doesn't
   # wait for them. A red run is a comment on "CI failures on main", and the report names flaky tests.
   browser-light:
