@@ -2,7 +2,10 @@ import layout from "../room-layout.json" with { type: "json" };
 import type { SavedCommit } from "../commits";
 import { CRT_GLASS, phosphorFrame, spares } from "../crts";
 import { drawGitlog } from "./gitlog";
+import { drawIronWisp, WISP_H, WISP_W } from "./iron-wisp";
+import { drawOscilloscope, SCOPE_H, SCOPE_W } from "./oscilloscope";
 import { drawPuzzle } from "./puzzle";
+import { drawRackLights, RACK_H, RACK_W } from "./rack-lights";
 import { SCREEN_H, SCREEN_W, STILL_T } from "./still";
 import { drawTraffic } from "./traffic";
 
@@ -40,9 +43,9 @@ export const BUDGET_PX = 600_000;
  *  to a multiple of 8. A filled entry keeps within it. The sizes it was worked from (px at 1280×720, from `check-proposal.json`):
  *  oscilloscope screen 30×31, rack 55×129, soldering iron's wisp 3×32, fan 29×23, radio 101×58, desk phone 103×67, clock 49×48, laptop 90×71. */
 export const RESERVED: Record<string, Size> = {
-  "oscilloscope": { w: 48, h: 48 },
+  "oscilloscope": { w: 96, h: 72 }, // raised from 48×48 by #381: at the Projects stop the scope is about 170 px wide at 1280×720, so 48 px is soft
   "rack-lights": { w: 88, h: 200 },
-  "iron-wisp": { w: 8, h: 48 },
+  "iron-wisp": { w: 16, h: 48 }, // raised from 8×48 by #381: the wisp's plane is 0.06×0.2 m, and 8 px is too thin to sway in
   "fan": { w: 48, h: 40 },
   "radio": { w: 152, h: 88 },
   "desk-phone": { w: 160, h: 104 },
@@ -64,6 +67,9 @@ export function layoutPlane(id: string, props: LayoutProp[] | undefined = (layou
   const rad = (deg: number) => (deg * Math.PI) / 180;
   return { position: [p.centre[0], p.centre[1], p.centre[2]], yaw: rad(p.yaw), tilt: rad(p.tilt ?? 0), width: p.size[0], height: p.size[1] };
 }
+
+/** A surface on a baked prop: its plane is its entry in room-layout.json (by id), its canvas is `size`. */
+const layoutSurface = (id: string, size: Size, draw: Drawing): Surface => ({ id, size, plane: layoutPlane(id), draw });
 
 /** The glass over an ambient screen: scanlines and darker curved corners, as the station glass has. */
 function drawGlass(g: Ctx) {
@@ -96,9 +102,9 @@ const screen = (id: string, commits: SavedCommit[]): Surface => {
 export const ambientSurfaces = (commits: SavedCommit[]): Entry[] => [
   ...spares.map((crt) => screen(crt.id, commits)),
   // Placeholders, one per later surface, each filled by its own ticket on its own line.
-  placeholder("oscilloscope"), // #381
-  placeholder("rack-lights"), // #381
-  placeholder("iron-wisp"), // #381
+  layoutSurface("oscilloscope", { w: SCOPE_W, h: SCOPE_H }, drawOscilloscope), // #381
+  layoutSurface("rack-lights", { w: RACK_W, h: RACK_H }, drawRackLights), // #381
+  layoutSurface("iron-wisp", { w: WISP_W, h: WISP_H }, drawIronWisp), // #381
   placeholder("fan"), // #382
   placeholder("radio"), // #382
   placeholder("desk-phone"), // #383

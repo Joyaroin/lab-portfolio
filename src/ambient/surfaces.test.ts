@@ -9,6 +9,8 @@ import {
 } from "./surfaces";
 
 const LATER = ["oscilloscope", "rack-lights", "iron-wisp", "fan", "radio", "desk-phone", "clock", "laptop"];
+/** The later surfaces some ticket has filled (#381's three), in list order. */
+const FILLED_LATER = ["oscilloscope", "rack-lights", "iron-wisp"];
 const plane = { position: [0, 1, 0] as [number, number, number], yaw: 0, tilt: 0, width: 0.1, height: 0.1 };
 
 /** A filled surface that records the times it is drawn at. */
@@ -32,25 +34,27 @@ describe("the list", () => {
   const list = ambientSurfaces([]);
   it("starts with the three spare CRTs' screens, 400×300, planes where phosphorFrame puts them", () => {
     const filled = list.filter(isFilled);
-    expect(filled.map((s) => s.id)).toEqual(spares.map((c) => c.id));
-    for (const [k, s] of filled.entries()) {
+    expect(filled.map((s) => s.id)).toEqual([...spares.map((c) => c.id), ...FILLED_LATER]);
+    for (const [k, s] of filled.slice(0, spares.length).entries()) {
       expect(s.size).toEqual({ w: SCREEN_W, h: SCREEN_H });
       const f = phosphorFrame(spares[k]);
       expect(s.plane).toMatchObject({ position: f.position, yaw: f.yaw, tilt: 0, width: 0.46, height: 0.36 });
     }
   });
-  it("has one placeholder for each later surface, with its id and reserved size, and nothing else", () => {
+  it("has one placeholder for each later surface not yet filled, with its id and reserved size, and nothing else", () => {
     const placeholders = list.filter((e) => !isFilled(e));
-    expect(placeholders.map((p) => p.id)).toEqual(LATER);
+    expect(placeholders.map((p) => p.id)).toEqual(LATER.filter((id) => !FILLED_LATER.includes(id)));
     expect(Object.keys(RESERVED).sort()).toEqual([...LATER].sort());
     for (const p of placeholders) expect(p.size).toEqual(RESERVED[p.id]);
   });
-  it("reserves sizes that are multiples of 8, up from design/335's on-screen size × 1.5", () => {
+  it("reserves sizes that are multiples of 8, up from design/335's on-screen size × 1.5, except the ones a ticket raised (#381: the oscilloscope's and the iron wisp's)", () => {
     const px1280: Record<string, [number, number]> = {
       "oscilloscope": [30, 31], "rack-lights": [55, 129], "iron-wisp": [3, 32], "fan": [29, 23],
       "radio": [101, 58], "desk-phone": [103, 67], "clock": [49, 48], "laptop": [90, 71],
     };
+    const raised: Record<string, { w: number; h: number }> = { "oscilloscope": { w: 96, h: 72 }, "iron-wisp": { w: 16, h: 48 } };
     for (const [id, [w, h]] of Object.entries(px1280)) {
+      if (raised[id]) { expect(RESERVED[id]).toEqual(raised[id]); continue; }
       expect(RESERVED[id]).toEqual({ w: Math.ceil((w * 1.5) / 8) * 8, h: Math.ceil((h * 1.5) / 8) * 8 });
     }
   });
@@ -126,7 +130,7 @@ describe("the stop", () => {
     const { driver, uploads } = drive(ambientSurfaces([{ sha7: "abc1234", subject: "a commit" }]));
     driver.tick(1000);
     driver.still();
-    expect(Object.values(uploads)).toEqual([2, 2, 2]);
+    expect(Object.values(uploads)).toEqual(Array(3 + FILLED_LATER.length).fill(2));
   });
 });
 
@@ -143,7 +147,7 @@ describe("layoutPlane", () => {
   });
   it("throws when the entry isn't there, so a surface can't be filled without its place", () => {
     expect(() => layoutPlane("fan", props)).toThrow(/"fan"/);
-    expect(() => layoutPlane("fan", undefined)).toThrow();
+    expect(() => layoutPlane("fan", [])).toThrow(); // not `undefined`: that reads the real file, which has the fan since #379
   });
 });
 

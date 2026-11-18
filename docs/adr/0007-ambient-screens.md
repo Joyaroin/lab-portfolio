@@ -37,9 +37,9 @@ on-screen size at 1280×720, times 1.5, up to a multiple of 8).
 
 | Surface (id) | Moving | Still frame | Reserved canvas | Built |
 |---|---|---|---|---|
-| Oscilloscope (`oscilloscope`) | a waveform scrolling across the screen | the same waveform, at rest | 48×48 | not yet (#381) |
-| Rack lights (`rack-lights`) | the lights blink in an irregular pattern | all lights steady | 88×200 | not yet (#381) |
-| Soldering iron (`iron-wisp`) | a thin wisp rises and fades | no wisp | 8×48 | not yet (#381) |
+| Oscilloscope (`oscilloscope`) | a waveform scrolling across the screen | the same waveform, at rest | 96×72 | built (#381) |
+| Rack lights (`rack-lights`) | the lights blink in an irregular pattern | all lights steady | 88×200 | built (#381) |
+| Soldering iron (`iron-wisp`) | a thin wisp rises and fades | no wisp | 16×48 | built (#381) |
 | Fan (`fan`) | the blades turn | the blades stopped | 48×40 | not yet (#382) |
 | Radio (`radio`) | the dial's glow sweeps and signal bars rise and fall | the dial at rest, bars low | 152×88 | not yet (#382) |
 | Desk phone (`desk-phone`) | about once a minute the screen lights for a few seconds with an envelope icon, and no words | the screen dark | 160×104 | not yet (#383) |
