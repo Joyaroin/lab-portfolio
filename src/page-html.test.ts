@@ -77,6 +77,13 @@ describe("#root before boot", () => {
     c.stations[2].pages[1].image!.caption = `a "b" <c>`;
     expect(rootHtml(c)).toContain("<p>a &quot;b&quot; &lt;c&gt;</p>");
   });
+  it("has no Last watched line, not even an empty \"Last watched:\" (#369: the title is known only live)", () => {
+    expect(stations[2].pages[1].lastWatched).toBeDefined();
+    expect(root).not.toMatch(/last watched/i);
+    expect(root).not.toContain("{title}");
+    // the watching bullet is written as it is
+    expect(root).toContain("<li>Films and shows. I log everything I watch in MediaSafe, the tracker I built.</li>");
+  });
   it("writes a page with no bullets without an empty list", () => {
     const c: Content = structuredClone(content);
     c.stations[0].pages[0].body = [];

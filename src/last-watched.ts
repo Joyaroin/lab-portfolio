@@ -5,6 +5,14 @@
 // This module imports nothing (at most ./content): a Playwright spec imports LAST_WATCHED_MAX from it, and
 // Playwright's loader can't load a module that imports JSON (docs/agents/testing.md).
 
+/**
+ * Adham's share link on production MediaSafe (ADR-0008), given by him on #369. It is public by nature and sits in this public code: the whole
+ * URL is one constant, named like a URL, because a bare 43-character token in a constant named like a token, key or secret trips the secret scan.
+ * When he switches sharing off or replaces the link, the line stays hidden until a change with the new link is merged, released and promoted.
+ * Every browser spec makes this host unreachable (playwright.config.ts), so a spec that tests the line serves a fake answer for it.
+ */
+export const LAST_WATCHED_URL = "https://mediasafe.space/api/last-watched/d8NbJn2PXsZfi_jZRIazDoEUUxY2WjQ2ginwVTraUVc";
+
 /** The longest title shown, in Unicode code points (not UTF-16 units). The one place this number is written. */
 export const LAST_WATCHED_MAX = 80;
 

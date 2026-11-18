@@ -9,8 +9,16 @@ const origin = `http://127.0.0.1:${port}`;
 // same frame rate. It needs the full Chromium, because the headless shell has no display for OpenGL, and ANGLE on GL.
 // Anywhere else Playwright's default stands.
 const llvmpipe = process.env.LAB_WEBGL === "llvmpipe"
-  ? { channel: "chromium", launchOptions: { args: ["--use-angle=gl", "--ignore-gpu-blocklist", "--enable-gpu"] } }
-  : {};
+  ? { channel: "chromium", args: ["--use-angle=gl", "--ignore-gpu-blocklist", "--enable-gpu"] }
+  : { args: [] as string[] };
+
+// No browser spec ever calls production MediaSafe (#369). The Last watched line reads Adham's share link there (src/last-watched.ts), and many specs
+// open Off the keyboard without openTour (openStation, stepping.spec.ts, limits and the like do their own page.goto), so the block is one launch
+// flag every spec passes through: MediaSafe's host never resolves. A spec's own page.route still serves a fake answer, because Playwright answers a
+// routed request before any lookup (tests/last-watched.spec.ts shows it once). A spec that tests the line serves a fake answer for it.
+const MEDIASAFE_HOST = "mediasafe.space";
+const blockMediaSafe = `--host-resolver-rules=MAP ${MEDIASAFE_HOST} ~NOTFOUND`;
+const { args: llvmpipeArgs, ...llvmpipeUse } = llvmpipe;
 
 export default defineConfig({
   // Where TEST_PORT is set (agent sessions on the Mac) one worker, so one session can't take the CPU from the others.
@@ -27,7 +35,7 @@ export default defineConfig({
     url: origin,
     reuseExistingServer: false,
   },
-  use: { baseURL: origin, ...llvmpipe },
+  use: { baseURL: origin, ...llvmpipeUse, launchOptions: { args: [blockMediaSafe, ...llvmpipeArgs] } },
   // Two projects, so each test runs once, in one of them. CI retries a failed test once, except @timing: a timing
   // test is a limit check and fails on its first failure. Outside CI nothing retries. A project's grep combines with
   // the CLI's --grep, so make browser-light and the like select the same tests as before.

@@ -49,6 +49,10 @@ export type Page = {
    *  lead and stat line (the About me portrait; above them in a portrait window), or "below" the bullets. `larger` is whether it opens
    *  larger on a click. validateContent checks the words, and rejects an image with no alt text; it can't check that the file exists. */
   image?: PageImage;
+  /** #369: the page carries the Last watched line (ADR-0008). `bullet` is the index in `body` of the bullet the line sits inside, and `words`
+   *  the line's template, with `{title}` where the live title goes. The line isn't written into the page's HTML: the title is known only live.
+   *  validateContent checks the words like other page text, that they hold {title}, and that `bullet` is one of the page's bullets. */
+  lastWatched?: { bullet: number; words: string };
 };
 /** A page's image (see `Page.image`). */
 export type PageImage = { file: string; alt: string; caption?: string; place: "top" | "below"; larger?: boolean };
@@ -160,6 +164,7 @@ const PLACEHOLDERS: Record<string, string[]> = {
   gapBehindShort: ["n", "noun"], gapBehindAtLeastShort: ["n", "noun"],
   gapSaved: ["gap"], stopLine: ["station", "page", "n", "total"], listStopLine: ["station", "n", "total"], logDone: ["step"], logPending: ["step"], signalLostReason: ["reason"],
   stationTitle: ["page", "station", "name"], listTitle: ["station", "name"],
+  lastWatched: ["title"],
   crumb: ["n", "station"], crumbProject: ["project"], nextJob: ["company"], nextProject: ["name"], nextPage: ["page"], nextMonitor: ["station"], back: ["page"],
 };
 export const fill = (template: string, values: Record<string, string | number>) =>
@@ -322,6 +327,8 @@ export const content: Content = {
             "Tennis. Most weeks, on a court somewhere in Ottawa.",
             "Films and shows. I log everything I watch in MediaSafe, the tracker I built.",
           ],
+          // the line under the watching bullet (index 1); the title is read live (src/last-watched.ts)
+          lastWatched: { bullet: 1, words: "Last watched: {title}" },
           links: [],
         },
         {
@@ -481,6 +488,12 @@ export function validateContent(c: Content): string[] {
           text(`${q}.image.alt`, im.alt);
           if (im.caption !== undefined) text(`${q}.image.caption`, im.caption);
           if (im.place !== "top" && im.place !== "below") problems.push(`${q}.image.place: must be top or below`);
+        }
+        if (pg.lastWatched) {
+          const lw = pg.lastWatched;
+          text(`${q}.lastWatched.words`, lw.words);
+          if (typeof lw.words === "string") for (const ph of PLACEHOLDERS.lastWatched) if (!lw.words.includes(`{${ph}}`)) problems.push(`${q}.lastWatched.words: must contain {${ph}}`);
+          if (!Number.isInteger(lw.bullet) || lw.bullet < 0 || !Array.isArray(pg.body) || lw.bullet >= pg.body.length) problems.push(`${q}.lastWatched.bullet: must be one of the page's bullets`);
         }
       });
       // A station that keeps a whole text (Work) must have pages that add up to it.

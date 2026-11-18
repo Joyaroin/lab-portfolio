@@ -138,7 +138,11 @@ The language of this project: its terms, what each one means, and what it doesn'
   in MediaSafe, read live from a MediaSafe share link by the visitor's browser (`readLastWatched` in `src/last-watched.ts`: a 200 as `text/plain`,
   at most 512 bytes (`LAST_WATCHED_MAX_BYTES`), with no redirect followed, whose trimmed body is 1 to `LAST_WATCHED_MAX` (80) Unicode code points with no control, line-break or invisible formatting character; anything else, a failed call or no answer in 5 s
   is "show nothing"). It is hidden, never saved, when the read fails. Not a **reading** (the number the meter shows) and not a station's "line"
-  (the line under its heading). It is the one text that may look like live data on a TV (ADR 0007).
+  (the line under its heading). It is the one text that may look like live data on a TV (ADR 0007). It is on the page through `Page.lastWatched`
+  (`{ bullet, words }`: the index of the bullet it sits inside and the words, with `{title}`), shown as text under that bullet's sentence in the golf
+  caption's colour and size, on one line cut with an ellipsis. The read starts the first time that page is shown (at boot on a direct link to it),
+  once per page load, from a store outside the panels (`src/text/last-watched-store.ts`); the link is `LAST_WATCHED_URL` in `src/last-watched.ts`.
+  It is not in the pre-boot HTML.
 - **Desk meter**: the meter as built in the room: seven nixie tubes on the desk, drawn live. Clicking it means
   next. It is a display in the room only: the meter bar's digits do not depend on whether it is in frame. Its digits
   and scramble come from `meterDigits` in `src/bar.ts`, the one function the bar reads too, so through a hover preview

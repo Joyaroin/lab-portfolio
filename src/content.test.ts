@@ -542,6 +542,47 @@ describe("Off the keyboard's image", () => {
   });
 });
 
+// #369: the Last watched line. The words are on Off the keyboard's entry, with the bullet that carries the line.
+describe("the Last watched line's words", () => {
+  const page = () => station("about").pages.find((p) => p.id === "off-the-keyboard")!;
+  const aboutPage = (c: ReturnType<typeof good>) => c.stations.find((s) => s.id === "about")!.pages[1];
+  it("are \"Last watched: {title}\", on the watching bullet", () => {
+    expect(page().lastWatched).toEqual({ bullet: 1, words: "Last watched: {title}" });
+    expect(page().body[page().lastWatched!.bullet]).toContain("Films and shows");
+  });
+  it("are on Off the keyboard and no other page", () => {
+    const marked = content.stations.flatMap((s) => s.pages).filter((p) => p.lastWatched).map((p) => p.id);
+    expect(marked).toEqual(["off-the-keyboard"]);
+  });
+  it("are accepted as shipped", () => expect(validateContent(good())).toEqual([]));
+  it("are rejected when empty", () => {
+    const c = good();
+    aboutPage(c).lastWatched!.words = " ";
+    expect(validateContent(c).join("\n")).toContain("lastWatched.words: missing");
+  });
+  it("are checked like other page text (a phone number is refused)", () => {
+    const c = good();
+    aboutPage(c).lastWatched!.words = "Last watched: {title}, call 613-555-0147";
+    expect(validateContent(c).join("\n")).toContain("lastWatched.words: looks like a phone number");
+  });
+  it("must contain {title}", () => {
+    const c = good();
+    aboutPage(c).lastWatched!.words = "Last watched:";
+    expect(validateContent(c).join("\n")).toContain("lastWatched.words: must contain {title}");
+  });
+  it.each([-1, 2, 1.5, Number.NaN])("are rejected when the bullet named is %s, which is not one of the page's bullets", (bullet) => {
+    const c = good();
+    aboutPage(c).lastWatched!.bullet = bullet;
+    expect(validateContent(c).join("\n")).toContain("lastWatched.bullet: must be one of the page's bullets");
+  });
+  it("are rejected on a page with no bullets", () => {
+    const c = good();
+    const p = c.stations.find((s) => s.id === "about")!.pages[0];
+    p.lastWatched = { bullet: 0, words: "Last watched: {title}" };
+    expect(validateContent(c).join("\n")).toContain("pages[0].lastWatched.bullet");
+  });
+});
+
 // Every other word the app shows or announces: the HUD, the meter's labels, the boot log, the signal
 // lost screen, the gap's sentence. They move here from the components, so validation covers them.
 describe("interface words", () => {

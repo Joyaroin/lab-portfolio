@@ -1,10 +1,11 @@
-import { useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { markMore } from "./more";
 import { imageBesideText, imageMounted } from "./image";
+import { lastWatched } from "./last-watched-store";
 import { LargeImageButton } from "./LargeImage";
 import { larger } from "./larger";
 import { controlsFor, headingFor, type Button, type Controls, type PageStep } from "./controls";
-import { stations, ui, type Diagram, type PageList, type Station } from "../content";
+import { fill, stations, ui, type Diagram, type PageList, type Station } from "../content";
 import type { Step } from "../walk";
 import type { Visit } from "../visit";
 import portraitUrl from "../assets/adham.jpg";
@@ -83,6 +84,12 @@ function StationPanel({ s, visit, step }: { s: Station; visit: Visit; step: Step
   useLayoutEffect(() => { if (ref.current) markMore(ref.current); }, [topImage]);
   // An image that opened larger goes with its small one (a window that turned short and landscape, a file that failed).
   useLayoutEffect(() => { if (!topImage && larger.openId() === s.id) larger.drop(); }, [topImage, s.id]);
+  // #369: the Last watched line. The read starts the first time a page that carries it is shown (at boot on a direct link to it), once per
+  // page load, and its state is kept outside this panel (./last-watched-store.ts). Where it has nothing to show, the bullet stands alone.
+  const lw = page.lastWatched;
+  const lwShown = here !== null && !!lw;
+  useEffect(() => { if (lwShown) lastWatched.start(); }, [lwShown]);
+  const lwAnswer = useSyncExternalStore(lastWatched.subscribe, lastWatched.get);
   // After a tab, a row or a button the visitor's focus goes to the new page's heading, so a screen reader says where it landed.
   // The arrow keys never do this: they are not a click on one of these. Only a move the visit made at once counts.
   const refocus = useRef(false);
@@ -151,7 +158,15 @@ function StationPanel({ s, visit, step }: { s: Station; visit: Visit; step: Step
         </p>
       )}
       {page.diagram && <DiagramFigure d={page.diagram} />}
-      <ul style={list}>{page.body.map((b, i) => <li key={i} style={item}>{b}</li>)}</ul>
+      <ul style={list}>
+        {page.body.map((b, i) => (
+          <li key={i} style={item}>
+            {b}
+            {/* the Last watched line: a second line inside the bullet, as text (the title is never markup) */}
+            {lw && lw.bullet === i && lwAnswer.show && <span className="crt-last-watched" data-last-watched>{fill(lw.words, { title: lwAnswer.title })}</span>}
+          </li>
+        ))}
+      </ul>
       {/* #342 (below the bullets): an image with place "below" and its caption are drawn here, after the bullets. */}
       {belowImage && IMAGE_FILES[belowImage.file] && (
         <figure className="crt-below" data-below>
@@ -326,6 +341,9 @@ const css = `
   100% { opacity: 1; text-shadow: 0 0 5px rgba(80,255,150,0.45); }
 }
 .crt-panel[data-glass="true"] { background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.18) 2px 3px); border: 0; border-radius: 0; box-shadow: none; padding: 0.6em 1.2em; }
+/* The Last watched line (#369, variant B of design/last-watched): under the bullet's sentence, in the golf caption's colour, size and line
+   height (theme.css's .crt-below figcaption). One line at any width: a title too long is cut with an ellipsis. It never animates. */
+.crt-last-watched { display: block; margin: 0; font-size: 0.8em; color: #ffb347; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .crt-panel[data-glass="true"] .crt-more { margin: -2.6em -1.2em 0; height: 2.6em;
   background: linear-gradient(to bottom, rgba(2,10,5,0), rgba(2,10,5,0.95) 70%); }
 `;

@@ -9,8 +9,12 @@ const origin = `http://127.0.0.1:${port}`;
 // same frame rate. It needs the full Chromium, because the headless shell has no display for OpenGL, and ANGLE on GL.
 // Anywhere else Playwright's default stands.
 const llvmpipe = process.env.LAB_WEBGL === "llvmpipe"
-  ? { channel: "chromium", launchOptions: { args: ["--use-angle=gl", "--ignore-gpu-blocklist", "--enable-gpu"] } }
-  : {};
+  ? { channel: "chromium", args: ["--use-angle=gl", "--ignore-gpu-blocklist", "--enable-gpu"] }
+  : { args: [] as string[] };
+// Like playwright.config.ts (#369): MediaSafe's host never resolves, so a screenshot never calls production MediaSafe, and Off the keyboard's
+// screenshot shows the bullet alone, the same on every run, whatever Adham last watched.
+const blockMediaSafe = "--host-resolver-rules=MAP mediasafe.space ~NOTFOUND";
+const { args: llvmpipeArgs, ...llvmpipeUse } = llvmpipe;
 
 export default defineConfig({
   testDir: "shots",
@@ -23,6 +27,6 @@ export default defineConfig({
     url: origin,
     reuseExistingServer: false,
   },
-  use: { baseURL: origin, ...llvmpipe },
+  use: { baseURL: origin, ...llvmpipeUse, launchOptions: { args: [blockMediaSafe, ...llvmpipeArgs] } },
   expect: { timeout: 15_000 },
 });

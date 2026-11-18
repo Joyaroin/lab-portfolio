@@ -40,7 +40,21 @@ describe("playwright configs' renderer", () => {
       vi.stubEnv("LAB_WEBGL", "");
       const { use } = await config(file);
       expect(use.channel).toBeUndefined();
-      expect(use.launchOptions).toBeUndefined();
+      expect(use.launchOptions.args).not.toContain("--use-angle=gl");
+    });
+
+    // #369: no browser spec calls production MediaSafe, whichever way it opens the site, so the block is a launch flag.
+    for (const webgl of ["llvmpipe", ""]) {
+      it(`${file}: makes MediaSafe's host unreachable (LAB_WEBGL=${webgl || "unset"})`, async () => {
+        vi.stubEnv("LAB_WEBGL", webgl);
+        const { use } = await config(file);
+        expect(use.launchOptions.args).toContain("--host-resolver-rules=MAP mediasafe.space ~NOTFOUND");
+      });
+    }
+
+    it(`${file}: blocks the host the Last watched link is on`, async () => {
+      const { LAST_WATCHED_URL } = await import("../src/last-watched.ts");
+      expect(new URL(LAST_WATCHED_URL).hostname).toBe("mediasafe.space");
     });
   }
 });
