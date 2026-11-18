@@ -1,9 +1,8 @@
 // The runner gate: a release job is the only job running on the CI runner (#361).
-// Forgejo has no exclusive job and a job can't pause the runner, so every job in ci.yml, ci-image.yml and release.yml starts with a gate step
+// Forgejo has no exclusive job and a job can't pause the runner, so every job in ci.yml and release.yml starts with a gate step
 // that reads Forgejo's task list and waits:
 //   node scripts/runner-gate.mjs release   a release job waits until no other job is running that started before it and isn't part of its run
 //   node scripts/runner-gate.mjs ci        a CI job waits while a release job that started before it is running
-//   node scripts/runner-gate.mjs ci-image  the same rule as ci, for ci-image.yml's gate job (the mode names the workflow a job finds itself in)
 // Both rules look only at jobs that started earlier, in one total order (start second, then release before anything else, then task id).
 // A job therefore only ever waits for a job ahead of it, so two jobs can't wait for each other, even when they start in the same second.
 // The one rule is the pure function `decide`. Polls every 10 s; after 60 minutes of waiting the job fails, saying what it waited for.
@@ -16,7 +15,7 @@ const MAX_FAILED_READS = 3;
 const PAGE = 50;
 const MAX_PAGES = 10;
 const RELEASE = "release.yml";
-const MODES = { release: RELEASE, ci: "ci.yml", "ci-image": "ci-image.yml" };
+const MODES = { release: RELEASE, ci: "ci.yml" };
 
 const started = (t) => Date.parse(t.run_started_at) / 1000;
 const isRelease = (t) => t.workflow_id === RELEASE;

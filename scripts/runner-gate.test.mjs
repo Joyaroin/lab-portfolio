@@ -15,7 +15,6 @@ const task = (workflow, run, name, at, status = "running", id = nextId++) => ({
 });
 const ci = (run, name, at, status, id) => task("ci.yml", run, name, at, status, id);
 const rel = (run, name, at, status, id) => task("release.yml", run, name, at, status, id);
-const img = (run, name, at, status, id) => task("ci-image.yml", run, name, at, status, id);
 
 // The job asking: it is one of the tasks, and says which with its workflow, run number and job name.
 const me = (t) => ({ workflow: t.workflow_id, runNumber: t.run_number, job: t.name });
@@ -243,15 +242,6 @@ describe("the command, against a fake Forgejo", () => {
     expect(error.message).toMatch(/could not read the task list.*HTTP 403/);
     expect(urls).toHaveLength(3);
   });
-  it("a ci-image job finds itself, and waits for a release job that started before it", async () => {
-    const r = await run("ci-image", { RUN_NUMBER: "705", JOB: "gate" }, [img(705, "gate", 0), ci(704, "backend", -3)]);
-    expect(r.code).toBe(0);
-    expect(r.stdout).toMatch(/CI job.*did not wait/);
-    const blocked = decide({ tasks: [img(705, "gate", 0), rel(701, "browser", -5)], run: { workflow: "ci-image.yml", runNumber: 705, job: "gate" } });
-    expect(blocked.wait).toBe(true);
-    const release = decide({ tasks: [img(705, "image", -5), rel(706, "gate", 0)], run: { workflow: "release.yml", runNumber: 706, job: "gate" } });
-    expect(release.wait).toBe(true);
-  });
   it("fails on an unknown mode", async () => {
     const r = await run("both", { RUN_NUMBER: "1", JOB: "x" }, []);
     expect(r.code).toBe(1);
@@ -262,17 +252,16 @@ describe("the command, against a fake Forgejo", () => {
 const jobIn = (yml, name) => yml.slice(yml.indexOf(`\n  ${name}:\n`) + 1).split(/\n  (?=[a-z-]+:\n)/)[0];
 const jobNames = (yml) => [...yml.slice(yml.indexOf("\njobs:\n")).matchAll(/^  ([a-z-]+):\n/gm)].map((m) => m[1]);
 const stepsIn = (yml, name) => jobIn(yml, name).split(/\n      - /).slice(1);
-// The image jobs (the release's and ci-image.yml's) run in the kaniko debug container: no node, no checkout, so no scripts. The gate job runs the gate for them, and they need that job.
-const UNGATED = ["release.yml image", "ci-image.yml image"];
-const GATED = { "ci.yml": "ci", "release.yml": "release", "ci-image.yml": "ci-image" };
-const LAST_JOB = { "ci.yml": "secret-scan", "release.yml": "browser-light", "ci-image.yml": "image" };
+// The release's image and ci-image jobs run in the kaniko debug container: no node, no checkout, so no scripts. The gate job runs the gate for them, and they need that job.
+const UNGATED = ["release.yml image", "release.yml ci-image"];
+const GATED = { "ci.yml": "ci", "release.yml": "release" };
 
 describe.each(Object.entries(GATED))("%s has the gate in every job", (file, mode) => {
   const yml = readFileSync(new URL(`../.forgejo/workflows/${file}`, import.meta.url), "utf8");
   const jobs = jobNames(yml).filter((j) => !UNGATED.includes(`${file} ${j}`));
   it("finds the jobs", () => {
     expect(jobs.length).toBeGreaterThan(0);
-    expect(jobNames(yml)).toContain(LAST_JOB[file]);
+    expect(jobNames(yml)).toContain(file === "ci.yml" ? "secret-scan" : "browser-light");
   });
   it.each(jobs)("%s: the gate step runs the script in the workflow's mode, with the job's token, run number and job name", (name) => {
     const gateSteps = stepsIn(yml, name).filter((s) => s.includes("node scripts/runner-gate.mjs"));
@@ -287,16 +276,18 @@ describe.each(Object.entries(GATED))("%s has the gate in every job", (file, mode
 
 describe("release.yml's gate job", () => {
   const yml = readFileSync(new URL("../.forgejo/workflows/release.yml", import.meta.url), "utf8");
-  it("is the first job, and image and browser both need it", () => {
+  it("is the first job: image and ci-image need it, and browser needs ci-image (the CI image it runs in)", () => {
     expect(jobNames(yml)[0]).toBe("gate");
     expect(jobIn(yml, "image")).toMatch(/^    needs: gate$/m);
-    expect(jobIn(yml, "browser")).toMatch(/^    needs: gate$/m);
+    expect(jobIn(yml, "ci-image")).toMatch(/^    needs: gate$/m);
+    expect(jobIn(yml, "browser")).toMatch(/^    needs: ci-image$/m);
   });
   it("staging still needs image and browser only, and nothing else in the job graph is new", () => {
     expect(jobIn(yml, "staging")).toMatch(/^    needs: \[image, browser\]$/m);
-    expect(jobNames(yml)).toEqual(["gate", "image", "browser", "staging", "browser-light"]);
+    expect(jobNames(yml)).toEqual(["gate", "image", "ci-image", "browser", "staging", "browser-light"]);
   });
-  it("image has no gate step of its own: its container has no node", () => {
+  it("image and ci-image have no gate step of their own: their container has no node", () => {
     expect(jobIn(yml, "image")).not.toContain("runner-gate");
+    expect(jobIn(yml, "ci-image")).not.toContain("runner-gate");
   });
 });

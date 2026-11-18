@@ -438,7 +438,7 @@ describe("main against a fake Forgejo", () => {
 const jobIn = (yml, name) => yml.slice(yml.indexOf(`\n  ${name}:\n`) + 1).split(/\n  (?=[a-z-]+:\n)/)[0];
 const stepsIn = (yml, name) => jobIn(yml, name).split(/\n      - /).slice(1);
 // What a release.yml browser job sets up, for the release specs and the light specs alike (ci.yml has no browser job).
-const BROWSER_SETUP = ['CI: "true"', "LAB_WEBGL: llvmpipe", 'LIBGL_ALWAYS_SOFTWARE: "1"', 'LP_NUM_THREADS: "4"', "xvfb-run -a", 'make browser-light PW_ARGS="--reporter=list,json"', "image: git.tailf69bc5.ts.net/projects/lab-ci:pw-", "password: ${{ secrets.REGISTRY_TOKEN }}"];
+const BROWSER_SETUP = ['CI: "true"', "LAB_WEBGL: llvmpipe", 'LIBGL_ALWAYS_SOFTWARE: "1"', 'LP_NUM_THREADS: "4"', "xvfb-run -a", 'make browser-light PW_ARGS="--reporter=list,json"', "image: git.tailf69bc5.ts.net/projects/lab-ci:ci-", "password: ${{ secrets.REGISTRY_TOKEN }}"];
 const reportSteps = (yml) => yml.split(/\n      - /).filter((b) => b.includes("node scripts/browser-report.mjs"));
 // The report: scripts/browser-report.mjs, its own script, so the post-ci-failure assertions don't cover its steps.
 function expectReportAfterPost(yml, name, job) {
@@ -500,7 +500,7 @@ describe("release.yml", () => {
     for (const part of BROWSER_SETUP) expect(light, part).toContain(part);
     // The same CI image (ci/Dockerfile), so the two sets of specs draw with the same Chromium and Mesa.
     const image = (name) => job(name).match(/^      image: (.+)$/m)?.[1];
-    expect(image("browser")).toMatch(/lab-ci:pw-/);
+    expect(image("browser")).toMatch(/lab-ci:ci-/);
     expect(image("browser-light")).toBe(image("browser"));
   });
   it("every post step has continue-on-error: true and masks the token", () => {
