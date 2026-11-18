@@ -14,9 +14,9 @@ describe("a page's image", () => {
       alt: "Adham Sedik, smiling, in glasses and a black polo",
       place: "top",
     });
-    // not "and no other page has one": each later image's ticket (#341's screenshot, #342's photo) adds its own page, and its own test says which
+    // the full list: an image added to another page fails here, and that image's ticket adds its page to this list
     const withImage = content.stations.flatMap((s) => s.pages.filter((p) => p.image).map((p) => `${s.id}/${p.id}`));
-    expect(withImage).toContain("about/why-i-do-this");
+    expect(withImage).toEqual(["projects/mediasafe", "about/why-i-do-this", "about/off-the-keyboard"]);
   });
   it("has no import of a file in the content module: the build imports that module", () => {
     expect(typeof portraitPage().image!.file).toBe("string");
