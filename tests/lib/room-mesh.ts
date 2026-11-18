@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 type V3 = [number, number, number];
 
 const CELL = 0.25;
-let cache: { tris: Float64Array; grid: Map<string, number[]> } | undefined;
+let cache: { tris: Float64Array; grid: Map<string, number[]>; vertices: number[] } | undefined;
 
 function load() {
   if (cache) return cache;
@@ -23,7 +23,7 @@ function load() {
   for (const n of json.nodes ?? [])
     for (const k of ["matrix", "translation", "rotation", "scale"])
       if (n[k]) throw new Error(`room.glb: node "${n.name}" has a ${k}; room-mesh.ts reads meshes untransformed`);
-  const tris: number[] = [];
+  const tris: number[] = [], vertices: number[] = [];
   for (const mesh of json.meshes) for (const p of mesh.primitives) {
     const pos = json.accessors[p.attributes.POSITION], idx = json.accessors[p.indices];
     const pv = json.bufferViews[pos.bufferView], iv = json.bufferViews[idx.bufferView];
@@ -33,6 +33,7 @@ function load() {
     if (p.mode !== undefined && p.mode !== TRIANGLES) throw new Error(`room.glb: a primitive with mode ${p.mode}, not triangles`);
     const P = new Float32Array(bin.buffer.slice(bin.byteOffset + (pv.byteOffset ?? 0) + (pos.byteOffset ?? 0), bin.byteOffset + (pv.byteOffset ?? 0) + (pos.byteOffset ?? 0) + pos.count * 12));
     const I = new Uint16Array(bin.buffer.slice(bin.byteOffset + (iv.byteOffset ?? 0) + (idx.byteOffset ?? 0), bin.byteOffset + (iv.byteOffset ?? 0) + (idx.byteOffset ?? 0) + idx.count * 2));
+    vertices.push(pos.count);
     for (const i of I) tris.push(P[i * 3], P[i * 3 + 1], P[i * 3 + 2]);
   }
   const t = Float64Array.from(tris), grid = new Map<string, number[]>();
@@ -46,7 +47,7 @@ function load() {
           (grid.get(key) ?? grid.set(key, []).get(key)!).push(n);
         }
   }
-  return (cache = { tris: t, grid });
+  return (cache = { tris: t, grid, vertices });
 }
 
 const sub = (a: number[], b: number[]) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -87,4 +88,40 @@ export function nearestSurface(p: V3, within: number): number {
       best = Math.min(best, distToTriangle(p, [tris[o], tris[o + 1], tris[o + 2]], [tris[o + 3], tris[o + 4], tris[o + 5]], [tris[o + 6], tris[o + 7], tris[o + 8]]));
     }
   return best <= within ? best : Infinity;
+}
+
+/** The vertex count of each primitive in room.glb. 16-bit indices reach 65,535: `load` throws on 32-bit ones, so a primitive past the ceiling fails every test that reads the room. */
+export function primitiveVertexCounts(): number[] {
+  return load().vertices;
+}
+
+/** How far along the segment from `from` to `to` the first triangle of the room is, in metres (either face), or Infinity if the segment
+ *  meets none. Walks the grid cell by cell (Amanatides and Woo) and tests each triangle in it (Moller and Trumbore). */
+export function firstHit(from: V3, to: V3): number {
+  const { tris, grid } = load();
+  const d = sub(to, from), len = Math.hypot(d[0], d[1], d[2]), dir = d.map((v) => v / len);
+  const cell = [0, 1, 2].map((k) => Math.floor(from[k] / CELL)), step = dir.map((v) => (v > 0 ? 1 : -1));
+  const tMax = [0, 1, 2].map((k) => (dir[k] === 0 ? Infinity : ((dir[k] > 0 ? cell[k] + 1 : cell[k]) * CELL - from[k]) / dir[k]));
+  const tDelta = dir.map((v) => (v === 0 ? Infinity : CELL / Math.abs(v)));
+  const seen = new Set<number>();
+  let best = Infinity;
+  for (;;) {
+    for (const n of grid.get(cell.join(",")) ?? []) {
+      if (seen.has(n)) continue;
+      seen.add(n);
+      const o = n * 9, a = [tris[o], tris[o + 1], tris[o + 2]], e1 = sub([tris[o + 3], tris[o + 4], tris[o + 5]], a), e2 = sub([tris[o + 6], tris[o + 7], tris[o + 8]], a);
+      const h = [dir[1] * e2[2] - dir[2] * e2[1], dir[2] * e2[0] - dir[0] * e2[2], dir[0] * e2[1] - dir[1] * e2[0]], det = dot(e1, h);
+      if (Math.abs(det) < 1e-12) continue;
+      const s = sub(from, a), u = dot(s, h) / det;
+      if (u < 0 || u > 1) continue;
+      const q = [s[1] * e1[2] - s[2] * e1[1], s[2] * e1[0] - s[0] * e1[2], s[0] * e1[1] - s[1] * e1[0]], v = dot(dir, q) / det;
+      if (v < 0 || u + v > 1) continue;
+      const t = dot(e2, q) / det;
+      if (t > 1e-6 && t <= len) best = Math.min(best, t);
+    }
+    const k = tMax[0] < tMax[1] ? (tMax[0] < tMax[2] ? 0 : 2) : tMax[1] < tMax[2] ? 1 : 2;
+    if (tMax[k] > Math.min(len, best)) return best;
+    cell[k] += step[k];
+    tMax[k] += tDelta[k];
+  }
 }

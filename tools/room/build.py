@@ -4,14 +4,14 @@
     (`make room` then shrinks the atlases to the shipped size with tools/room/resize.py)
     blender -b -P tools/room/build.py -- --preview /tmp/shots [--samples 32]   # camera renders, no bake
     ... --preview /tmp/shots --views overview-1280x720,phone-390x844   # only these views (also close-<prop>, check-WxH: see --help)
-    ... --preview /tmp/shots --views overview-1280x720 --proposal all  # #335's proposed props and positions (design/335/): never baked
 
 One small late-night home lab, modelled from primitives here so it is original (ADR-0002). The
 only light comes from things in the room: CRTs, the nixie meter, machine LEDs, a bench lamp and
 the city through the window. Lighting is baked into a few texture atlases (ADR-0004), one per
 group of surfaces, so close-up props get more texels than the walls. Where each CRT sits comes
-from src/room-layout.json, shared with the site. The desktop camera stops are not in that file: the
-site works them out in src/stop.ts. The file's camera views serve phones and --preview.
+from src/room-layout.json, shared with the site, and so does where the props the site draws on or frames
+sit (its `props` list: PROP below). The desktop camera stops are not in that file: the site works them
+out in src/stop.ts. The file's camera views serve phones and --preview.
 """
 import argparse, json, math, os, random, sys, time
 import bpy
@@ -22,9 +22,6 @@ ap.add_argument("--out")
 ap.add_argument("--preview", help="render each camera stop into this directory instead of baking")
 ap.add_argument("--views", help="with --preview: comma list of what to render, instead of the default stops: overview-WxH (the landscape overview at that "
                 "window size), phone-WxH (the portrait overview), close-<probe name, spaces as _> (a prop from 0.8 m), check-WxH (the overview rule only, no render: see check_views) or a TV's id")
-ap.add_argument("--proposal", help="with --preview: lay out the room as #335's design proposes (props new and moved, the football, bracket and sketch gone). "
-                "Comma list of key=value choices, `all` for the defaults. See PROPOSAL below. The bake (--out) refuses it: it is a reference, not yet the room")
-ap.add_argument("--pos", help="with --proposal: a JSON object that replaces entries of POS (to try other positions), for example '{\"fan\": [-0.8, -1.7]}'")
 ap.add_argument("--size", type=int, default=4096, help="size of each atlas: surface colour and glow")
 ap.add_argument("--light-size", type=int, default=2048, help="size the lighting is baked at (the walls get half)")
 ap.add_argument("--samples", type=int, default=192, help="samples for the lighting bake")
@@ -33,48 +30,8 @@ ap.add_argument("--jpeg", type=int, default=88)
 args = ap.parse_args(argv)
 if not args.out and not args.preview:
     ap.error("give --out or --preview")
-if args.proposal is not None and not args.preview:
-    ap.error("--proposal is for --preview only: the bake is unchanged until the bake ticket")
 random.seed(23)
 
-# ---------------------------------------------------------------- #335's design proposal (--preview --proposal only)
-# The positions design/335/README.md proposes for the room's new and moved props, behind a switch so that --out (the bake)
-# never sees them. Every prop below is built only when PROPOSAL is set. New props draw nothing from `random`, so the stream
-# the bake uses is the one it always had, and the football, the bracket and the whiteboard's sketch (whose draws are the
-# file's last) are left out. Site axes, metres. Where Adham has a choice there is one entry per option, and the default is first.
-PROPOSAL_CHOICES = {"phone": ("left", "back", "bench"), "laptop": ("back", "left"), "clock": ("right-wall", "back-wall")}
-POS = {
-    # (x, z) of the centre on the desk top, and the way the front faces in degrees (0 faces +z, 90 faces +x)
-    "laptop": {"back": ((-0.60, -1.40), 8), "left": ((-1.34, -0.82), 40)},
-    "phone": {"left": ((-1.30, -0.04), 40), "back": ((-0.22, -1.64), 10), "bench": ((1.76, 0.52), 60)},
-    # which wall, where along it (the back wall's x, the right wall's z), the height of the face's centre and the face's radius.
-    # The back wall has room for one of the whiteboard and a small clock beside it, not a big one: see design/335/README.md
-    "clock": {"right-wall": ("right", 0.68, 1.45, 0.09), "back-wall": ("back", 0.77, 1.40, 0.07)},
-    "fan": (-0.78, -1.72),                  # was (-1.0, -1.72), half behind the Work CRT's bezel
-    "whiteboard": (1.10, 1.43),             # centre (x, y); was (0.68, 1.55), its top-left corner under the name block at 1280x720
-    "whiteboard size": (0.48, 0.36),        # (width, height); was 0.62 x 0.45
-    "racket": ((1.12, 1.05), 0.0),          # where its butt stands on the floor (x, z): leaning on the shelf unit's front-left post
-    "balls": (1.02, 1.22),                  # the tube, standing on the floor beside the racket
-    "radio": (1.36 + 0.08, 1.09),           # (height, z): was on the lower shelf at z 1.75, outside the frame at 16:10; it takes the football's place
-}
-
-if args.pos:
-    POS.update(json.loads(args.pos))
-
-def parse_proposal(spec):
-    if spec is None:
-        return None
-    chosen = {k: v[0] for k, v in PROPOSAL_CHOICES.items()}
-    for item in filter(None, spec.split(",")):
-        if item == "all":
-            continue
-        k, _, v = item.partition("=")
-        if v not in PROPOSAL_CHOICES.get(k, ()):
-            ap.error(f"--proposal: {item!r} is not one of " + ", ".join(f"{a}={b}" for a, bs in PROPOSAL_CHOICES.items() for b in bs))
-        chosen[k] = v
-    return chosen
-
-PROPOSAL = parse_proposal(args.proposal)
 PROBES = {}  # name -> site points that must be in frame, clear of the HUD and in line of sight from the overview
 
 def probe(name, pts):
@@ -91,6 +48,11 @@ ALL_TVS = [_TV_BY_ID[i] for i in LAYOUT["bakeOrder"]]
 assert len(ALL_TVS) == len(_TV_BY_ID) == len(set(LAYOUT["bakeOrder"])), "bakeOrder must list every TV once"
 # All six TVs are lit, the bench TV (the Projects station's entry) like the rest. The spare CRTs carry no sticky note.
 SPARE_IDS = {c["id"] for c in LAYOUT["spares"]}
+# Where the props that were new or moved in #335's re-bake (#380) go: LAYOUT["props"]'s entries, so a prop and the surface or target
+# the site draws over it can't fall out of step. An entry is a prop's lit face (the middle of the screen, the display, the clock's face),
+# not what the script builds from, so each prop below turns it back into its own input (the radio's depth, the laptop's hinge, the
+# racket's butt, the tube's radius). Those constants live here only.
+PROP = {p["id"]: p for p in LAYOUT["props"]}
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 scene = bpy.context.scene
@@ -251,12 +213,12 @@ M = {
     "citywin_b": material("citywin_b", (0, 0, 0), emit=(0.5, 0.75, 1.0), strength=5.0),
 }
 
-if PROPOSAL is not None:  # new materials only when they are used, so the bake's material list is unchanged
-    M["board"] = material("board", (0.74, 0.75, 0.73))                     # a blank whiteboard: no ruled lines or scrawl
-    M["clockface"] = material("clockface", (0.62, 0.60, 0.52))
-    M["ball"] = material("ball", (0.72, 0.82, 0.10))
-    M["phonescreen"] = material("phonescreen", (0.01, 0.015, 0.02))
-    M["cream"] = varied("cream", (0.55, 0.50, 0.38), (0.45, 0.40, 0.30), scale=12, bump=0.05)
+# #335's new props (#380): the whiteboard is blank (its lab diagram is drawn at runtime), the phone's display is dark (lit at runtime)
+M["board"] = material("board", (0.74, 0.75, 0.73))
+M["clockface"] = material("clockface", (0.62, 0.60, 0.52))
+M["ball"] = material("ball", (0.72, 0.82, 0.10))
+M["phonescreen"] = material("phonescreen", (0.01, 0.015, 0.02))
+M["cream"] = varied("cream", (0.55, 0.50, 0.38), (0.45, 0.40, 0.30), scale=12, bump=0.05)
 
 # ---------------------------------------------------------------- shapes
 # Positions are written in site axes (x across, y up, +z toward the door). Blender is z-up and
@@ -549,14 +511,12 @@ for i, ch in enumerate("0000009"):
 box("nixie", nf(-0.15, 0.108, 0.0225), (0.004, 0.004, 0.002), yaw=70, bevel=0)  # decimal point
 box("black", nf(0, 0.03, 0.066), (0.3, 0.02, 0.004), yaw=70, bevel=0)  # nameplate
 
-# corner (MediaSafe): a laptop closed under papers, a desk fan, a stack of drives
-if PROPOSAL is None:  # the proposal opens the laptop and puts it somewhere the overview camera sees it
-    box("grey", (-1.62, DESK_Y + 0.012, -0.8), (0.32, 0.024, 0.23), yaw=80, bevel=0.006)
+# corner (MediaSafe): a desk fan and a stack of drives (the closed laptop is gone: the opened one stands on the back desk)
 for i in range(4):
     box("black", (-0.85, DESK_Y + 0.013 + i * 0.026, -1.75), (0.1, 0.025, 0.15), yaw=8, bevel=0.003)
 box("led_b", (-0.80, DESK_Y + 0.02, -1.676), (0.006, 0.006, 0.004), yaw=8, bevel=0)
 stack((-1.75, DESK_Y, -1.75), 3)
-FAN_X, FAN_Z = POS["fan"] if PROPOSAL is not None else (-1.0, -1.72)
+FAN_X, _, FAN_Z = PROP["fan"]["centre"]  # the entry is the blades' axle: the blades' front is 0.03 m in front of it
 cyl("grey", (FAN_X, DESK_Y + 0.1, FAN_Z), 0.012, 0.2)
 cyl("black", (FAN_X, DESK_Y + 0.25, FAN_Z + 0.01), 0.09, 0.04, axis="z", verts=24)
 
@@ -671,13 +631,14 @@ cyl("lampbulb", (LAMP_HEAD[0], LAMP_HEAD[1] - 0.045, LAMP_HEAD[2]), 0.035, 0.01,
 box("cardboard", (1.55, 0.15, 0.3), (0.45, 0.3, 0.5), yaw=4, bevel=0.005)
 box("beige", (1.6, 0.42, -0.5), (0.4, 0.3, 0.35), yaw=-95, bevel=0.02)
 
-# shelf unit (software-factory): stacks of parts, a radio, boxes, a football
+# shelf unit (software-factory): stacks of parts, a radio, boxes
 shf = (SH[0] + SH[1]) / 2
 stack((shf, 0.08, 1.7), 4, yaw=90)
 box("cardboard", (shf, 0.24, 1.15), (0.4, 0.3, 0.3), yaw=5, bevel=0.005)
-RADIO_Y, RADIO_Z = (POS["radio"] if PROPOSAL is not None else (0.81 + 0.08, 1.75))  # the proposal moves it to where the football was
-box("wood", (shf + 0.02, RADIO_Y, RADIO_Z), (0.3, 0.16, 0.14), yaw=-90, bevel=0.01)   # old radio
-cyl("black", (shf - 0.13, RADIO_Y, RADIO_Z), 0.04, 0.01, axis="x", verts=20)
+RADIO_DEPTH = 0.14  # the entry is the radio's face, on the middle shelf where the football was; the box stands 0.14 behind it
+RADIO_X, RADIO_Y, RADIO_Z = (PROP["radio"]["centre"][0] + RADIO_DEPTH / 2, PROP["radio"]["centre"][1], PROP["radio"]["centre"][2])
+box("wood", (RADIO_X, RADIO_Y, RADIO_Z), (0.3, 0.16, RADIO_DEPTH), yaw=-90, bevel=0.01)   # old radio
+cyl("black", (RADIO_X - RADIO_DEPTH / 2 - 0.005, RADIO_Y, RADIO_Z), 0.04, 0.01, axis="x", verts=20)  # the dial, flat on the radio's face (it used to float 8 cm in front of it)
 for i in range(3):
     box(["grey", "black", "beige"][i], (shf, 1.36 + 0.03 + i * 0.06, 1.4), (0.4, 0.06, 0.3), yaw=random.uniform(-6, 6), bevel=0.006)
 box("led_a", (shf - 0.2, 1.36 + 0.03, 1.32), (0.004, 0.006, 0.006), bevel=0)
@@ -687,44 +648,22 @@ for i in range(6):
     box("led_g" if i % 2 else "led_a", (shf - 0.151, 1.385, 1.55 + i * 0.025), (0.004, 0.005, 0.008), bevel=0)
 for k in (-1, 1):
     cyl("black", (shf + 0.1, 1.48, 1.62 + k * 0.08), 0.006, 0.18, verts=8)
-if PROPOSAL is None:  # the football: out in the proposal
-    bpy.ops.mesh.primitive_uv_sphere_add(location=B((shf + 0.02, 1.36 + 0.11, 1.1)), radius=0.11, segments=16, ring_count=10)
-    _add(bpy.context.object, "beige", "props", 0.0)
 for i in range(6):
     box(random.choice(["cardboard", "black", "grey", "blue"]), (shf + random.uniform(-0.05, 0.05), 1.8 + 0.08, 1.0 + i * 0.14),
         (0.3, random.uniform(0.08, 0.2), 0.12), yaw=random.uniform(-5, 5), bevel=0.005)
 for i in range(3):
     box("paper", (shf, 2.1 + 0.01 + i * 0.012, 1.4 + random.uniform(-0.1, 0.1)), (0.3, 0.01, 0.22), yaw=random.uniform(-20, 20), bevel=0)
-# a wall calendar and a poster of a circuit by the door, notes taped beside the window
+# a wall calendar by the door, notes taped beside the window
 box("paper", (-0.2, 1.55, Z0 - 0.005), (0.3, 0.42, 0.004), bevel=0)
-if PROPOSAL is None:  # the tournament bracket: out in the proposal
-    box("paper", (0.95, 1.45, Z0 - 0.005), (0.6, 0.42, 0.004), bevel=0)  # a tournament bracket, filled in by hand
-    for side in (-1, 1):
-        for r, n in enumerate((8, 4, 2)):
-            for k in range(n):
-                y = 1.45 + (k - (n - 1) / 2) * (0.38 / n)
-                box("black", (0.95 + side * (0.26 - r * 0.07), y, Z0 - 0.008), (0.06, 0.003, 0.001), bevel=0)
-    box("red", (0.95, 1.45, Z0 - 0.008), (0.05, 0.02, 0.001), bevel=0)
 for i in range(4):
     box(random.choice(["sticky", "pinkslip", "paper"]), (WIN[1] + 0.08 + random.uniform(0, 0.15), 1.4 + i * 0.13, Z1 + 0.003),
         (0.08, 0.08, 0.002), bevel=0)
-# a whiteboard with a network sketch on the wall between the window and the rack
-if PROPOSAL is None:
-    box("paper", (0.68, 1.55, Z1 + 0.012), (0.62, 0.45, 0.012), group="furniture", bevel=0.003)
-    box("grey", (0.68, 1.31, Z1 + 0.03), (0.6, 0.02, 0.04), bevel=0.003)
-    for (x0, y0, x1, y1) in [(0.45, 1.68, 0.68, 1.68), (0.68, 1.68, 0.68, 1.5), (0.68, 1.5, 0.55, 1.42), (0.68, 1.5, 0.82, 1.42),
-                             (0.82, 1.68, 0.9, 1.6), (0.45, 1.68, 0.5, 1.52)]:
-        L = math.hypot(x1 - x0, y1 - y0)
-        box(random.choice(["blue", "red", "black"]), ((x0 + x1) / 2, (y0 + y1) / 2, Z1 + 0.0195), (L, 0.004, 0.001),
-            tilt=(0, -math.degrees(math.atan2(y1 - y0, x1 - x0))), bevel=0)
-    for (x, y) in [(0.45, 1.68), (0.68, 1.68), (0.55, 1.42), (0.82, 1.42), (0.9, 1.6)]:
-        box("black", (x, y, Z1 + 0.02), (0.05, 0.03, 0.001), bevel=0)
-else:  # moved right and down, and blank: the lab's topology is drawn on it at runtime (no sketch, so no draws from the stream)
-    WBX, WBY = POS["whiteboard"]
-    WBW, WBH = POS["whiteboard size"]
-    box("board", (WBX, WBY, Z1 + 0.012), (WBW, WBH, 0.012), group="furniture", bevel=0.003)
-    box("grey", (WBX, WBY - WBH / 2 - 0.015, Z1 + 0.03), (WBW - 0.02, 0.02, 0.04), bevel=0.003)
-    probe("whiteboard", [(WBX + dx * WBW / 2, WBY + dy * WBH / 2, Z1 + 0.025) for dx, dy in ((-1, 1), (1, 1), (-1, -1), (1, -1), (0, 0))])
+# a blank whiteboard on the wall between the window and the rack: the lab's diagram is drawn on it at runtime (no baked sketch)
+WBX, WBY = PROP["whiteboard"]["centre"][:2]
+WBW, WBH = PROP["whiteboard"]["size"]
+box("board", (WBX, WBY, Z1 + 0.012), (WBW, WBH, 0.012), group="furniture", bevel=0.003)
+box("grey", (WBX, WBY - WBH / 2 - 0.015, Z1 + 0.03), (WBW - 0.02, 0.02, 0.04), bevel=0.003)
+probe("whiteboard", [(WBX + dx * WBW / 2, WBY + dy * WBH / 2, Z1 + 0.025) for dx, dy in ((-1, 1), (1, 1), (-1, -1), (1, -1), (0, 0))])
 # fairy lights strung along the top of the shelf unit and over the window
 FAIRY = []
 def fairy(a, b, n, sag):
@@ -742,114 +681,125 @@ fairy((WIN[0] - 0.05, 2.2, Z1 + 0.02), (WIN[1] + 0.05, 2.2, Z1 + 0.02), 14, 0.12
 # a dead ceiling fitting, unlit
 cyl("grey", (0, H - 0.04, 0), 0.15, 0.06, verts=24)
 
-# ---------------------------------------------------------------- #335's new props (proposal only)
-if PROPOSAL is not None:
-    GREEN_LIGHT = None  # set by the laptop: its screen lights the desk like a TV's does
+# ---------------------------------------------------------------- #335's new props (#380): the opened laptop, the desk phone, the wall clock, the racket and the tube of balls
+# Each stands where its LAYOUT["props"] entry puts its lit face. None of them draws from `random`, so the TVs' note colours and keyboard tilts are
+# where they were. Surfaces drawn at runtime are dark or blank here: the phone's display, the laptop's screen (a flat green, lit like a TV's), the clock's hands (set at a made-up 10:09).
+GREEN_LIGHT = None  # set by the laptop: its screen lights the desk like a TV's does
 
-    def laptop_open(xz, yaw):
-        """A laptop opened to about 105 degrees on the desk, its screen facing `yaw`: generic, a grey case and a lit screen."""
-        o = (xz[0], DESK_Y, xz[1])
-        ax = axes_yaw(yaw)
-        obox("grey", o, ax, (0, 0.008, 0), (0.30, 0.016, 0.21), bevel=0.004)             # base
-        obox("black", o, ax, (0, 0.0175, 0.03), (0.26, 0.004, 0.115), bevel=0)           # keyboard well
-        obox("grey", o, ax, (0, 0.0175, 0.095), (0.08, 0.003, 0.045), bevel=0)           # touchpad
-        hinge = at(o, ax, (0, 0.016, -0.105))
-        lid = tilted(ax, 105)                                                            # up leans back, forward faces the user
-        obox("grey", hinge, lid, (0, 0.10, -0.004), (0.30, 0.20, 0.008), bevel=0.004)    # lid
-        obox("black", hinge, lid, (0, 0.10, 0.0005), (0.285, 0.19, 0.002), bevel=0)      # bezel
-        obox("screen", hinge, lid, (0, 0.10, 0.0022), (0.27, 0.165, 0.002), bevel=0)     # the screen
-        probe("extent: laptop", [at(o, ax, (sx * 0.15, 0.0, sz * 0.105)) for sx in (-1, 1) for sz in (-1, 1)] + [at(hinge, lid, (sx * 0.15, 0.2, 0)) for sx in (-1, 1)])
-        probe("laptop screen", [at(hinge, lid, (dx, 0.10 + dy, 0.012)) for dx, dy in ((-0.135, 0.0825), (0.135, 0.0825), (-0.135, -0.0825), (0.135, -0.0825), (0, 0))])
-        return at(hinge, lid, (0, 0.10, 0.012)), lid
+def laptop_open():
+    """A laptop opened to about 105 degrees on the desk, its screen facing the entry's yaw: generic, a grey case and a lit screen."""
+    e = PROP["laptop"]
+    ax = axes_yaw(e["yaw"])
+    lid = tilted(ax, 90 + e["tilt"])                                                 # up leans back, forward faces the user (the entry's tilt is the lid's 15 degrees past upright)
+    HINGE, SCREEN = (0, 0.016, -0.105), (0, 0.10, 0.0032)                            # the hinge in the base's frame; the screen's face in the lid's
+    face = lambda o: at(at(o, ax, HINGE), lid, SCREEN)
+    f0 = face((0, DESK_Y, 0))
+    o = (e["centre"][0] - f0[0], DESK_Y, e["centre"][2] - f0[2])                     # the base's centre on the desk, so that the screen's face is where the entry says
+    obox("grey", o, ax, (0, 0.008, 0), (0.30, 0.016, 0.21), bevel=0.004)             # base
+    obox("black", o, ax, (0, 0.0175, 0.03), (0.26, 0.004, 0.115), bevel=0)           # keyboard well
+    obox("grey", o, ax, (0, 0.0175, 0.095), (0.08, 0.003, 0.045), bevel=0)           # touchpad
+    hinge = at(o, ax, HINGE)
+    obox("grey", hinge, lid, (0, 0.10, -0.004), (0.30, 0.20, 0.008), bevel=0.003)    # lid (a bevel of half its 8 mm leaves zero-area triangles at its corners)
+    obox("black", hinge, lid, (0, 0.10, 0.0005), (0.285, 0.19, 0.002), bevel=0)      # bezel
+    obox("screen", hinge, lid, (0, 0.10, 0.0022), (0.27, 0.165, 0.002), bevel=0)     # the screen
+    probe("extent: laptop", [at(o, ax, (sx * 0.15, 0.0, sz * 0.105)) for sx in (-1, 1) for sz in (-1, 1)] + [at(hinge, lid, (sx * 0.15, 0.2, 0)) for sx in (-1, 1)])
+    probe("laptop screen", [at(hinge, lid, (dx, 0.10 + dy, 0.012)) for dx, dy in ((-0.135, 0.0825), (0.135, 0.0825), (-0.135, -0.0825), (0.135, -0.0825), (0, 0))])
+    return at(hinge, lid, (0, 0.10, 0.012)), lid
 
-    def desk_phone(xz, yaw):
-        """A generic desk phone: a cream base with a sloped keypad, a small display and the handset laid along its left side."""
-        o = (xz[0], DESK_Y, xz[1])
-        ax = axes_yaw(yaw)
-        obox("cream", o, ax, (0, 0.02, 0), (0.20, 0.04, 0.22), bevel=0.01)
-        slope = tilted(ax, 75)
-        pc = at(o, ax, (0.0, 0.047, 0.015))
-        obox("cream", pc, slope, (0, 0, 0), (0.17, 0.012, 0.16), bevel=0.004)             # the sloped panel
-        obox("phonescreen", pc, slope, (0.026, 0.0075, -0.055), (0.075, 0.003, 0.035), bevel=0)  # the display, dark at rest
-        for row in range(4):
-            for col in range(3):
-                obox("grey", pc, slope, (col * 0.026, 0.0075, -0.015 + row * 0.025), (0.018, 0.006, 0.018), bevel=0.002)
-        obox("black", o, ax, (-0.0625, 0.068, 0.0), (0.045, 0.03, 0.25), bevel=0.01)       # handset
-        for end in (-1, 1):
-            obox("black", o, ax, (-0.0625, 0.062, end * 0.115), (0.05, 0.05, 0.055), bevel=0.012)
-        probe("extent: desk phone", [at(o, ax, (sx * 0.1, 0.04, sz * 0.11)) for sx in (-1, 1) for sz in (-1, 1)])
-        sp = at(pc, slope, (0.026, 0.012, -0.055))
-        probe("desk phone", [at(pc, slope, (0.026 + dx, 0.011, -0.055 + dy)) for dx, dy in ((-0.0375, 0.0175), (0.0375, 0.0175), (-0.0375, -0.0175), (0.0375, -0.0175), (0, 0))]
-              + [at(o, ax, (0.05, 0.06, 0.1)), at(o, ax, (0.0, 0.05, -0.09))])
-        return sp
+def desk_phone():
+    """A generic desk phone: a cream base with a sloped keypad, a small display and the handset laid along its left side."""
+    e = PROP["desk-phone"]
+    ax = axes_yaw(e["yaw"])
+    slope = tilted(ax, e["tilt"])                                                    # the keypad panel's up is its normal, raised 75 degrees
+    PANEL, DISPLAY = (0.0, 0.047, 0.015), (0.026, 0.0090, -0.055)                    # the panel's centre in the base's frame; the display's face in the panel's
+    face = lambda o: at(at(o, ax, PANEL), slope, DISPLAY)
+    f0 = face((0, DESK_Y, 0))
+    o = (e["centre"][0] - f0[0], DESK_Y, e["centre"][2] - f0[2])                     # the base's centre on the desk, so that the display's face is where the entry says
+    obox("cream", o, ax, (0, 0.02, 0), (0.20, 0.04, 0.22), bevel=0.01)
+    pc = at(o, ax, PANEL)
+    obox("cream", pc, slope, (0, 0, 0), (0.17, 0.012, 0.16), bevel=0.004)             # the sloped panel
+    obox("phonescreen", pc, slope, (0.026, 0.0075, -0.055), (0.075, 0.003, 0.035), bevel=0)  # the display, dark at rest
+    for row in range(4):
+        for col in range(3):
+            obox("grey", pc, slope, (col * 0.026, 0.0075, -0.015 + row * 0.025), (0.018, 0.006, 0.018), bevel=0.002)
+    obox("black", o, ax, (-0.0625, 0.068, 0.0), (0.045, 0.03, 0.25), bevel=0.01)       # handset
+    for end in (-1, 1):
+        obox("black", o, ax, (-0.0625, 0.062, end * 0.115), (0.05, 0.05, 0.055), bevel=0.012)
+    probe("extent: desk phone", [at(o, ax, (sx * 0.1, 0.04, sz * 0.11)) for sx in (-1, 1) for sz in (-1, 1)])
+    probe("desk phone", [at(pc, slope, (0.026 + dx, 0.011, -0.055 + dy)) for dx, dy in ((-0.0375, 0.0175), (0.0375, 0.0175), (-0.0375, -0.0175), (0.0375, -0.0175), (0, 0))]
+          + [at(o, ax, (0.05, 0.06, 0.1)), at(o, ax, (0.0, 0.05, -0.09))])
 
-    def wall_clock(spec):
-        """A round wall clock, a cream face and black hands, set to a made-up 10:09."""
-        wall, along, cy, R = spec
-        k = R / 0.115                                            # every size below was drawn for a face 11.5 cm in radius
-        if wall == "back":
-            o, yaw = (along, cy, Z1), 0
-        else:
-            o, yaw = (X1, cy, along), -90
-        ax = axes_yaw(yaw)
-        axis = "z" if wall == "back" else "x"
-        def put(d): return at(o, ax, (0, 0, d))
-        cyl("black", put(0.016), R + 0.015, 0.032, axis=axis, verts=32, bevel=0)               # the case
-        cyl("clockface", put(0.034), R, 0.004, axis=axis, verts=32, bevel=0)                  # the face
-        for h in range(12):
-            a = math.radians(h * 30)
-            d = (math.sin(a), math.cos(a))
-            obox("black", o, ax, (d[0] * 0.098 * k, d[1] * 0.098 * k, 0.0375), ((0.006 if h % 3 == 0 else 0.003) * k, (0.016 if h % 3 == 0 else 0.008) * k, 0.002), bevel=0)
-        def hand(deg, length, width, mat):
-            a = math.radians(deg)
-            u = tuple(ax[1][i] * math.cos(a) + ax[0][i] * math.sin(a) for i in range(3))
-            f = ax[2]
-            r = (u[1] * f[2] - u[2] * f[1], u[2] * f[0] - u[0] * f[2], u[0] * f[1] - u[1] * f[0])  # up x forward = right
-            obox(mat, at(o, ax, (0, 0, 0.040)), (r, u, f), (0, (length / 2 - 0.012) * k, 0), (width * k, length * k, 0.002), bevel=0)
-        hand(54, 0.095, 0.005, "black")                         # minute: 9
-        hand(304.5, 0.062, 0.007, "black")                      # hour: just past ten
-        hand(150, 0.10, 0.002, "red")                           # second
-        probe("extent: clock", [at(o, ax, (dx * (R + 0.015), dy * (R + 0.015), 0.03)) for dx, dy in ((-1, 0), (1, 0), (0, 1), (0, -1))])
-        probe("clock face", [at(o, ax, (dx * R, dy * R, 0.046)) for dx, dy in ((-1, 0), (1, 0), (0, 1), (0, -1), (0, 0))])
+def wall_clock():
+    """A round wall clock on the right wall, a cream face and black hands, set to a made-up 10:09."""
+    e = PROP["clock"]
+    assert e["yaw"] == -90, "the clock hangs on the right wall"
+    cy, along, R = e["centre"][1], e["centre"][2], e["size"][0] / 2                  # the entry is the face: centre, and its radius is half its width
+    assert abs(e["centre"][0] + 0.036 - X1) < 1e-6, "the clock's face is 3.6 cm out from the wall (case 3.2 cm, face 0.4 cm)"
+    k = R / 0.115                                            # every size below was drawn for a face 11.5 cm in radius
+    o, yaw = (X1, cy, along), -90
+    ax = axes_yaw(yaw)
+    def put(d): return at(o, ax, (0, 0, d))
+    cyl("black", put(0.016), R + 0.015, 0.032, axis="x", verts=32, bevel=0)                # the case
+    cyl("clockface", put(0.034), R, 0.004, axis="x", verts=32, bevel=0)                   # the face
+    for h in range(12):
+        a = math.radians(h * 30)
+        d = (math.sin(a), math.cos(a))
+        obox("black", o, ax, (d[0] * 0.098 * k, d[1] * 0.098 * k, 0.0375), ((0.006 if h % 3 == 0 else 0.003) * k, (0.016 if h % 3 == 0 else 0.008) * k, 0.002), bevel=0)
+    def hand(deg, length, width, mat):
+        a = math.radians(deg)
+        u = tuple(ax[1][i] * math.cos(a) + ax[0][i] * math.sin(a) for i in range(3))
+        f = ax[2]
+        r = (u[1] * f[2] - u[2] * f[1], u[2] * f[0] - u[0] * f[2], u[0] * f[1] - u[1] * f[0])  # up x forward = right
+        obox(mat, at(o, ax, (0, 0, 0.040)), (r, u, f), (0, (length / 2 - 0.012) * k, 0), (width * k, length * k, 0.002), bevel=0)
+    hand(54, 0.095, 0.005, "black")                         # minute: 9
+    hand(304.5, 0.062, 0.007, "black")                      # hour: just past ten
+    hand(150, 0.10, 0.002, "red")                           # second
+    probe("extent: clock", [at(o, ax, (dx * (R + 0.015), dy * (R + 0.015), 0.03)) for dx, dy in ((-1, 0), (1, 0), (0, 1), (0, -1))])
+    probe("clock face", [at(o, ax, (dx * R, dy * R, 0.046)) for dx, dy in ((-1, 0), (1, 0), (0, 1), (0, -1), (0, 0))])
 
-    def racket_and_balls():
-        """A tennis racket leaning on the right wall, and a tube of balls on the floor beside it: generic, an orange frame, white strings."""
-        (bx, bz), _ = POS["racket"]
-        butt = (bx, 0.02, bz)
-        u = (0.2, 1.0, 0.0); L = math.sqrt(1.04); u = tuple(v / L for v in u)          # up the racket, leaning toward the wall
-        w = (0.0, 0.0, 1.0)
-        n = (w[1] * u[2] - w[2] * u[1], w[2] * u[0] - w[0] * u[2], w[0] * u[1] - w[1] * u[0])  # w x u: the face, toward the room
-        ax = (w, u, n)
-        obox("black", butt, ax, (0, 0.10, 0), (0.030, 0.20, 0.026), bevel=0.008)          # the grip
-        obox("orange", butt, ax, (0, 0.215, 0), (0.03, 0.03, 0.02), bevel=0.005)             # the throat
-        hc, rx, ry = 0.47, 0.125, 0.16
-        ring = [at(butt, ax, (rx * math.sin(math.radians(a)), hc + ry * math.cos(math.radians(a)), 0)) for a in range(0, 361, 15)]
-        cable(ring, r=0.009, mat="orange")                                                # the frame
-        for side in (-1, 1):                                                            # the two beams of the throat
-            cable([at(butt, ax, (side * 0.010, 0.23, 0)), at(butt, ax, (side * 0.06, 0.30, 0)), at(butt, ax, (side * rx * 0.95, hc - ry * 0.45, 0))], r=0.008, mat="orange")
-        for k in range(-5, 6):                                                          # strings
-            x = k * 0.02
-            h = ry * math.sqrt(max(0.0, 1 - (x / rx) ** 2))
-            obox("paper", butt, ax, (x, hc, 0), (0.0012, 2 * h, 0.0012), bevel=0)
-            y = k * 0.026
-            hw = rx * math.sqrt(max(0.0, 1 - (y / ry) ** 2))
-            obox("paper", butt, ax, (0, hc + y, 0), (2 * hw, 0.0012, 0.0012), bevel=0)
-        probe("extent: racket", [butt, at(butt, ax, (0, hc + ry, 0)), at(butt, ax, (rx, hc, 0)), at(butt, ax, (-rx, hc, 0))])
-        probe("racket", [at(butt, ax, (0, hc, 0.012)), at(butt, ax, (rx * 0.9, hc, 0.012)), at(butt, ax, (-rx * 0.9, hc, 0.012)),
-                         at(butt, ax, (0, hc + ry * 0.9, 0.012)), at(butt, ax, (0, hc - ry * 0.9, 0.012)), at(butt, ax, (0, 0.1, 0.02))])
-        tx, tz = POS["balls"]
-        cyl("ball", (tx, 0.12, tz), 0.036, 0.24, verts=20, bevel=0)                      # the tube, three balls tall
-        cyl("black", (tx, 0.245, tz), 0.038, 0.014, verts=20, bevel=0)                  # its cap
-        bpy.ops.mesh.primitive_uv_sphere_add(location=B((tx + 0.1, 0.033, tz + 0.05)), radius=0.033, segments=16, ring_count=10)
-        _add(bpy.context.object, "ball", "props", 0.0)                                  # one out of the tube
-        probe("tube of balls", [(tx, 0.12, tz + 0.04), (tx, 0.22, tz + 0.04), (tx + 0.1, 0.05, tz + 0.05)])
+def racket_and_balls():
+    """A tennis racket leaning on the shelf unit's front-left post, and a tube of balls on the floor beside it: generic, an orange frame, white strings."""
+    e = PROP["racket"]
+    t = math.radians(e["tilt"])
+    u = (math.sin(t), math.cos(t), 0.0)                                              # up the racket, leaning toward the wall
+    RACKET_BUTT = 0.32                                                               # the entry is the head and grip's middle: the butt is this far back along the shaft
+    butt = tuple(e["centre"][i] - RACKET_BUTT * u[i] for i in range(3))
+    w = (0.0, 0.0, 1.0)
+    n = (w[1] * u[2] - w[2] * u[1], w[2] * u[0] - w[0] * u[2], w[0] * u[1] - w[1] * u[0])  # w x u: the face, toward the room
+    ax = (w, u, n)
+    obox("black", butt, ax, (0, 0.10, 0), (0.030, 0.20, 0.026), bevel=0.008)          # the grip
+    obox("orange", butt, ax, (0, 0.215, 0), (0.03, 0.03, 0.02), bevel=0.005)             # the throat
+    hc, rx, ry = 0.47, 0.125, 0.16
+    ring = [at(butt, ax, (rx * math.sin(math.radians(a)), hc + ry * math.cos(math.radians(a)), 0)) for a in range(0, 361, 15)]
+    cable(ring, r=0.009, mat="orange")                                                # the frame
+    for side in (-1, 1):                                                            # the two beams of the throat
+        cable([at(butt, ax, (side * 0.010, 0.23, 0)), at(butt, ax, (side * 0.06, 0.30, 0)), at(butt, ax, (side * rx * 0.95, hc - ry * 0.45, 0))], r=0.008, mat="orange")
+    for k in range(-5, 6):                                                          # strings
+        x = k * 0.02
+        h = ry * math.sqrt(max(0.0, 1 - (x / rx) ** 2))
+        obox("paper", butt, ax, (x, hc, 0), (0.0012, 2 * h, 0.0012), bevel=0)
+        y = k * 0.026
+        hw = rx * math.sqrt(max(0.0, 1 - (y / ry) ** 2))
+        obox("paper", butt, ax, (0, hc + y, 0), (2 * hw, 0.0012, 0.0012), bevel=0)
+    probe("extent: racket", [butt, at(butt, ax, (0, hc + ry, 0)), at(butt, ax, (rx, hc, 0)), at(butt, ax, (-rx, hc, 0))])
+    probe("racket", [at(butt, ax, (0, hc, 0.012)), at(butt, ax, (rx * 0.9, hc, 0.012)), at(butt, ax, (-rx * 0.9, hc, 0.012)),
+                     at(butt, ax, (0, hc + ry * 0.9, 0.012)), at(butt, ax, (0, hc - ry * 0.9, 0.012)), at(butt, ax, (0, 0.1, 0.02))])
+    # the tube: the entry's box is the tube, its cap and the ball out of it, seen from the room (-x). Its x is the tube's near surface; its z the middle of the three.
+    TUBE_R, CAP_R, BALL_R, BALL_DX, BALL_DZ = 0.036, 0.038, 0.033, 0.1, 0.05
+    e = PROP["ball-tube"]
+    tx = e["centre"][0] + TUBE_R
+    tz = e["centre"][2] - ((BALL_DZ + BALL_R) + (-CAP_R)) / 2
+    cyl("ball", (tx, 0.12, tz), TUBE_R, 0.24, verts=20, bevel=0)                      # the tube, three balls tall
+    cyl("black", (tx, 0.245, tz), CAP_R, 0.014, verts=20, bevel=0)                  # its cap
+    bpy.ops.mesh.primitive_uv_sphere_add(location=B((tx + BALL_DX, BALL_R, tz + BALL_DZ)), radius=BALL_R, segments=16, ring_count=10)
+    _add(bpy.context.object, "ball", "props", 0.0)                                  # one out of the tube
+    probe("tube of balls", [(tx, 0.12, tz + 0.04), (tx, 0.22, tz + 0.04), (tx + 0.1, 0.05, tz + 0.05)])
 
-    lx, lz = POS["laptop"][PROPOSAL["laptop"]][0]
-    screen_p, screen_ax = laptop_open(*POS["laptop"][PROPOSAL["laptop"]])
-    desk_phone(*POS["phone"][PROPOSAL["phone"]])
-    wall_clock(POS["clock"][PROPOSAL["clock"]])
-    racket_and_balls()
-    GREEN_LIGHT = (screen_p, screen_ax)
+screen_p, screen_ax = laptop_open()
+desk_phone()
+wall_clock()
+racket_and_balls()
+GREEN_LIGHT = (screen_p, screen_ax)
 
 # ---------------------------------------------------------------- lights
 # Only practical sources. World is near-black.
@@ -876,10 +826,10 @@ GREEN = (0.35, 1.0, 0.5)
 for spec in ALL_TVS:
     f = frame(spec["screen"], spec["yaw"])
     area(f(0, 0, 0.012), spec["yaw"], (0.44, 0.34), 0.55, GREEN)
-if PROPOSAL is not None:  # the laptop's screen lights the desk it stands on, as a TV's does
-    _p, _ax = GREEN_LIGHT
-    _f = _ax[2]
-    area(_p, math.degrees(math.atan2(_f[0], _f[2])), (0.26, 0.16), 0.2, GREEN, tilt=-math.degrees(math.asin(_f[1])))
+# the laptop's screen lights the desk it stands on, as a TV's does
+_p, _ax = GREEN_LIGHT
+_f = _ax[2]
+area(_p, math.degrees(math.atan2(_f[0], _f[2])), (0.26, 0.16), 0.2, GREEN, tilt=-math.degrees(math.asin(_f[1])))
 point(nf(0, 0.12, 0.16), 0.22, (1.0, 0.42, 0.1), radius=0.06)
 area((wx, wy, Z1 - 0.02), 0, (ww, wh), 2.0, (0.45, 0.6, 1.0))
 # the LED strip under the rack's top plate, washing down over the two PCs
@@ -966,9 +916,7 @@ def existing_probes():
     # the switch's LEDs (y 0.845) sit behind the patch cables' arcs, so the rack is probed at the PCs' LEDs and the UPS's
     probe("rack lights", [rf(0.03, 0.773, FZ + 0.012), rf(0.045, 0.773, FZ + 0.012), rf(0.03, 0.573, FZ + 0.012), rf(0.045, 0.573, FZ + 0.012), rf(0.1, 0.28, FZ + 0.012)])
     probe("oscilloscope screen", [osc(-0.05 + dx, 0.13 + dy, 0.165) for dx, dy in ((-0.075, 0.055), (0.075, 0.055), (-0.075, -0.055), (0.075, -0.055), (0, 0))])
-    probe("radio", [(shf - 0.065, RADIO_Y + dy, RADIO_Z + dz) for dy, dz in ((0.06, 0.13), (0.06, -0.13), (-0.06, 0.13), (-0.06, -0.13))] + [(shf - 0.14, RADIO_Y, RADIO_Z)])
-    if PROPOSAL is None:  # the whiteboard as it is today (the proposal's is probed where it is built)
-        probe("whiteboard", [(0.68 + dx * 0.31, 1.55 + dy * 0.225, Z1 + 0.025) for dx, dy in ((-1, 1), (1, 1), (-1, -1), (1, -1), (0, 0))])
+    probe("radio", [(RADIO_X - 0.085, RADIO_Y + dy, RADIO_Z + dz) for dy, dz in ((0.06, 0.13), (0.06, -0.13), (-0.06, 0.13), (-0.06, -0.13))] + [(RADIO_X - 0.085, RADIO_Y, RADIO_Z)])
     probe("fan", [(FAN_X + dx, DESK_Y + 0.25 + dy, FAN_Z + 0.04) for dx, dy in ((0, 0), (0.07, 0), (-0.07, 0), (0, 0.07), (0, -0.07))])
     probe("soldering iron's wisp", [(1.44, 1.06 + k * 0.05, -0.8) for k in range(5)])
     for c in LAYOUT["crts"]:

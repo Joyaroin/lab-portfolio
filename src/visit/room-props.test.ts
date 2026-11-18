@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { CAMERA_FOV, props, type Prop } from "../crts";
 import { clearances, deviceSize, HUD_MARGIN, hudTier, isCompact, LINK_ROW_H, LINK_ROW_W, lineHeight, lineMaxWidth, lineTexts, lineType, NAME_BLOCK_H, NAME_BLOCK_W } from "../pin";
 import { overviewPose, PIN_CLEAR, reach } from "../pins";
+import { corners, cross, type V3 } from "../../tests/lib/prop-face";
 import type { Pose } from "./flight";
 
 // #379: every prop the room's framing rule names is in the window and clear of the HUD's boxes at the landscape overview, at every width
@@ -9,12 +10,10 @@ import type { Pose } from "./flight";
 // Pure projection of the entries in src/room-layout.json, with no browser, by the camera's own maths (as flight.test.ts does).
 // Line of sight (one prop hidden behind another) needs the baked model: it is #380's.
 
-type V3 = [number, number, number];
 type Box = { name: string; left: number; top: number; width: number; height: number };
 const sub = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const dot = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const norm = (a: V3): V3 => { const l = Math.hypot(...a); return [a[0] / l, a[1] / l, a[2] / l]; };
-const cross = (a: V3, b: V3): V3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 
 /** Where a point lands in a window, in px from its top left, by the camera's projection (vertical field the pose's fov); null if it is behind the camera. */
 function project(pose: Pose, p: V3, win: Win): [number, number] | null {
@@ -22,14 +21,6 @@ function project(pose: Pose, p: V3, win: Win): [number, number] | null {
   const tan = Math.tan(((pose.fov ?? CAMERA_FOV) * Math.PI) / 360), aspect = win.width / win.height;
   if (z <= 0) return null;
   return [((dot(d, r) / z / (tan * aspect) + 1) / 2) * win.width, ((1 - dot(d, u) / z / tan) / 2) * win.height];
-}
-
-/** A prop's four corners in site axes: its centre, half its size along the face's right and up. The face's normal is the yaw turned,
- *  then raised `tilt` degrees; right is level and `up` is the normal crossed with it (so a level face's up is world up). */
-export function corners(p: Prop): V3[] {
-  const a = (p.yaw * Math.PI) / 180, t = (p.tilt * Math.PI) / 180;
-  const n: V3 = [Math.sin(a) * Math.cos(t), Math.sin(t), Math.cos(a) * Math.cos(t)], right: V3 = [Math.cos(a), 0, -Math.sin(a)], up = cross(n, right);
-  return [[-1, 1], [1, 1], [1, -1], [-1, -1]].map(([x, y]) => [0, 1, 2].map((i) => p.centre[i] + right[i] * x * p.size[0] / 2 + up[i] * y * p.size[1] / 2) as V3);
 }
 
 type Win = { width: number; height: number };

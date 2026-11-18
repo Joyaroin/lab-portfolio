@@ -159,6 +159,8 @@ export const ui = {
   } as Record<string, string>,
   /** #387: the hover words on the room's props (what a prop is called while the pointer rests on it). Marked, empty: #387 fills in only this group. */
   propHover: {} as Record<string, string>,
+  /** #384 and #385: the whiteboard's words (the board's drawing, drawn at runtime on the blank board baked in #380). Marked, empty: #385 fills in only this group. */
+  whiteboard: {} as Record<string, string>,
 };
 /** The placeholders each template must keep. */
 const PLACEHOLDERS: Record<string, string[]> = {
