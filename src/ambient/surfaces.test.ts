@@ -1,14 +1,15 @@
 import { describe, expect, it } from "vitest";
+import { Euler, Vector3 } from "three";
 import { phosphorFrame, spares } from "../crts";
 import { recordingContext } from "./recording-context.test-helper";
 import { STILL_T, SCREEN_H, SCREEN_W } from "./still";
 import {
-  ambientSurfaces, BUDGET_PX, createSurfaceDriver, isFilled, layoutPlane, pixelsPerTick, RESERVED,
+  ambientSurfaces, BUDGET_PX, createSurfaceDriver, isFilled, layoutPlane, pixelsPerTick, planeRotation, RESERVED,
   type Bound, type Drawing, type Entry, type Surface,
 } from "./surfaces";
 
 const LATER = ["oscilloscope", "rack-lights", "iron-wisp", "fan", "radio", "desk-phone", "clock", "laptop"];
-const plane = { position: [0, 1, 0] as [number, number, number], yaw: 0, width: 0.1, height: 0.1 };
+const plane = { position: [0, 1, 0] as [number, number, number], yaw: 0, tilt: 0, width: 0.1, height: 0.1 };
 
 /** A filled surface that records the times it is drawn at. */
 const fake = (id: string, draw: Drawing = () => {}): Surface & { drawn: number[] } => {
@@ -35,7 +36,7 @@ describe("the list", () => {
     for (const [k, s] of filled.entries()) {
       expect(s.size).toEqual({ w: SCREEN_W, h: SCREEN_H });
       const f = phosphorFrame(spares[k]);
-      expect(s.plane).toMatchObject({ position: f.position, yaw: f.yaw, width: 0.46, height: 0.36 });
+      expect(s.plane).toMatchObject({ position: f.position, yaw: f.yaw, tilt: 0, width: 0.46, height: 0.36 });
     }
   });
   it("has one placeholder for each later surface, with its id and reserved size, and nothing else", () => {
@@ -130,12 +131,44 @@ describe("the stop", () => {
 });
 
 describe("layoutPlane", () => {
-  const props = { clock: { centre: [1.9, 1.45, 0.68], yaw: 270, size: [0.18, 0.18] } };
-  it("reads a surface's plane from its layout entry by id, yaw in degrees to radians", () => {
-    expect(layoutPlane("clock", props)).toEqual({ position: [1.9, 1.45, 0.68], yaw: (270 * Math.PI) / 180, width: 0.18, height: 0.18 });
+  const props = [
+    { id: "clock", centre: [1.9, 1.45, 0.68], yaw: -90, size: [0.18, 0.18] },
+    { id: "laptop", centre: [-0.62, 0.87, -1.53], yaw: 8, tilt: 15, size: [0.27, 0.165] },
+  ];
+  it("reads a surface's plane from its layout entry by id: centre, yaw, size and tilt, the angles in radians", () => {
+    expect(layoutPlane("laptop", props)).toEqual({ position: [-0.62, 0.87, -1.53], yaw: (8 * Math.PI) / 180, tilt: (15 * Math.PI) / 180, width: 0.27, height: 0.165 });
+  });
+  it("is upright when the entry has no tilt", () => {
+    expect(layoutPlane("clock", props)).toMatchObject({ yaw: (-90 * Math.PI) / 180, tilt: 0 });
   });
   it("throws when the entry isn't there, so a surface can't be filled without its place", () => {
-    expect(() => layoutPlane("laptop", props)).toThrow(/"laptop"/);
-    expect(() => layoutPlane("laptop", undefined)).toThrow();
+    expect(() => layoutPlane("fan", props)).toThrow(/"fan"/);
+    expect(() => layoutPlane("fan", undefined)).toThrow();
+  });
+});
+
+describe("planeRotation", () => {
+  /** The way a mesh with this rotation faces: its plane's normal, which starts at +z. */
+  const normal = (yawDeg: number, tiltDeg: number) => {
+    const p = { ...plane, yaw: (yawDeg * Math.PI) / 180, tilt: (tiltDeg * Math.PI) / 180 };
+    const [x, y, z, order] = planeRotation(p);
+    return new Vector3(0, 0, 1).applyEuler(new Euler(x, y, z, order));
+  };
+  const expected = (yawDeg: number, tiltDeg: number) => {
+    const a = (yawDeg * Math.PI) / 180, t = (tiltDeg * Math.PI) / 180;
+    return [Math.sin(a) * Math.cos(t), Math.sin(t), Math.cos(a) * Math.cos(t)];
+  };
+  it("leaves a plane upright with no tilt, as the CRTs' are: rotation [0, yaw, 0]", () => {
+    expect(planeRotation({ ...plane, yaw: 1.2 })).toEqual([-0, 1.2, 0, "YXZ"]);
+    expect(normal(90, 0).toArray()).toEqual([expect.closeTo(1, 6), expect.closeTo(0, 6), expect.closeTo(0, 6)]);
+  });
+  it("raises the face's normal by tilt above level, whatever the yaw", () => {
+    for (const [yaw, tilt] of [[0, 15], [8, 15], [40, 75], [-90, 11.31], [90, 90], [180, 30]]) {
+      expect(normal(yaw, tilt).toArray()).toEqual(expected(yaw, tilt).map((v) => expect.closeTo(v, 6)));
+    }
+  });
+  it("tilts the laptop's lid back and the phone's keypad up: the normal's height is sin(tilt)", () => {
+    expect(normal(8, 15).y).toBeCloseTo(Math.sin((15 * Math.PI) / 180), 6);
+    expect(normal(40, 75).y).toBeCloseTo(Math.sin((75 * Math.PI) / 180), 6);
   });
 });

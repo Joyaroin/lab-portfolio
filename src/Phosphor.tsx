@@ -7,7 +7,7 @@ import { crts, CRT_GLASS, PLANE_INSET, phosphorFrame } from "./crts";
 import { stations } from "./content";
 import { CARD_PX, drawPhosphor } from "./card";
 import { canvas, texture } from "./draw";
-import { ambientSurfaces, createSurfaceDriver, type Surface } from "./ambient/surfaces";
+import { ambientSurfaces, createSurfaceDriver, planeRotation, type Surface } from "./ambient/surfaces";
 import { createAmbientRedraw } from "./ambient/redraw";
 import saved from "./commits-saved.json";
 
@@ -107,7 +107,7 @@ export function Phosphor({ where, reduced }: { where: MutableRefObject<Where>; r
   return (
     <>
       {ambient.planes.map(({ id, plane, t }) => (
-        <mesh key={id} position={plane.position} rotation={[0, plane.yaw, 0]} raycast={() => null}>
+        <mesh key={id} position={plane.position} rotation={planeRotation(plane)} raycast={() => null}>
           <planeGeometry args={[plane.width, plane.height]} />
           <meshBasicMaterial map={t} toneMapped={false} />
         </mesh>

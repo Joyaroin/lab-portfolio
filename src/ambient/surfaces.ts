@@ -17,8 +17,13 @@ import { drawTraffic } from "./traffic";
 
 type Ctx = CanvasRenderingContext2D;
 export type Size = { w: number; h: number };
-/** Where a surface's plane stands: its centre in metres (site axes), its yaw in radians (0 faces +z) and its size in metres. */
-export type Plane = { position: [number, number, number]; yaw: number; width: number; height: number };
+/** Where a surface's plane stands: its centre in metres (site axes), its yaw in radians (0 faces +z), its tilt in radians (how far the
+ *  plane's normal is raised above level: 0 is upright, as a CRT's glass is) and its size in metres. */
+export type Plane = { position: [number, number, number]; yaw: number; tilt: number; width: number; height: number };
+
+/** The rotation to give a three.js mesh (`rotation={planeRotation(plane)}`): yaw about the vertical, then the plane's face leant back by
+ *  `tilt`. The Euler order is YXZ, so the tilt is about the plane's own horizontal axis: the normal ends at (sin yaw cos tilt, sin tilt, cos yaw cos tilt). */
+export const planeRotation = (p: Plane): [number, number, number, "YXZ"] => [-p.tilt, p.yaw, 0, "YXZ"];
 /** Paints frame `t` (ms). Returns `false` when the frame is the one already on the canvas (nothing was painted): the
  *  texture isn't uploaded then. Anything else, `undefined` included, means the canvas changed. */
 export type Drawing = (c: Ctx, t: number) => boolean | void;
@@ -47,15 +52,17 @@ export const RESERVED: Record<string, Size> = {
 
 const placeholder = (id: keyof typeof RESERVED & string): Placeholder => ({ id, size: RESERVED[id], placeholder: true });
 
-/** A layout entry that places a surface: `centre` in metres (site axes), `yaw` in degrees (0 faces +z) and `size` (width, height) in metres.
- *  Read by id from `src/room-layout.json`'s `props` group, which #379 fills; `tools/room/build.py` reads the same numbers. */
-type LayoutProp = { centre: number[]; yaw: number; size: number[] };
+/** An entry in `src/room-layout.json`'s `props` list (#379): `centre` in metres (site axes), `yaw` in degrees (0 faces +z, 90 faces +x),
+ *  `tilt` in degrees (how far the face's normal is raised above level; absent is 0, upright) and `size` (width, height) in metres. */
+type LayoutProp = { id: string; centre: number[]; yaw: number; tilt?: number; size: number[] };
 
-/** The plane of the surface `id`, from its room-layout.json entry. Throws if there is none, so a surface can't be filled without its place. */
-export function layoutPlane(id: string, props: Record<string, LayoutProp> | undefined = (layout as { props?: Record<string, LayoutProp> }).props): Plane {
-  const p = props?.[id];
+/** The plane of the surface `id`, from its entry in room-layout.json (centre, yaw, size and tilt). Throws if there is none, so a surface can't be filled without its place.
+ *  Reads the JSON itself, so it doesn't wait for a typed export. */
+export function layoutPlane(id: string, props: LayoutProp[] | undefined = (layout as { props?: LayoutProp[] }).props): Plane {
+  const p = props?.find((e) => e.id === id);
   if (!p) throw new Error(`room-layout.json has no entry for the surface "${id}"`);
-  return { position: [p.centre[0], p.centre[1], p.centre[2]], yaw: (p.yaw * Math.PI) / 180, width: p.size[0], height: p.size[1] };
+  const rad = (deg: number) => (deg * Math.PI) / 180;
+  return { position: [p.centre[0], p.centre[1], p.centre[2]], yaw: rad(p.yaw), tilt: rad(p.tilt ?? 0), width: p.size[0], height: p.size[1] };
 }
 
 /** The glass over an ambient screen: scanlines and darker curved corners, as the station glass has. */
@@ -80,7 +87,7 @@ const screen = (id: string, commits: SavedCommit[]): Surface => {
   const f = phosphorFrame(crt);
   return {
     id, size: { w: SCREEN_W, h: SCREEN_H },
-    plane: { position: f.position, yaw: f.yaw, width: CRT_GLASS.width, height: CRT_GLASS.height },
+    plane: { position: f.position, yaw: f.yaw, tilt: 0, width: CRT_GLASS.width, height: CRT_GLASS.height },
     draw: (g, t) => { g.save(); paint(g, t); g.restore(); g.save(); drawGlass(g); g.restore(); },
   };
 };
