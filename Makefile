@@ -20,11 +20,15 @@ backend:
 	@echo "Nothing to check: the site is static files served by nginx, with no server code."
 integration: frontend
 	node tests/integration.mjs
-# Browsers and system packages are installed only in CI. The Mac has Playwright's browsers installed. The whole suite: release.yml runs it as browser-release and browser-light.
+# Browsers and system packages are installed only in CI. The CI image (ci/Dockerfile, LAB_CI_IMAGE set) already has both, so there only a browser it lacks is fetched. The Mac has Playwright's browsers installed. The whole suite: release.yml runs it as browser-release and browser-light.
 browser:
 	npm ci
 ifdef CI
+ifdef LAB_CI_IMAGE
+	npx playwright install chromium
+else
 	npx playwright install --with-deps chromium
+endif
 endif
 	npx playwright test $(PW_ARGS)
 # The release specs: the @timing and @render tests. The two targets below take their pattern from here, so they can't drift apart.
