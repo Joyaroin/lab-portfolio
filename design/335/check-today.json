@@ -1,0 +1,950 @@
+{
+ "extent: rack @ overview-1280x720": {
+  "bbox": [
+   610,
+   139,
+   665,
+   268
+  ]
+ },
+ "rack lights @ overview-1280x720": {
+  "inFrame": 25,
+  "clear": 25,
+  "visible": 25,
+  "all": 25,
+  "why": [],
+  "rest": [
+   [
+    643,
+    174
+   ],
+   [
+    644,
+    174
+   ],
+   [
+    642,
+    199
+   ],
+   [
+    644,
+    199
+   ],
+   [
+    649,
+    230
+   ]
+  ]
+ },
+ "oscilloscope screen @ overview-1280x720": {
+  "inFrame": 25,
+  "clear": 25,
+  "visible": 25,
+  "all": 25,
+  "why": [],
+  "rest": [
+   [
+    821,
+    212
+   ],
+   [
+    846,
+    224
+   ],
+   [
+    816,
+    231
+   ],
+   [
+    839,
+    243
+   ],
+   [
+    830,
+    228
+   ]
+  ]
+ },
+ "radio @ overview-1280x720": {
+  "inFrame": 23,
+  "clear": 23,
+  "visible": 5,
+  "all": 25,
+  "why": [
+   "cam 0 point 0: hidden behind a prop 0.27 m in front of it",
+   "cam 0 point 1: hidden behind a prop 0.15 m in front of it",
+   "cam 0 point 2: hidden behind a prop 0.27 m in front of it",
+   "cam 0 point 3: hidden behind a prop 0.15 m in front of it",
+   "cam 1 point 0: hidden behind a prop 0.26 m in front of it",
+   "cam 1 point 1: hidden behind a prop 0.15 m in front of it",
+   "cam 1 point 2: hidden behind a prop 0.27 m in front of it",
+   "cam 1 point 3: hidden behind a prop 0.15 m in front of it",
+   "cam 2 point 0: hidden behind a prop 0.27 m in front of it",
+   "cam 2 point 1: hidden behind a prop 0.15 m in front of it",
+   "cam 2 point 2: hidden behind a prop 0.27 m in front of it",
+   "cam 2 point 3: hidden behind a prop 0.16 m in front of it",
+   "cam 3 point 0: out of frame at (1298, 508)",
+   "cam 3 point 1: hidden behind a prop 0.15 m in front of it",
+   "cam 3 point 2: hidden behind a prop 0.27 m in front of it",
+   "cam 3 point 3: hidden behind a prop 0.15 m in front of it",
+   "cam 4 point 0: out of frame at (1283, 523)",
+   "cam 4 point 1: hidden behind a prop 0.15 m in front of it",
+   "cam 4 point 2: hidden behind a prop 0.28 m in front of it",
+   "cam 4 point 3: hidden behind a prop 0.16 m in front of it"
+  ],
+  "rest": [
+   [
+    1232,
+    440
+   ],
+   [
+    1141,
+    395
+   ],
+   [
+    1202,
+    460
+   ],
+   [
+    1118,
+    415
+   ],
+   [
+    1164,
+    437
+   ]
+  ]
+ },
+ "whiteboard @ overview-1280x720": {
+  "inFrame": 22,
+  "clear": 19,
+  "visible": 19,
+  "all": 25,
+  "why": [
+   "cam 0 point 0: (435, 20) under the name block",
+   "cam 1 point 0: (389, 48) under the name block",
+   "cam 2 point 1: out of frame at (469, -6)",
+   "cam 2 point 4: (433, 49) under the name block",
+   "cam 4 point 0: out of frame at (491, -3)",
+   "cam 4 point 1: out of frame at (590, -13)"
+  ],
+  "rest": [
+   [
+    435,
+    20
+   ],
+   [
+    533,
+    9
+   ],
+   [
+    457,
+    106
+   ],
+   [
+    544,
+    89
+   ],
+   [
+    495,
+    58
+   ]
+  ]
+ },
+ "fan @ overview-1280x720": {
+  "inFrame": 25,
+  "clear": 25,
+  "visible": 25,
+  "all": 25,
+  "why": [],
+  "rest": [
+   [
+    239,
+    230
+   ],
+   [
+    254,
+    226
+   ],
+   [
+    224,
+    234
+   ],
+   [
+    231,
+    217
+   ],
+   [
+    247,
+    241
+   ]
+  ]
+ },
+ "soldering iron's wisp @ overview-1280x720": {
+  "inFrame": 25,
+  "clear": 25,
+  "visible": 25,
+  "all": 25,
+  "why": [],
+  "rest": [
+   [
+    693,
+    162
+   ],
+   [
+    694,
+    154
+   ],
+   [
+    694,
+    146
+   ],
+   [
+    695,
+    138
+   ],
+   [
+    696,
+    130
+   ]
+  ]
+ },
+ "TV: work @ overview-1280x720": {
+  "inFrame": 19,
+  "clear": 19,
+  "visible": 19,
+  "all": 20,
+  "why": [
+   "cam 2 point 0: out of frame at (-3, 328)"
+  ],
+  "rest": [
+   [
+    81,
+    272
+   ],
+   [
+    178,
+    216
+   ],
+   [
+    148,
+    340
+   ],
+   [
+    226,
+    280
+   ]
+  ]
+ },
+ "TV: projects @ overview-1280x720": {
+  "inFrame": 20,
+  "clear": 20,
+  "visible": 20,
+  "all": 20,
+  "why": [],
+  "rest": [
+   [
+    741,
+    128
+   ],
+   [
+    809,
+    155
+   ],
+   [
+    731,
+    192
+   ],
+   [
+    792,
+    222
+   ]
+  ]
+ },
+ "TV: about @ overview-1280x720": {
+  "inFrame": 20,
+  "clear": 20,
+  "visible": 20,
+  "all": 20,
+  "why": [],
+  "rest": [
+   [
+    432,
+    167
+   ],
+   [
+    498,
+    142
+   ],
+   [
+    451,
+    226
+   ],
+   [
+    510,
+    199
+   ]
+  ]
+ },
+ "desk meter @ overview-1280x720": {
+  "inFrame": 16,
+  "clear": 16,
+  "visible": 16,
+  "all": 20,
+  "why": [
+   "cam 1 point 0: out of frame at (82, 796)",
+   "cam 1 point 1: out of frame at (57, 791)",
+   "cam 2 point 0: out of frame at (132, 798)",
+   "cam 2 point 1: out of frame at (109, 798)"
+  ],
+  "rest": [
+   [
+    99,
+    704
+   ],
+   [
+    77,
+    699
+   ],
+   [
+    158,
+    563
+   ],
+   [
+    142,
+    554
+   ]
+  ]
+ },
+ "extent: rack @ overview-1440x900": {
+  "bbox": [
+   682,
+   173,
+   751,
+   335
+  ]
+ },
+ "rack lights @ overview-1440x900": {
+  "inFrame": 25,
+  "clear": 25,
+  "visible": 25,
+  "all": 25,
+  "why": [],
+  "rest": [
+   [
+    723,
+    218
+   ],
+   [
+    725,
+    217
+   ],
+   [
+    723,
+    249
+   ],
+   [
+    725,
+    248
+   ],
+   [
+    731,
+    288
+   ]
+  ]
+ },
+ "oscilloscope screen @ overview-1440x900": {
+  "inFrame": 25,
+  "clear": 25,
+  "visible": 25,
+  "all": 25,
+  "why": [],
+  "rest": [
+   [
+    947,
+    265
+   ],
+   [
+    977,
+    280
+   ],
+   [
+    940,
+    289
+   ],
+   [
+    969,
+    304
+   ],
+   [
+    958,
+    285
+   ]
+  ]
+ },
+ "radio @ overview-1440x900": {
+  "inFrame": 20,
+  "clear": 20,
+  "visible": 5,
+  "all": 25,
+  "why": [
+   "cam 0 point 0: out of frame at (1460, 550)",
+   "cam 0 point 1: hidden behind a prop 0.15 m in front of it",
+   "cam 0 point 2: hidden behind a prop 0.27 m in front of it",
+   "cam 0 point 3: hidden behind a prop 0.15 m in front of it",
+   "cam 1 point 0: hidden behind a prop 0.26 m in front of it",
+   "cam 1 point 1: hidden behind a prop 0.15 m in front of it",
+   "cam 1 point 2: hidden behind a prop 0.27 m in front of it",
+   "cam 1 point 3: hidden behind a prop 0.15 m in front of it",
+   "cam 2 point 0: hidden behind a prop 0.27 m in front of it",
+   "cam 2 point 1: hidden behind a prop 0.15 m in front of it",
+   "cam 2 point 2: hidden behind a prop 0.27 m in front of it",
+   "cam 2 point 3: hidden behind a prop 0.16 m in front of it",
+   "cam 3 point 0: out of frame at (1543, 636)",
+   "cam 3 point 1: hidden behind a prop 0.15 m in front of it",
+   "cam 3 point 2: out of frame at (1499, 661)",
+   "cam 3 point 3: hidden behind a prop 0.15 m in front of it",
+   "cam 4 point 0: out of frame at (1524, 654)",
+   "cam 4 point 1: hidden behind a prop 0.15 m in front of it",
+   "cam 4 point 2: out of frame at (1477, 674)",
+   "cam 4 point 3: hidden behind a prop 0.16 m in front of it"
+  ],
+  "rest": [
+   [
+    1460,
+    550
+   ],
+   [
+    1346,
+    493
+   ],
+   [
+    1423,
+    575
+   ],
+   [
+    1317,
+    518
+   ],
+   [
+    1375,
+    546
+   ]
+  ]
+ },
+ "whiteboard @ overview-1440x900": {
+  "inFrame": 22,
+  "clear": 20,
+  "visible": 20,
+  "all": 25,
+  "why": [
+   "cam 1 point 0: (406, 60) under the name block",
+   "cam 2 point 0: (376, 14) under the name block",
+   "cam 2 point 1: out of frame at (506, -8)",
+   "cam 4 point 0: out of frame at (533, -3)",
+   "cam 4 point 1: out of frame at (657, -16)"
+  ],
+  "rest": [
+   [
+    464,
+    25
+   ],
+   [
+    587,
+    11
+   ],
+   [
+    491,
+    133
+   ],
+   [
+    600,
+    112
+   ],
+   [
+    539,
+    73
+   ]
+  ]
+ },
+ "fan @ overview-1440x900": {
+  "inFrame": 25,
+  "clear": 25,
+  "visible": 25,
+  "all": 25,
+  "why": [],
+  "rest": [
+   [
+    219,
+    287
+   ],
+   [
+    238,
+    282
+   ],
+   [
+    200,
+    292
+   ],
+   [
+    209,
+    272
+   ],
+   [
+    229,
+    301
+   ]
+  ]
+ },
+ "soldering iron's wisp @ overview-1440x900": {
+  "inFrame": 25,
+  "clear": 25,
+  "visible": 25,
+  "all": 25,
+  "why": [],
+  "rest": [
+   [
+    786,
+    203
+   ],
+   [
+    787,
+    193
+   ],
+   [
+    788,
+    183
+   ],
+   [
+    789,
+    173
+   ],
+   [
+    789,
+    162
+   ]
+  ]
+ },
+ "TV: work @ overview-1440x900": {
+  "inFrame": 18,
+  "clear": 18,
+  "visible": 18,
+  "all": 20,
+  "why": [
+   "cam 1 point 0: out of frame at (-67, 399)",
+   "cam 2 point 0: out of frame at (-84, 410)"
+  ],
+  "rest": [
+   [
+    21,
+    340
+   ],
+   [
+    142,
+    270
+   ],
+   [
+    105,
+    424
+   ],
+   [
+    202,
+    350
+   ]
+  ]
+ },
+ "TV: projects @ overview-1440x900": {
+  "inFrame": 20,
+  "clear": 20,
+  "visible": 20,
+  "all": 20,
+  "why": [],
+  "rest": [
+   [
+    846,
+    160
+   ],
+   [
+    931,
+    193
+   ],
+   [
+    834,
+    240
+   ],
+   [
+    910,
+    278
+   ]
+  ]
+ },
+ "TV: about @ overview-1440x900": {
+  "inFrame": 20,
+  "clear": 20,
+  "visible": 20,
+  "all": 20,
+  "why": [],
+  "rest": [
+   [
+    460,
+    208
+   ],
+   [
+    542,
+    177
+   ],
+   [
+    483,
+    283
+   ],
+   [
+    557,
+    248
+   ]
+  ]
+ },
+ "desk meter @ overview-1440x900": {
+  "inFrame": 16,
+  "clear": 16,
+  "visible": 16,
+  "all": 20,
+  "why": [
+   "cam 1 point 0: out of frame at (22, 994)",
+   "cam 1 point 1: out of frame at (-9, 989)",
+   "cam 2 point 0: out of frame at (85, 998)",
+   "cam 2 point 1: out of frame at (57, 998)"
+  ],
+  "rest": [
+   [
+    43,
+    880
+   ],
+   [
+    16,
+    873
+   ],
+   [
+    118,
+    703
+   ],
+   [
+    98,
+    692
+   ]
+  ]
+ },
+ "extent: rack @ overview-1920x1080": {
+  "bbox": [
+   915,
+   208,
+   998,
+   402
+  ]
+ },
+ "rack lights @ overview-1920x1080": {
+  "inFrame": 25,
+  "clear": 25,
+  "visible": 25,
+  "all": 25,
+  "why": [],
+  "rest": [
+   [
+    964,
+    261
+   ],
+   [
+    966,
+    260
+   ],
+   [
+    964,
+    299
+   ],
+   [
+    966,
+    298
+   ],
+   [
+    973,
+    345
+   ]
+  ]
+ },
+ "oscilloscope screen @ overview-1920x1080": {
+  "inFrame": 25,
+  "clear": 25,
+  "visible": 25,
+  "all": 25,
+  "why": [],
+  "rest": [
+   [
+    1232,
+    318
+   ],
+   [
+    1269,
+    336
+   ],
+   [
+    1224,
+    347
+   ],
+   [
+    1259,
+    365
+   ],
+   [
+    1246,
+    342
+   ]
+  ]
+ },
+ "radio @ overview-1920x1080": {
+  "inFrame": 23,
+  "clear": 23,
+  "visible": 5,
+  "all": 25,
+  "why": [
+   "cam 0 point 0: hidden behind a prop 0.27 m in front of it",
+   "cam 0 point 1: hidden behind a prop 0.15 m in front of it",
+   "cam 0 point 2: hidden behind a prop 0.27 m in front of it",
+   "cam 0 point 3: hidden behind a prop 0.15 m in front of it",
+   "cam 1 point 0: hidden behind a prop 0.26 m in front of it",
+   "cam 1 point 1: hidden behind a prop 0.15 m in front of it",
+   "cam 1 point 2: hidden behind a prop 0.27 m in front of it",
+   "cam 1 point 3: hidden behind a prop 0.15 m in front of it",
+   "cam 2 point 0: hidden behind a prop 0.27 m in front of it",
+   "cam 2 point 1: hidden behind a prop 0.15 m in front of it",
+   "cam 2 point 2: hidden behind a prop 0.27 m in front of it",
+   "cam 2 point 3: hidden behind a prop 0.16 m in front of it",
+   "cam 3 point 0: out of frame at (1948, 763)",
+   "cam 3 point 1: hidden behind a prop 0.15 m in front of it",
+   "cam 3 point 2: hidden behind a prop 0.27 m in front of it",
+   "cam 3 point 3: hidden behind a prop 0.15 m in front of it",
+   "cam 4 point 0: out of frame at (1925, 785)",
+   "cam 4 point 1: hidden behind a prop 0.15 m in front of it",
+   "cam 4 point 2: hidden behind a prop 0.28 m in front of it",
+   "cam 4 point 3: hidden behind a prop 0.16 m in front of it"
+  ],
+  "rest": [
+   [
+    1848,
+    661
+   ],
+   [
+    1711,
+    592
+   ],
+   [
+    1804,
+    690
+   ],
+   [
+    1677,
+    622
+   ],
+   [
+    1747,
+    655
+   ]
+  ]
+ },
+ "whiteboard @ overview-1920x1080": {
+  "inFrame": 22,
+  "clear": 22,
+  "visible": 22,
+  "all": 25,
+  "why": [
+   "cam 2 point 1: out of frame at (703, -9)",
+   "cam 4 point 0: out of frame at (736, -4)",
+   "cam 4 point 1: out of frame at (884, -19)"
+  ],
+  "rest": [
+   [
+    653,
+    30
+   ],
+   [
+    800,
+    13
+   ],
+   [
+    686,
+    160
+   ],
+   [
+    816,
+    134
+   ],
+   [
+    742,
+    87
+   ]
+  ]
+ },
+ "fan @ overview-1920x1080": {
+  "inFrame": 25,
+  "clear": 25,
+  "visible": 25,
+  "all": 25,
+  "why": [],
+  "rest": [
+   [
+    359,
+    344
+   ],
+   [
+    382,
+    338
+   ],
+   [
+    336,
+    350
+   ],
+   [
+    347,
+    326
+   ],
+   [
+    371,
+    362
+   ]
+  ]
+ },
+ "soldering iron's wisp @ overview-1920x1080": {
+  "inFrame": 25,
+  "clear": 25,
+  "visible": 25,
+  "all": 25,
+  "why": [],
+  "rest": [
+   [
+    1039,
+    244
+   ],
+   [
+    1040,
+    232
+   ],
+   [
+    1041,
+    220
+   ],
+   [
+    1042,
+    207
+   ],
+   [
+    1043,
+    194
+   ]
+  ]
+ },
+ "TV: work @ overview-1920x1080": {
+  "inFrame": 19,
+  "clear": 19,
+  "visible": 19,
+  "all": 20,
+  "why": [
+   "cam 2 point 0: out of frame at (-5, 492)"
+  ],
+  "rest": [
+   [
+    121,
+    408
+   ],
+   [
+    267,
+    324
+   ],
+   [
+    222,
+    509
+   ],
+   [
+    339,
+    421
+   ]
+  ]
+ },
+ "TV: projects @ overview-1920x1080": {
+  "inFrame": 20,
+  "clear": 20,
+  "visible": 20,
+  "all": 20,
+  "why": [],
+  "rest": [
+   [
+    1111,
+    192
+   ],
+   [
+    1213,
+    232
+   ],
+   [
+    1097,
+    288
+   ],
+   [
+    1188,
+    333
+   ]
+  ]
+ },
+ "TV: about @ overview-1920x1080": {
+  "inFrame": 20,
+  "clear": 20,
+  "visible": 20,
+  "all": 20,
+  "why": [],
+  "rest": [
+   [
+    648,
+    250
+   ],
+   [
+    747,
+    213
+   ],
+   [
+    676,
+    339
+   ],
+   [
+    764,
+    298
+   ]
+  ]
+ },
+ "desk meter @ overview-1920x1080": {
+  "inFrame": 16,
+  "clear": 16,
+  "visible": 16,
+  "all": 20,
+  "why": [
+   "cam 1 point 0: out of frame at (122, 1193)",
+   "cam 1 point 1: out of frame at (85, 1187)",
+   "cam 2 point 0: out of frame at (198, 1197)",
+   "cam 2 point 1: out of frame at (164, 1197)"
+  ],
+  "rest": [
+   [
+    148,
+    1056
+   ],
+   [
+    115,
+    1048
+   ],
+   [
+    237,
+    844
+   ],
+   [
+    213,
+    830
+   ]
+  ]
+ }
+}
