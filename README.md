@@ -118,7 +118,7 @@ without baking, run `blender -b -P tools/room/build.py -- --preview /tmp/shots` 
 view of each of the six TVs (the three stations, the bench TV among them, and the three spare CRTs; all six are lit, and only the stations carry a sticky note) and of the overview at 16:9 and 16:10 (the desktop stops are not among them). For a quick
 `--views overview-1280x720,phone-390x844` renders only the views named (the landscape overview at a window size, the portrait overview, a TV's id)
 and checks, for the landscape ones, that the props the room's framing rule names are in frame, clear of the HUD's boxes and in sight at every
-camera pose the mouse parallax reaches (`ROOM_CHECK` lines, and a JSON file beside the stills); `--proposal all` lays out the props `design/335/` proposes, in `--preview` only: the bake never builds them. For a quick
+camera pose the mouse parallax reaches (`ROOM_CHECK` lines, and a JSON file beside the stills); the props stand where `src/room-layout.json`'s `props` entries put them (#380). For a quick
 test bake, pass `--size 1024 --light-size 512 --samples 64` after `--`. Draco mesh compression isn't
 used, because this Blender build lacks the library.
 
