@@ -19,7 +19,12 @@ describe("the clock's hands", () => {
     expect(shownSeconds(STILL_T)).toBe(shownSeconds(STILL_T));
     const real = new Date(); const now = real.getHours() % 12 * 3600 + real.getMinutes() * 60 + real.getSeconds();
     expect(CLOCK_START_S).not.toBe(now);
-    expect(shownSeconds(0)).toBe(CLOCK_START_S); // before STILL_T nothing has run yet
+    expect(shownSeconds(0)).toBe(CLOCK_START_S - Math.ceil(STILL_T / 1000)); // from load the hands already run: floor(-13.4) = -14
+  });
+  it("tick before STILL_T too: the overview loads at t about 0, and the hands change across a second boundary", () => {
+    expect(shownSeconds(4000) - shownSeconds(3000)).toBe(1);
+    expect(shownSeconds(STILL_T - 1)).toBe(CLOCK_START_S - 1);
+    expect(shownSeconds(STILL_T)).toBe(CLOCK_START_S);
   });
   it("tick at normal speed: one second a second, the second hand 6 degrees a tick, the minute hand a full turn in an hour", () => {
     expect(shownSeconds(after(1))).toBe(CLOCK_START_S + 1);

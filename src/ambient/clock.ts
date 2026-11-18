@@ -28,11 +28,11 @@ export function slipsBy(n: number): number {
   return k;
 }
 
-/** The seconds after 12 the hands show at time `t`: a whole number. The second counter runs from STILL_T (before it, nothing has run yet);
+/** The seconds after 12 the hands show at time `t`: a whole number. The second counter runs from STILL_T (before it the count is negative: the hands tick on from load, and no slip has happened);
  *  each slip takes the second hand back one second from where the tick before it was, so the clock is then two seconds behind where it was heading. */
 export function shownSeconds(t: number): number {
-  const n = Math.max(0, Math.floor((t - STILL_T) / 1000));
-  const s = CLOCK_START_S + n - 2 * slipsBy(n);
+  const n = Math.floor((t - STILL_T) / 1000); // negative before STILL_T: the hands run on from load, and the still frame is still 10:09:25
+  const s = CLOCK_START_S + n - 2 * slipsBy(Math.max(0, n)); // slips count from STILL_T on
   return ((s % DAY_HALF_S) + DAY_HALF_S) % DAY_HALF_S;
 }
 
