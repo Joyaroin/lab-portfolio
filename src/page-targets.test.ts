@@ -179,7 +179,7 @@ describe("the targets over the overview, inside the gate", () => {
     const win = { width: 1280, height: 720 }, cam = camOf(reach(overviewPose(win))[0], win);
     const phone = boxOf("phone", toWindow(planeCorners(targets[1]), cam, win)!), meter = boxOf("meter", toWindow(meterCorners(), cam, win)!);
     expect(meets(phone, meter)).toBe(false);
-    expect(phone.left - (meter.left + meter.width)).toBeGreaterThan(0); // 7 px apart sideways at rest, with their rows overlapping by under 1 px
+    expect(phone.left - (meter.left + meter.width)).toBeGreaterThan(2); // about 2.6 px apart sideways at rest (7 px before the target was enlarged to cover the handset), with their rows overlapping
   });
   it("notices a target shrunk (the break check for the size rule): the rack at half its size, the desk phone at the display's", () => {
     const small = targets.map((p) => p.id === "rack" ? { ...p, size: [p.size[0] / 2, p.size[1] / 2] as [number, number] } : p);
