@@ -64,11 +64,11 @@ progress {
   .crt-panel > .crt-foot { order: 2; }
   .crt-panel > .crt-more { order: 3; }
 }
-/* #344 (opens larger): the styles of the small image's button and of the dialog go here. Nothing else edits this block. */
+/* #344 (opens larger): the styles of the small image's button and of the dialog go here. */
 .crt-photo-btn { display: block; width: 100%; margin: 0; padding: 0; border: 0; background: none; font: inherit; color: inherit; line-height: 0; cursor: zoom-in; }
 /* the figure clips to its border, so the focus ring sits inside the image */
 .crt-photo-btn:focus-visible { outline-offset: -4px !important; }
-/* The open image: a dialog inside the panel, over all of what the visitor sees of it (ScreenPanels' LargeImage.tsx sets its top and height).
+/* The open image: a dialog inside the panel, over all of what the visitor sees of it (src/text/LargeImage.tsx sets its top and height).
    The panel stops scrolling while it is open. It opens and shuts at once, with no transition. */
 .crt-panel[data-larger] { overflow: hidden !important; }
 .crt-large { position: absolute; left: 0; width: 100%; z-index: 3; box-sizing: border-box; display: flex; flex-direction: column; gap: 0.6em; padding: 0.6em 1em;

@@ -66,7 +66,7 @@ function StationPanel({ s, visit, step }: { s: Station; visit: Visit; step: Step
   if (imageOn !== wantImage) setImageOn(wantImage);
   // A file that fails to load shows nothing: no broken image and no empty frame. The names that failed are kept, so it isn't retried on a revisit.
   const [failed, setFailed] = useState<string[]>([]);
-  // Only the place beside the top text is drawn here. The image below the bullets (#342) and opening larger (#344) have their marked places below.
+  // The place beside the top text is drawn here. The place below the bullets is drawn further down.
   const topImage = imageOn && !shortLandscape && image?.place === "top" && !failed.includes(image.file) ? image : null;
   // #342 (below the bullets): the same rules for the image under the bullets. Its caption goes with it: it is left out on a short landscape
   // window and when the file fails to load. The cue is worked out again when it arrives or goes (its own effect, so the line above is not edited).
@@ -118,7 +118,7 @@ function StationPanel({ s, visit, step }: { s: Station; visit: Visit; step: Step
         </div>
         {topImage && IMAGE_FILES[topImage.file] && (
           <figure className="crt-photo" data-photo>
-            {/* #344 (opens larger): the small image's button and the dialog it opens are drawn here, around this <img>. Nothing else edits this block. */}
+            {/* #344 (opens larger): the small image's button and the dialog it opens are drawn here, around this <img>. */}
             {(() => {
               const file = IMAGE_FILES[topImage.file];
               const small = (
@@ -152,7 +152,7 @@ function StationPanel({ s, visit, step }: { s: Station; visit: Visit; step: Step
       )}
       {page.diagram && <DiagramFigure d={page.diagram} />}
       <ul style={list}>{page.body.map((b, i) => <li key={i} style={item}>{b}</li>)}</ul>
-      {/* #342 (below the bullets): an image with place "below" and its caption are drawn here, after the bullets. Nothing else edits this block. */}
+      {/* #342 (below the bullets): an image with place "below" and its caption are drawn here, after the bullets. */}
       {belowImage && IMAGE_FILES[belowImage.file] && (
         <figure className="crt-below" data-below>
           <div className="crt-below-img">
