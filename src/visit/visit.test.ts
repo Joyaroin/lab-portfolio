@@ -554,6 +554,19 @@ describe("a press during a flight or fade is held as a stop and a page", () => {
     expect(events.at(-1)).toEqual({ type: "page", stop: 1, step: BARRACUDA });
   });
 
+  it("under reduced motion, a stop pressed after a page press during the fade to that stop keeps the pressed page (#301)", () => {
+    const { visit, events, advance, now } = setup(true);
+    visit.go(1);
+    advance(100);
+    visit.go(BARRACUDA); // Work's later page waits for the fade
+    visit.go(1); // the HUD link to the stop being faded to: a number, not a step
+    expect(visit.step()).toEqual(BARRACUDA);
+    advance(FADE_MS);
+    expect(visit.where(now())).toEqual({ kind: "at", stop: 1 });
+    expect(visit.step()).toEqual(BARRACUDA);
+    expect(events.filter((e) => e.type === "move")).toHaveLength(1);
+  });
+
   it("under reduced motion, a press for another station's page during a fade ends on that page", () => {
     const { visit, advance, now } = setup(true);
     visit.go(1);
