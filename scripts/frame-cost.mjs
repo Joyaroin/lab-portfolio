@@ -1,4 +1,4 @@
-// The overview's frame cost (#378): the number #381-#384 repeat and post theirs against. The method is in docs/agents/testing.md
+// The overview's frame cost (#378): the number #381-#384 repeat and post theirs against. The method is in docs/agents/testing/room.md
 // ("Frame-cost baseline"); this is that method, so a number from here is comparable to the baseline.
 //
 //   npm run build && npm run preview -- --port $TEST_PORT      (one terminal; the site as built)
