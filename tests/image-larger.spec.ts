@@ -148,7 +148,10 @@ test.describe("a move of the tour shuts it and then moves", () => {
 
 // #388: a re-render of the tour while the dialog is open must leave focus and the dialog's top where they were. The panel handed the dialog a
 // new `shot` object each render, and the dialog's layout effect depended on it, so every re-render reset the top and refocused Close.
+// The window is short (1280x560) so the MediaSafe page overflows its panel: at 1280x720 it fits, the panel can't scroll, and the top is 0 before and after
+// whether or not the dialog resets it, so only the focus check would catch the bug. Here the panel is scrolled and the test asserts it moved.
 test("a re-render of the tour with the dialog open leaves focus on the dialog and its top where it was", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 560 });
   await openMediaSafe(page);
   await opener(page).click();
   await expect(dialog(page)).toBeVisible();
@@ -160,7 +163,9 @@ test("a re-render of the tour with the dialog open leaves focus on the dialog an
   // the panel doesn't scroll for the visitor while the dialog is open, but a script can move it: the dialog's top must stay where the dialog opened
   const top = () => dialog(page).evaluate((d) => (d as HTMLElement).style.top);
   const before = await top();
-  await panel(page).evaluate((p) => { p.scrollTop = p.scrollTop + 7; });
+  const scrolledFrom = await panel(page).evaluate((p) => p.scrollTop);
+  await panel(page).evaluate((p) => { p.scrollTop = p.scrollTop + 40; });
+  expect(await panel(page).evaluate((p) => p.scrollTop), "the panel really scrolled, or the top check below sees nothing").toBeGreaterThan(scrolledFrom);
   // a pointer on a HUD link makes the tour re-render (its hover preview changes), and the link only previews, so the dialog stays open
   await hudLink(page, 2).hover();
   await page.waitForTimeout(300); // past the render the hover asks for
