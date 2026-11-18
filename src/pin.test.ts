@@ -160,13 +160,17 @@ describe("clearances", () => {
     const bad: string[] = [];
     let atOrAbove = 0, below = 0;
     for (let width = 560; width <= 3840; width++) {
-      const need = needed(width), heights = new Set<number>();
+      const need = needed(width), heights = new Set<number>(), coarse = new Set<number>();
       for (let h = Math.ceil(need) - 2; h <= Math.ceil(need) + 1; h++) heights.add(h);
-      if (width % 40 === 0) for (let h = 320; h <= 520; h += 10) heights.add(h);
+      if (width % 40 === 0) for (let h = 320; h <= 520; h += 10) if (!heights.has(h)) coarse.add(h);
       let line: number | undefined;
-      for (const height of heights) {
+      for (const height of [...heights, ...coarse]) {
         const win = { width, height };
-        if (!hudTier(win).startsWith("compact")) continue; // a taller window gets a full HUD, which has its own rule
+        if (!hudTier(win).startsWith("compact")) {
+          // the four heights at the threshold must all be compact: a width that drops out of the compact HUD must fail, not be skipped
+          if (heights.has(height)) bad.push(`${width}x${height}: not compact`);
+          continue; // a taller coarse window gets a full HUD, which has its own rule
+        }
         const c = clearances(win), room = height - c.top - c.bottom, tag = `${width}x${height}`;
         const placed = fitPanel(win, width / 2, height / 2, 90, 2000).maxHeight;
         line ??= lineHeight(win);
@@ -182,9 +186,9 @@ describe("clearances", () => {
         }
       }
     }
+    expect(bad).toEqual([]);
     expect(atOrAbove, "windows at or above the threshold").toBeGreaterThan(3000);
     expect(below, "windows below it").toBeGreaterThan(3000);
-    expect(bad).toEqual([]);
   });
   it("the cases the rule names: 1280x380 has 106.5 px, 2000x355 has 60.8 px, and 1000x360 and 1280x394 keep 120", () => {
     const room = (width: number, height: number) => { const c = clearances({ width, height }); return height - c.top - c.bottom; };
