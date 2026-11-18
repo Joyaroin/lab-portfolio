@@ -3,6 +3,7 @@
 The three spare CRTs in the room show an ambient screen: the git log, the lab traffic and the security puzzle
 (spec #280). They are drawn on a canvas, into the glass's texture, as the title cards and the desk meter's glow are.
 They are decoration, with no click and no hover.
+One screen is also a click target, by a separate object: the desk phone's display (`desk-phone` in `src/room-layout.json`) is an ambient surface like these, and the whole phone around it (`desk-phone-target`) is a click target that visits About me / Contact (ADR-0005, #386). The display itself takes no click and no hover: the target is its own invisible plane, and it takes the click whether the display is lit or not.
 
 Spec #335 adds more moving things to the room: the ambient screens become **ambient surfaces**, and the three spare
 CRTs' screens are the first three. Everything below holds for every surface, "screens" read as "surfaces" except where

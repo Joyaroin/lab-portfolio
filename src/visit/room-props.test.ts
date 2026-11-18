@@ -159,10 +159,10 @@ describe("the overview's framing rule over the props", () => {
     expect(Math.min(...widths)).toBe(1280);
     expect(Math.max(...widths)).toBeLessThanOrEqual(1303);
   });
-  it("gives the desk phone's target the whole phone's size at rest, 119 x 71 px at 1280 x 720 (the base alone is design/335's 103 x 67), against the display's 29 x 23", () => {
+  it("gives the desk phone's target the whole phone's size at rest, 127 x 76 px at 1280 x 720 (the base alone is design/335's 103 x 67; #386's follow-up enlarged it to cover the handset's raised ends), against the display's 29 x 23", () => {
     const win = { width: 1280, height: 720 }, pose = reach(overviewPose(win))[0], get = (id: string) => bbox(props.find((p) => p.id === id)!, pose, win)!;
     const t = get("desk-phone-target"), d = get("desk-phone");
-    expect([t.right - t.left, t.bottom - t.top].map(Math.round)).toEqual([119, 71]); // the base alone (0.20 x 0.22 m) is design/335's 103 x 67; the handset reaches past it
+    expect([t.right - t.left, t.bottom - t.top].map(Math.round)).toEqual([127, 76]); // the base alone (0.20 x 0.22 m) is design/335's 103 x 67; the handset reaches past it, and the box is made bigger than the phone for its raised ends
     expect(t.right - t.left).toBeGreaterThanOrEqual(103);
     expect(t.bottom - t.top).toBeGreaterThanOrEqual(67);
     expect(d.right - d.left).toBeLessThan(MIN_TARGET);

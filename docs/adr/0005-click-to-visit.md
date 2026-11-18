@@ -30,3 +30,7 @@ Spec #280 amended the design in these ways. The rules above that it doesn't ment
   a link that visits it, shown only where all three clear the HUD (from about 1380 px wide with today's pose). It
   also carries a "Start the tour" button above the meter bar until the first landing. A phone has no pins: its bottom
   bar of four buttons (Overview and the three stations) is the way in.
+- **Two pointer shortcuts in the room (#386).** At the landscape overview, from 1280 x 720 up, a click on the rack visits Projects / Home lab and a click
+  on the desk phone About me / Contact. They are shortcuts for a pointer only: keyboard and screen-reader visitors reach the same pages by the HUD's links
+  and the pages' tabs, as before, so neither is a control with a role or a tab stop. Under that size, on a portrait window, at a station and in a flight
+  neither takes a click, and a press on one is a press on the room (at a station it goes back). The gate is `pageTargetsOn` in `src/page-targets.ts`.
