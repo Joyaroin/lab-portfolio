@@ -561,6 +561,30 @@ describe("release.yml", () => {
     expect(all[clock]).not.toContain("run_number: "); // the API id, not the run number, finds the run
     expect(all[clock].match(/TOKEN: (.*)/g)?.every((l) => l.endsWith("${{ secrets.GITHUB_TOKEN }}"))).toBe(true);
   });
+  // The staging-skipped warning: scripts/staging-skipped.mjs holds the rule, these check the wiring (a release can't run on a PR).
+  it("the move step passes out seen and runs on the 'main has moved past' exit, before it exits", () => {
+    const move = steps("staging").find((b) => b.includes("id: move"));
+    const pastExit = move.slice(move.indexOf("main has moved past")).split("exit 0")[0];
+    expect(pastExit).toContain('echo "seen=$seen" >> "$GITHUB_OUTPUT"');
+    expect(pastExit).toMatch(/echo "runs=.*>> "\$GITHUB_OUTPUT"/);
+  });
+  it("the staging-skipped step runs after the move, only when staging didn't move, and continues on error", () => {
+    const all = steps("staging");
+    const move = all.findIndex((b) => b.includes("id: move"));
+    const skipped = all.findIndex((b) => b.includes("node scripts/staging-skipped.mjs"));
+    expect(move).toBeGreaterThanOrEqual(0);
+    expect(skipped).toBeGreaterThan(move);
+    expect(all[skipped]).toMatch(/^ {8}if: steps\.move\.outputs\.moved == 'false'$/m);
+    expect(all[skipped]).toMatch(/^ {8}continue-on-error: true$/m);
+  });
+  it("the staging-skipped step reads moved, seen and runs from the move step, and the token from GITHUB_TOKEN", () => {
+    const step = steps("staging").find((b) => b.includes("node scripts/staging-skipped.mjs"));
+    expect(step).toMatch(/^ {10}MOVED: \$\{\{ steps\.move\.outputs\.moved \}\}$/m);
+    expect(step).toMatch(/^ {10}SEEN: \$\{\{ steps\.move\.outputs\.seen \}\}$/m);
+    expect(step).toMatch(/^ {10}RUNS: \$\{\{ steps\.move\.outputs\.runs \}\}$/m);
+    expect(step.match(/TOKEN: (.*)/g)?.every((l) => l.endsWith("${{ secrets.GITHUB_TOKEN }}"))).toBe(true);
+    expect(step.match(/TOKEN: /g)).toHaveLength(1);
+  });
   it("runs only when started by hand, never on a push", () => {
     const on = yml.slice(yml.indexOf("\non:\n"), yml.indexOf("\njobs:"));
     expect(on).toMatch(/^  workflow_dispatch:/m);
