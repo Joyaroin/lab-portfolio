@@ -12,6 +12,7 @@ import { easeOffset } from "./ease";
 import { withoutWheel } from "./no-wheel-events";
 import type { Where } from "./where";
 import { Bezels } from "./Bezels";
+import { Whiteboard } from "./Whiteboard";
 import { DeskMeter } from "./DeskMeter";
 import { Phosphor } from "./Phosphor";
 import { Rain } from "./Rain";
@@ -115,6 +116,7 @@ export default function Room({ onReady, onProgress, visit, where, reduced, meter
         <DeskMeter link={meter} shift={shift} reduced={reduced} where={where} />
         <Phosphor where={where} reduced={reduced} />
         <Bezels />
+        <Whiteboard />
         <TvTargets visit={visit} where={where} meter={meter} />
         <Rain />
       </Suspense>
