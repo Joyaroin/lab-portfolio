@@ -46,6 +46,17 @@ export const crts: Crt[] = (layout.crts as LayoutCrt[]).map(toCrt);
  *  that list to its station). They have no card, no bezel layer, no glow and no click. Only Phosphor.tsx draws them. */
 export const spares: Crt[] = (layout.spares as LayoutCrt[]).map(toCrt);
 
+/** A prop's entry in room-layout.json's `props` (#379): a surface drawn on a prop, a drawn board, a click target (only `rack` and `desk-phone-target`) or a framed prop with no click. `centre` is the middle of its
+ *  lit face (site axes, metres), `yaw` the way the face points (a CRT's: 0 toward +z, 90 toward +x), `size` the face's width and height in metres and
+ *  `tilt` how many degrees the face's normal is raised above level (0 for an upright face). The ids of the surfaces are #378's. */
+export type Prop = { id: string; kind: "surface" | "board" | "target" | "prop"; centre: V3; yaw: number; tilt: number; size: [number, number] };
+type LayoutProp = { id: string; kind: string; centre: number[]; yaw: number; tilt?: number; size: number[] };
+
+/** Every prop the room's framing rule, the ambient surfaces and the click targets name, in the layout's order. */
+export const props: Prop[] = (layout.props as LayoutProp[]).map((p) => ({
+  id: p.id, kind: p.kind as Prop["kind"], centre: v3(p.centre), yaw: p.yaw, tilt: p.tilt ?? 0, size: [p.size[0], p.size[1]],
+}));
+
 /** The camera's vertical field of view, in degrees. */
 export const CAMERA_FOV = 55;
 

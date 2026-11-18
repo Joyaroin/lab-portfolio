@@ -8,9 +8,7 @@ import { controlsFor, headingFor, type Button, type Controls, type PageStep } fr
 import { fill, stations, ui, type Diagram, type PageList, type Station } from "../content";
 import type { Step } from "../walk";
 import type { Visit } from "../visit";
-import portraitUrl from "../assets/adham.jpg";
-import libraryUrl from "../assets/mediasafe-library.jpg";
-import golfUrl from "../assets/golf-day.jpg";
+import { IMAGE_FILES } from "./image-files";
 
 // Each station's text as real HTML. place.ts (run per frame by TextPins, which the room mounts)
 // pins each panel to its CRT screen and sets its position, size and opacity; this file holds how it looks: green phosphor with
@@ -21,14 +19,7 @@ import golfUrl from "../assets/golf-day.jpg";
 // until the visitor has scrolled to the end.
 // A phone on its side has a short panel (about 140 to 155 px): a page's image is left out there so the text gets the space.
 // theme.css's #287 block says the same in its comment; keep the two in step.
-// A page's image (Page.image in src/content.ts) names its file; this map turns the name into the file, which the content module can't import.
-// Each file also has its own width and height, which the <img> carries so its box has the file's shape before it loads and nothing shifts when it does.
-// Keep each in step with its file (src/photo-metadata.test.ts holds the caps; `make photo` prints the size it wrote).
-const IMAGE_FILES: Record<string, { url: string; width: number; height: number }> = {
-  "adham.jpg": { url: portraitUrl, width: 480, height: 600 }, // the portrait, 480 x 600 on its page
-  "mediasafe-library.jpg": { url: libraryUrl, width: 972, height: 540 }, // the Library screenshot, three titles of its first row
-  "golf-day.jpg": { url: golfUrl, width: 1000, height: 677 }, // the Solace team's golf day, below Off the keyboard's bullets
-};
+// A page's image (Page.image in src/content.ts) names its file; src/text/image-files.ts turns the name into the file and its size.
 const SHORT_LANDSCAPE = "(orientation: landscape) and (max-height: 520px)";
 function useShortLandscape() {
   return useSyncExternalStore(

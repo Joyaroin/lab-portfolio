@@ -157,6 +157,8 @@ export const ui = {
     wordReliable: "RELIABLE", wordMaintainable: "MAINTAINABLE", wordSecure: "SECURE",
     puzzleDecoding: "[ decoding… ]", puzzleSolved: "[ solved ]",
   } as Record<string, string>,
+  /** #387: the hover words on the room's props (what a prop is called while the pointer rests on it). Marked, empty: #387 fills in only this group. */
+  propHover: {} as Record<string, string>,
 };
 /** The placeholders each template must keep. */
 const PLACEHOLDERS: Record<string, string[]> = {
