@@ -3,6 +3,7 @@ import type { SavedCommit } from "../commits";
 import { CRT_GLASS, phosphorFrame, spares } from "../crts";
 import { drawGitlog } from "./gitlog";
 import { drawIronWisp, WISP_H, WISP_W } from "./iron-wisp";
+import { drawLaptop, LAPTOP_H, LAPTOP_W } from "./laptop";
 import { drawOscilloscope, SCOPE_H, SCOPE_W } from "./oscilloscope";
 import { drawPuzzle } from "./puzzle";
 import { drawRackLights, RACK_H, RACK_W } from "./rack-lights";
@@ -68,8 +69,15 @@ export function layoutPlane(id: string, props: LayoutProp[] | undefined = (layou
   return { position: [p.centre[0], p.centre[1], p.centre[2]], yaw: rad(p.yaw), tilt: rad(p.tilt ?? 0), width: p.size[0], height: p.size[1] };
 }
 
-/** A surface on a baked prop: its plane is its entry in room-layout.json (by id), its canvas is `size`. */
-const layoutSurface = (id: string, size: Size, draw: Drawing): Surface => ({ id, size, plane: layoutPlane(id), draw });
+/** `p` moved `metres` along its own normal (toward the camera, for a plane that faces it). */
+export const lifted = (p: Plane, metres: number): Plane => {
+  const n = [Math.sin(p.yaw) * Math.cos(p.tilt), Math.sin(p.tilt), Math.cos(p.yaw) * Math.cos(p.tilt)];
+  return { ...p, position: [p.position[0] + n[0] * metres, p.position[1] + n[1] * metres, p.position[2] + n[2] * metres] };
+};
+
+/** A surface on a baked prop: its plane is its entry in room-layout.json (by id), its canvas is `size`. `lift` (metres) stands it in front of
+ *  the baked face it covers, for a face the entry is coplanar with, so the two don't z-fight (#384: the laptop's screen). */
+const layoutSurface = (id: string, size: Size, draw: Drawing, lift = 0): Surface => ({ id, size, plane: lifted(layoutPlane(id), lift), draw });
 
 /** The glass over an ambient screen: scanlines and darker curved corners, as the station glass has. */
 function drawGlass(g: Ctx) {
@@ -109,7 +117,7 @@ export const ambientSurfaces = (commits: SavedCommit[]): Entry[] => [
   placeholder("radio"), // #382
   placeholder("desk-phone"), // #383
   placeholder("clock"), // #383
-  placeholder("laptop"), // #384
+  layoutSurface("laptop", { w: LAPTOP_W, h: LAPTOP_H }, drawLaptop, 0.002), // #384: 2 mm in front of the baked screen
 ];
 
 /** Pixels a tick paints: the filled surfaces' canvases and the placeholders' reserved ones. */

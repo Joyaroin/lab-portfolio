@@ -45,7 +45,7 @@ on-screen size at 1280×720, times 1.5, up to a multiple of 8).
 | Radio (`radio`) | the dial's glow sweeps and signal bars rise and fall | the dial at rest, bars low | 152×88 | not yet (#382) |
 | Desk phone (`desk-phone`) | about once a minute the screen lights for a few seconds with an envelope icon, and no words | the screen dark | 160×104 | not yet (#383) |
 | Clock (`clock`) | the hands tick at normal speed from a made-up time, not the visitor's; about every two to three minutes the second hand steps back one second, then carries on | the hands at the made-up time for `STILL_T` | 80×72 | not yet (#383) |
-| Laptop (`laptop`) | types the lab notes one character at a time, scrolls, and starts again | the last screenful, fully typed | 136×112 | not yet (#384) |
+| Laptop (`laptop`) | types the lab notes one character at a time, scrolls, and starts again | the last screenful, fully typed | 136×112 | built (#384) |
 
 Each surface ticket changes only its own row's last cell, to "built (#NNN)". None carries a word that reads as a live status
 (`validateContent` covers their words), and the clock shows no real time, so it carries no live data.
