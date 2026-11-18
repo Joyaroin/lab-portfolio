@@ -95,6 +95,13 @@ export function primitiveVertexCounts(): number[] {
   return load().vertices;
 }
 
+/** Every vertex of the room's triangles (a vertex a triangle uses more than once comes back more than once), as [x, y, z]. */
+export function triangleVertices(): V3[] {
+  const { tris } = load(), out: V3[] = [];
+  for (let o = 0; o < tris.length; o += 3) out.push([tris[o], tris[o + 1], tris[o + 2]]);
+  return out;
+}
+
 /** How far along the segment from `from` to `to` the first triangle of the room is, in metres (either face), or Infinity if the segment
  *  meets none. Walks the grid cell by cell (Amanatides and Woo) and tests each triangle in it (Moller and Trumbore). */
 export function firstHit(from: V3, to: V3): number {

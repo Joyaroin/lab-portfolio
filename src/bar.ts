@@ -1,5 +1,5 @@
 import type { Framing } from "./framing";
-import { stations, stopLineText } from "./content";
+import { stations, stopLineText, ui } from "./content";
 import { formatReading } from "./gap";
 import type { ShiftKind } from "./nixie";
 import { readingAt } from "./tour";
@@ -38,45 +38,59 @@ export function stopLineFor(stop: number, step: Step): string {
 /** How long the pointer rests on a station before the digits follow the line. */
 export const PREVIEW_REST_MS = 150;
 
-/** The pointer is resting on `stop`'s TV or link, since `since` (ms on the page's clock). */
-export type Preview = { stop: number; since: number };
+/** The pointer is resting, since `since` (ms on the page's clock), on `stop`'s TV, pin or link, or (no `stop`, so no digits to preview) on a
+ *  prop that is a click target, the rack or the desk phone (#387): `prop` is its id, and ui.propHover has the words for the line. */
+export type Preview = { stop: number; since: number } | { stop: null; prop: string; since: number };
 
 /** The station a preview shows, when it shows: only at the overview. At a station and in a flight nothing previews. */
 export function previewStop(where: Where, preview: Preview | null): number | null {
-  return preview && where.kind === "at" && where.stop === 0 ? preview.stop : null;
+  return preview && where.kind === "at" && where.stop === 0 ? preview.stop : null; // a prop's preview has no stop: its digits stay
 }
 
-/** Where the pointer is: the one station whose TV, pin or link it is on, if any. The TV (the room's canvas), the pins and the HUD's
- *  links each report their own enter and leave, in no fixed order. The last to report a station has the pointer, and a
+/** The words the line under the meter shows through a preview, at the overview: the station's name, or where a prop's click goes ("Home lab",
+ *  "Contact"). Null when nothing previews: the line is then the stop's or the gap's. It changes with the preview, at once. */
+export function previewLine(where: Where, preview: Preview | null): string | null {
+  if (!preview || where.kind !== "at" || where.stop !== 0) return null;
+  return preview.stop === null ? (ui.propHover[preview.prop] ?? null) : stations[preview.stop - 1].name;
+}
+
+/** Where the pointer is: the one station whose TV, pin or link it is on, or the one prop (`point("prop", id)`) that is a click target, if any.
+ *  The TV (the room's canvas), the pins and the HUD's
+ *  links each report their own enter and leave, in no fixed order. The last to report has the pointer, and a
  *  source leaving clears only what it reported. Subscribers hear of each change of `preview()`, `lit()` or `pinStop()`; each is
  *  stable between changes. */
 export function createHover(clock: () => number) {
-  type Source = "tv" | "pin" | "link";
-  let current: (Preview & { source: Source }) | null = null;
+  type Source = "tv" | "pin" | "link" | "prop";
+  type Rest = { stop: number | null; prop: string | null; since: number; source: Source };
+  let current: Rest | null = null;
   let snapshot: Preview | null = null;
   const listeners = new Set<() => void>();
   // The station whose TV and pin glow: the pointer is on its TV or its pin (a link previews the station but lights neither), and the pin
   // the pointer is on, which the TV's glow follows.
-  const litOf = () => (current && current.source !== "link" ? current.stop : null);
+  const litOf = () => (current && (current.source === "tv" || current.source === "pin") ? current.stop : null);
   const pinOf = () => (current?.source === "pin" ? current.stop : null);
-  const set = (next: (Preview & { source: Source }) | null) => {
+  const set = (next: Rest | null) => {
     current = next;
-    snapshot = next && { stop: next.stop, since: next.since };
+    snapshot = next && (next.stop === null ? { stop: null, prop: next.prop!, since: next.since } : { stop: next.stop, since: next.since });
     listeners.forEach((l) => l());
   };
+  /** `source` has the pointer on `stop`'s TV, pin or link (or, for "prop", on the prop with this id), or (null) no longer has it on any. */
+  function point(source: "tv" | "pin" | "link", stop: number | null): void;
+  function point(source: "prop", id: string | null): void;
+  function point(source: Source, target: number | string | null) {
+    if (target === null) { if (current?.source === source) set(null); return; }
+    const [stop, prop] = typeof target === "number" ? [target, null] : [null, target];
+    if (current?.stop === stop && current?.prop === prop && current.source === source) return; // still resting
+    if (current && current.stop === stop && current.prop === prop) { // the same station, another source: the rest goes on, and what is lit may change
+      const [lit, pin] = [litOf(), pinOf()];
+      current = { ...current, source };
+      if (litOf() !== lit || pinOf() !== pin) listeners.forEach((l) => l());
+      return;
+    }
+    set({ stop, prop, since: clock(), source });
+  }
   return {
-    /** `source` has the pointer on `stop`'s TV, pin or link, or (null) no longer has it on any. */
-    point(source: Source, stop: number | null) {
-      if (stop === null) { if (current?.source === source) set(null); return; }
-      if (current?.stop === stop && current.source === source) return; // still resting
-      if (current?.stop === stop) { // the same station, another source: the rest goes on, and what is lit may change
-        const [lit, pin] = [litOf(), pinOf()];
-        current = { ...current, source };
-        if (litOf() !== lit || pinOf() !== pin) listeners.forEach((l) => l());
-        return;
-      }
-      set({ stop, since: clock(), source });
-    },
+    point,
     /** The rest starts again from now: the pointer stayed put through a visit and the overview is back. */
     rest() { if (current) set({ ...current, since: clock() }); },
     preview: (): Preview | null => snapshot,
@@ -105,7 +119,7 @@ export function meterDigits({ who, where, preview, deploys, now, playing, reduce
 }): MeterDigits {
   const previewing = previewStop(where, preview);
   const rested = preview !== null && previewing !== null && now - preview.since >= PREVIEW_REST_MS;
-  const shown: Where = rested ? { kind: "at", stop: preview.stop } : who === "bar" ? { kind: "at", stop: barFor(where, "square").stop } : where;
+  const shown: Where = rested ? { kind: "at", stop: previewing } : who === "bar" ? { kind: "at", stop: barFor(where, "square").stop } : where;
   const reading = Math.round(readingAt(shown, deploys));
   const scramble = reduced ? null : rested ? { kind: "short" as const, id: -1 - preview.since } : previewing !== null ? null : playing;
   return { reading, digits: formatReading(reading), scramble };

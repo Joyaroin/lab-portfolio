@@ -1,8 +1,8 @@
 import { useEffect, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { identity, links, RESUME, stations, ui } from "./content";
 import {
-  BUTTON_PX, clearances, COMPACT_GAP, COMPACT_LINE_H, HUD_GAP, HUD_MARGIN, hudTier, LINK_ROW_H, LINK_ROW_W, NAME_BLOCK_W, PHONE_COLS, PHONE_GAP_PX,
-  PHONE_MENU_H, PHONE_PAD_PX, resumeIsButton,
+  BUTTON_PX, COMPACT_GAP, COMPACT_LINE_H, HUD_GAP, HUD_MARGIN, hudTier, LINK_ROW_H, LINK_ROW_W, NAME_BLOCK_W, PHONE_COLS, PHONE_GAP_PX,
+  PHONE_MENU_H, PHONE_PAD_PX, resumeIsButton, START_COUNT_FONT, START_OR_FONT, START_OR_LINE_H, START_STACK_GAP, START_TYPE, startBottom,
 } from "./pin";
 import { useWin } from "./useWin";
 import type { Visit } from "./visit";
@@ -77,7 +77,7 @@ export function Hud({ where, visited, visit, onPoint }: { where: Where; visited:
     <>
     {startShown && (
       // Gone after the first landing: faded, then out of the tab order (visibility) at once the fade ends, then removed.
-      <div data-start style={{ ...startBox, bottom: clearances(win).bottom + START_GAP, opacity: visited ? 0 : 1, visibility: visited ? "hidden" : "visible" }}>
+      <div data-start style={{ ...startBox, bottom: startBottom(win), opacity: visited ? 0 : 1, visibility: visited ? "hidden" : "visible" }}>
         <button type="button" style={portrait ? startButtonPhone : startButton} onClick={() => visit.go(1)}>
           {ui.hud.start} <small style={startCount}>{ui.hud.startCount}</small>
         </button>
@@ -124,8 +124,6 @@ export function Hud({ where, visited, visit, onPoint }: { where: Where; visited:
   );
 }
 
-/** The Start button's box stands this far above the bottom clearance, so it clears the meter device. */
-const START_GAP = 8;
 /** The HUD's text is never under this (px). */
 const HUD_FONT = 14;
 const INK = "#05080a", GREEN = "#7dffb0", AMBER = "#ffb347";
@@ -178,16 +176,16 @@ const link: CSSProperties = { color: GREEN, padding: "5px 5px", fontWeight: "nor
 // The Start button: the filled green the current stop has, so it reads as the main thing on the overview. The box round it ignores
 // the pointer (the room's monitors stay clickable beside it); only the button takes it.
 const startBox: CSSProperties = {
-  position: "fixed", left: 0, right: 0, zIndex: 15, display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+  position: "fixed", left: 0, right: 0, zIndex: 15, display: "flex", flexDirection: "column", alignItems: "center", gap: START_STACK_GAP,
   pointerEvents: "none", transition: "opacity 0.5s, visibility 0s 0.5s",
 };
 const startButton: CSSProperties = {
-  pointerEvents: "auto", cursor: "pointer", background: GREEN, color: INK, border: 0, borderRadius: 8, padding: "10px 18px", minHeight: BUTTON_PX,
-  fontFamily: "inherit", fontWeight: 700, fontSize: 16, lineHeight: 1.3, boxShadow: "0 0 22px rgba(125,255,176,0.35)",
+  pointerEvents: "auto", cursor: "pointer", background: GREEN, color: INK, border: 0, borderRadius: 8, padding: `${START_TYPE.landscape.padY}px ${START_TYPE.landscape.padX}px`, minHeight: BUTTON_PX,
+  fontFamily: "inherit", fontWeight: 700, fontSize: START_TYPE.landscape.font, lineHeight: 1.3, boxShadow: "0 0 22px rgba(125,255,176,0.35)",
 };
-const startButtonPhone: CSSProperties = { ...startButton, padding: "8px 14px", fontSize: HUD_FONT };
-const startCount: CSSProperties = { fontWeight: 400, fontSize: HUD_FONT, opacity: 0.75 };
-const startOr: CSSProperties = { color: AMBER, fontSize: "0.9rem", textShadow: "0 0 6px #05080a, 0 0 2px #05080a" };
+const startButtonPhone: CSSProperties = { ...startButton, padding: `${START_TYPE.portrait.padY}px ${START_TYPE.portrait.padX}px`, fontSize: START_TYPE.portrait.font };
+const startCount: CSSProperties = { fontWeight: 400, fontSize: START_COUNT_FONT, opacity: 0.75 };
+const startOr: CSSProperties = { color: AMBER, fontSize: START_OR_FONT, lineHeight: `${START_OR_LINE_H}px`, textShadow: "0 0 6px #05080a, 0 0 2px #05080a" };
 // Résumé as a button: an amber outline round the link. Its box is as tall as a link's (a 1 px border and 4 px of padding for a link's 5),
 // so the HUD's lines and the phone top (PHONE_TOP) keep their heights; it is wider, which is why the compact HUD keeps a link.
 const resumeButton: CSSProperties = {

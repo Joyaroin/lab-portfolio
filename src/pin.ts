@@ -91,7 +91,7 @@ const gapLines = (short: boolean) => [
   { live: true, complete: true }, { live: true, complete: false }, { live: false, complete: true },
 ].map((g) => gapLabel({ deploys: MOST_DEPLOYS, ...g }, short));
 /** Every text the line under the device can show at a window of this HUD kind. */
-export const lineTexts = (compact: boolean) => [ui.readingPending, ...gapLines(compact), ...stopLines];
+export const lineTexts = (compact: boolean) => [ui.readingPending, ...gapLines(compact), ...stopLines, ...Object.values(ui.propHover)];
 /** The lines a text wraps to when `chars` characters fit on a line (words are not split unless one is longer than a line). */
 function wrapLines(text: string, chars: number): number {
   let lines = 1, used = 0;
@@ -146,6 +146,30 @@ export function clearances(win: Win): { top: number; bottom: number } {
   if (isPortrait(win)) return { top: PHONE_TOP, bottom: PHONE_MENU_H + 16 + device.height + lineHeight(win) };
   // the line under the device, and the 1 rem under that
   return { top: TOP[hudTier(win)], bottom: device.height + 16 + lineHeight(win) };
+}
+
+// The Start button (src/Hud.tsx), on the overview until the first landing: a filled button with its words and the count in a smaller size, and "or click a
+// monitor" under it, the two in one box that stands START_GAP above the bottom clearance. Its box is a pure rule of the window, as the pin's width is
+// (a monospace character is 0.602 of the type's size, plus the padding, and START_SLACK each side for a font a little wider than the Mac's), so the
+// sweep of the room's click targets (src/visit/page-targets.test.ts) can keep clear of it. The button is at least BUTTON_PX tall.
+/** The Start box stands this far above the bottom clearance, so it clears the meter device. */
+export const START_GAP = 8;
+/** The button's type and side padding (px), on a landscape window and on a portrait one; the count in it and the line under it are the same on both. */
+export const START_TYPE = { landscape: { font: 16, padX: 18, padY: 10 }, portrait: { font: 14, padX: 14, padY: 8 } };
+export const START_COUNT_FONT = 14, START_OR_FONT = 14.4, START_OR_LINE_H = 19, START_STACK_GAP = 4, START_SLACK = 6;
+
+/** The Start box's distance from the window's bottom edge (px): the bottom clearance and START_GAP. */
+export const startBottom = (win: Win) => clearances(win).bottom + START_GAP;
+
+/** The Start button with the line under it, as a box in the window (px from its top left): centred, `startBottom` up from the bottom, as wide as the wider of the
+ *  two worked out from their texts, as tall as the button (at least BUTTON_PX) and the line under it. */
+export function startBox(win: Win): { left: number; top: number; width: number; height: number } {
+  const portrait = isPortrait(win), type = START_TYPE[portrait ? "portrait" : "landscape"];
+  const { start, startCount, startOrLandscape, startOrPortrait } = ui.hud;
+  const button = 2 * type.padX + (start.length + 1) * CHAR_EM * type.font + startCount.length * CHAR_EM * START_COUNT_FONT + 2 * START_SLACK;
+  const line = (portrait ? startOrPortrait : startOrLandscape).length * CHAR_EM * START_OR_FONT + 2 * START_SLACK;
+  const width = Math.max(button, line), height = Math.max(BUTTON_PX, Math.ceil(type.font * 1.3) + 2 * type.padY) + START_STACK_GAP + START_OR_LINE_H;
+  return { left: (win.width - width) / 2, top: win.height - startBottom(win) - height, width, height };
 }
 
 export type Fit = { left: number; top: number; width: number; maxHeight: number };

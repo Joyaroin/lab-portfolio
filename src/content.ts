@@ -157,8 +157,8 @@ export const ui = {
     wordReliable: "RELIABLE", wordMaintainable: "MAINTAINABLE", wordSecure: "SECURE",
     puzzleDecoding: "[ decoding… ]", puzzleSolved: "[ solved ]",
   } as Record<string, string>,
-  /** #387: the hover words on the room's props (what a prop is called while the pointer rests on it). Marked, empty: #387 fills in only this group. */
-  propHover: {} as Record<string, string>,
+  /** #387: what the line under the meter says while the pointer rests on a click target in the room, by its id in src/room-layout.json: where the click goes. */
+  propHover: { rack: "Home lab", "desk-phone-target": "Contact" } as Record<string, string>,
   /** #385: the whiteboard's words: the lab's topology, hostnames only, drawn at runtime on the blank board baked in #380 (src/Whiteboard.tsx).
    *  Drawn in the room, so, like the ambient screens, they must not hold an address or read as a live status. */
   whiteboard: {
