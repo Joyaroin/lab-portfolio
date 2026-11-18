@@ -36,23 +36,27 @@ export function TvTargets({ visit, where, meter }: { visit: Visit; where: Mutabl
   const tex = useMemo(() => pointGlowTexture("rgba(170,255,200,1)", "rgba(110,230,160,0.7)"), []);
 
   useFrame(({ gl }, dt) => {
-    const hot = clickable(where.current) && visit.target() === 0 ? hovered.current : null; // only at the overview, which a fade's second half back to it counts as
+    // Only at the overview, which a fade's second half back to it counts as. The rack and the desk phone are hot only where they take a click (the window gate too).
+    const isProp = hovered.current !== null && pageTargets.some(({ prop }) => prop.id === hovered.current);
+    const hot = (isProp ? pageTargetGoes({ width: window.innerWidth, height: window.innerHeight }, where.current, visit.target()) : clickable(where.current) && visit.target() === 0) ? hovered.current : null;
     if (hot !== shown.current) {
       shown.current = hot;
       document.body.style.cursor = hot ? "pointer" : "";
       if (hot) gl.domElement.dataset.hover = hot; else delete gl.domElement.dataset.hover;
-      // The tour's hover preview (#228) hears of the TV the pointer is on, under the same rule as the glow.
-      meter.tvHover(hot && byPointer.current ? stations.findIndex((s) => s.id === hot) + 1 : null);
+      // The tour's hover preview (#228) hears of the TV the pointer is on, under the same rule as the glow, and of the rack or the desk phone (#387: the id,
+      // for the line only: no glow, no digits). A touch has no preview.
+      meter.tvHover(hot && byPointer.current ? (isProp ? hot : stations.findIndex((s) => s.id === hot) + 1) : null);
     }
+    const hotTv = isProp ? null : hot; // the two props have no glow
     const lit = clickable(where.current) && visit.target() === 0 ? pinned.current : null;
-    const glowing = hot ?? lit; // the TV whose glow is on its way up: the pointer is on it or on its pin. A spec reads it from data-lit.
+    const glowing = hotTv ?? lit; // the TV whose glow is on its way up: the pointer is on it or on its pin. A spec reads it from data-lit.
     if (glowing !== lastLit.current) {
       lastLit.current = glowing;
       if (glowing) gl.domElement.dataset.lit = glowing; else delete gl.domElement.dataset.lit;
     }
     let easing = false;
     for (const crt of crts) {
-      const goal = crt.id === hot || crt.id === lit ? 1 : 0;
+      const goal = crt.id === hotTv || crt.id === lit ? 1 : 0;
       let v = glow.current[crt.id] ?? 0;
       v = easeGlow(v, goal, dt);
       if (v !== goal) easing = true;
@@ -93,6 +97,8 @@ export function TvTargets({ visit, where, meter }: { visit: Visit; where: Mutabl
       })}
       {pageTargets.map(({ prop, step }) => (
         <mesh key={prop.id} name={prop.id} {...targetFrame(prop)}
+          onPointerOver={(e) => { e.stopPropagation(); hovered.current = prop.id; byPointer.current = e.nativeEvent.pointerType !== "touch"; invalidate(); }}
+          onPointerOut={() => { if (hovered.current === prop.id) hovered.current = null; invalidate(); }}
           onClick={(e) => {
             if (!pageTargetGoes({ width: window.innerWidth, height: window.innerHeight }, where.current, visit.target())) return;
             e.stopPropagation(); visit.go(step);

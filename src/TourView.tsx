@@ -4,7 +4,7 @@ import { Tear, type PageTurn } from "./TearView";
 import { stations, ui } from "./content";
 import { Hud, usePortrait } from "./Hud";
 import { Pins } from "./PinView";
-import { barFor, createHover, stopLineFor, meterDigits, PREVIEW_REST_MS, previewStop, type BarKey } from "./bar";
+import { barFor, createHover, stopLineFor, meterDigits, PREVIEW_REST_MS, previewLine, previewStop, type BarKey } from "./bar";
 import { ScreenPanels } from "./text/ScreenPanels";
 import { larger } from "./text/larger";
 import { Meter } from "./Meter";
@@ -111,7 +111,8 @@ export function Tour({ gap, visit, meter, shift: shifts }: { gap: Gap | null; vi
   const pointed = useSyncExternalStore(hover.subscribe, hover.preview);
   const preview = visit.target() === 0 ? pointed : null; // a visit under way (or a fade's second half) is not the overview
   useEffect(() => {
-    meter.tvHover = (stop) => hover.point("tv", stop);
+    // A station's number is a TV; a string is a prop (the rack, the desk phone: #387), which names a line and no station.
+    meter.tvHover = (target) => { hover.point("tv", typeof target === "number" ? target : null); hover.point("prop", typeof target === "string" ? target : null); };
     return () => { meter.tvHover = () => {}; };
   }, [meter, hover]);
   const onPoint = useCallback((stop: number | null) => hover.point("link", stop), [hover]);
@@ -140,12 +141,11 @@ export function Tour({ gap, visit, meter, shift: shifts }: { gap: Gap | null; vi
   const win = useWin();
   const gapLine = gap ? gapLabel(gap, isCompact(win)) : ui.readingPending;
   // The bar shows the stop being flown to, not the camera's place on the way: its keys, its line and its digits. Through a preview
-  // the line is the station's name alone (no count), and the digits follow once the pointer has rested.
+  // the line is the station's name alone (no count), or where the rack's or the desk phone's click goes, and the digits follow once the pointer has rested.
   const portrait = usePortrait();
   const bar = barFor(here, portrait ? "portrait" : "square");
-  const previewed = previewStop(here, preview);
   const shown = meterDigits({ who: "bar", where: here, preview, deploys, now: performance.now(), playing: barShift, reduced });
-  const barLine = previewed !== null ? stationLabel(previewed) : bar.stop === 0 ? gapLine : stopLineFor(bar.stop, step);
+  const barLine = previewLine(here, preview) ?? (bar.stop === 0 ? gapLine : stopLineFor(bar.stop, step));
   const press = (key: BarKey) => {
     if (key === "prev") visit.prev();
     else if (key === "room") visit.back();
@@ -172,5 +172,4 @@ export function Tour({ gap, visit, meter, shift: shifts }: { gap: Gap | null; vi
   );
 }
 
-const stationLabel = (i: number) => stations[i - 1].name;
 
