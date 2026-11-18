@@ -1,6 +1,6 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, type MutableRefObject } from "react";
-import { AdditiveBlending, type MeshBasicMaterial } from "three";
+import { AdditiveBlending, DoubleSide, type MeshBasicMaterial } from "three";
 import type { Where } from "./where";
 import { clickable } from "./clickable";
 import type { Visit } from "./visit";
@@ -10,6 +10,7 @@ import type { PressTarget } from "./RoomClick";
 import { stations } from "./content";
 import type { MeterLink } from "./nixie";
 import { BEZEL, BEZEL_GAP, SCREEN_LAYER, pointGlowTexture } from "./draw";
+import { pageTargetGoes, pageTargets, targetFrame } from "./page-targets";
 
 // ---------------------------------------------------------------- the TVs as click targets
 // On the overview each TV takes a click (a visit to its station) and shows a soft glow under the pointer. The hit
@@ -17,6 +18,8 @@ import { BEZEL, BEZEL_GAP, SCREEN_LAYER, pointGlowTexture } from "./draw";
 // pointer). The glow eases in and out over about a third of a second, a slow swell that is far from a flash, so the
 // flash limit does not count it. The hovered id is written to the canvas's data-hover, so a spec can check the target, and the id whose glow is rising (on the TV or on its pin) to data-lit.
 // Where the visitor is decides it every frame (clickable): at a station, or in flight, nothing is hot and no glow shows.
+// The rack and the desk phone are two more targets of the same kind (#386): invisible planes over the props, from their entries in src/room-layout.json, that
+// visit a page (src/page-targets.ts decides when). They carry no `userData.press` tag, so a press on one at a station is a press on the room and goes back.
 
 /** How far in front of the bezel layer the hit target and the glow stand. */
 const TARGET_GAP = 0.003;
@@ -88,6 +91,16 @@ export function TvTargets({ visit, where, meter }: { visit: Visit; where: Mutabl
           </group>
         );
       })}
+      {pageTargets.map(({ prop, step }) => (
+        <mesh key={prop.id} name={prop.id} {...targetFrame(prop)}
+          onClick={(e) => {
+            if (!pageTargetGoes({ width: window.innerWidth, height: window.innerHeight }, where.current, visit.target())) return;
+            e.stopPropagation(); visit.go(step);
+          }}>
+          <planeGeometry args={prop.size} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} side={DoubleSide} />
+        </mesh>
+      ))}
     </>
   );
 }
