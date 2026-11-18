@@ -1,5 +1,5 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
-import { goTo, landedAt, openTour, panelOf, waitForPanel, stationIds } from "./lib/page";
+import { goTo, hudLink, landedAt, openTour, panelOf, waitForPanel, stationIds } from "./lib/page";
 import { stations, ui } from "../src/content";
 
 // #344: the MediaSafe screenshot opens larger. The small image is inside a button, a click, Enter or Space opens it in a dialog inside the
@@ -135,7 +135,39 @@ test.describe("a move of the tour shuts it and then moves", () => {
     await panel(page).locator('[data-btn="next"]').dispatchEvent("click");
     await expect(dialog(page)).toHaveCount(0);
     await expect.poll(() => hash(page)).toBe("#projects/home-lab");
+    // and the breadcrumb: a real click can't reach it either (the dialog covers the whole visible panel), so the script asks for it too
+    await page.keyboard.press("ArrowLeft"); // back to MediaSafe
+    await expect.poll(() => hash(page)).toBe("#projects/mediasafe");
+    await opener(page).click();
+    await expect(dialog(page)).toBeVisible();
+    await panel(page).locator("[data-crumb] a").dispatchEvent("click");
+    await expect(dialog(page)).toHaveCount(0);
+    await expect.poll(() => hash(page)).toBe("#projects");
   });
+});
+
+// #388: a re-render of the tour while the dialog is open must leave focus and the dialog's top where they were. The panel handed the dialog a
+// new `shot` object each render, and the dialog's layout effect depended on it, so every re-render reset the top and refocused Close.
+test("a re-render of the tour with the dialog open leaves focus on the dialog and its top where it was", async ({ page }) => {
+  await openMediaSafe(page);
+  await opener(page).click();
+  await expect(dialog(page)).toBeVisible();
+  await expect.poll(async () => (await bigImage(page).boundingBox())?.width ?? 0).toBeGreaterThan(100);
+  // a click on the dialog's empty glass: focus moves from Close to the dialog itself (tabIndex -1)
+  const box = (await dialog(page).boundingBox())!;
+  await page.mouse.click(box.x + 6, box.y + box.height / 2);
+  await expect(dialog(page)).toBeFocused();
+  // the panel doesn't scroll for the visitor while the dialog is open, but a script can move it: the dialog's top must stay where the dialog opened
+  const top = () => dialog(page).evaluate((d) => (d as HTMLElement).style.top);
+  const before = await top();
+  await panel(page).evaluate((p) => { p.scrollTop = p.scrollTop + 7; });
+  // a pointer on a HUD link makes the tour re-render (its hover preview changes), and the link only previews, so the dialog stays open
+  await hudLink(page, 2).hover();
+  await page.waitForTimeout(300); // past the render the hover asks for
+  await hudLink(page, 1).hover(); // and another, in case the first re-render came before the scroll above settled
+  await expect(dialog(page)).toBeVisible();
+  await expect(dialog(page), "focus is still on the dialog, not pulled back to Close").toBeFocused();
+  expect(await top(), "the dialog's top has not moved").toBe(before);
 });
 
 test("a click on the open image does not go back to the overview", async ({ page }) => {
