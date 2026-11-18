@@ -90,6 +90,9 @@ function StationPanel({ s, visit, step }: { s: Station; visit: Visit; step: Step
   const lwShown = here !== null && !!lw;
   useEffect(() => { if (lwShown) lastWatched.start(); }, [lwShown]);
   const lwAnswer = useSyncExternalStore(lastWatched.subscribe, lastWatched.get);
+  // #370: the answer can land up to 5 s after the page is shown, and no space is held for it, so the line arrives as the photo below moves
+  // down a line. The cue is worked out again then, as for the golf photo (its own effect, so the line above is not edited).
+  useLayoutEffect(() => { if (ref.current) markMore(ref.current); }, [lwAnswer]);
   // After a tab, a row or a button the visitor's focus goes to the new page's heading, so a screen reader says where it landed.
   // The arrow keys never do this: they are not a click on one of these. Only a move the visit made at once counts.
   const refocus = useRef(false);

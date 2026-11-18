@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { goTo, openTour, panelOf, stationIds, waitForPanel } from "./lib/page";
+import { goTo, openTour, panelOf, readDrawnCamera, stationIds, waitForPanel } from "./lib/page";
 import { LAST_WATCHED_MAX, LAST_WATCHED_URL } from "../src/last-watched";
 
 // #369: the Last watched line on Off the keyboard (ADR-0008). Every answer here is a fake served with page.route: no spec calls production
@@ -151,4 +151,52 @@ test("at 390x844 an 80-character title with no spaces is one line high, cut with
   expect(m.cut, "the title is wider than the line, so the ellipsis is drawn").toBe(true);
   const over = await panel(page).evaluate((p) => p.scrollWidth - p.clientWidth);
   expect(over, "nothing runs off the side").toBeLessThanOrEqual(4);
+});
+
+test("the cue is worked out again when a late answer lands: off before it, on after it, with no frame asked for in between", async ({ page }) => {
+  // The answer is held back, then released: it can arrive up to 5 s after the page is shown, and no space is held for the line.
+  let release!: () => void;
+  const gate = new Promise<void>((r) => { release = r; });
+  await page.route(isLink, async (route) => {
+    await gate;
+    await route.fulfill({ status: 200, body: "Severance", headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "text/plain; charset=utf-8" } });
+  });
+  await openOffTheKeyboard(page);
+  await expect(watching(page)).toBeVisible();
+  await expect(line(page)).toHaveCount(0);
+  // the photo is several lines tall, and a late image changes the height: wait for it
+  await expect.poll(() => panel(page).evaluate((p) => [...p.querySelectorAll("img")].every((i) => i.complete))).toBe(true);
+  // Add lines under the bullets until the page is just under the cue's threshold (src/text/more.ts), as tests/golf-photo.spec.ts does for its edge,
+  // so the line's arrival tips it over on any machine: whole lines until one too many, then one px at a time (the line is shorter than a bullet).
+  const THRESHOLD_PX = 4;
+  await panel(page).evaluate((p, threshold) => {
+    const list = p.querySelector("ul:not([data-list] ul)")!;
+    const over = () => p.scrollHeight - p.clientHeight;
+    const last = list.lastElementChild!;
+    const added: HTMLElement[] = [];
+    while (over() <= threshold) {
+      const l = last.cloneNode(false) as HTMLElement;
+      l.textContent = "A line the test added.";
+      list.append(l);
+      added.push(l);
+    }
+    added.pop()!.remove(); // one line too many: now the page fits, by less than a line
+    const spacer = document.createElement("li");
+    spacer.style.cssText = "margin:0;padding:0;list-style:none;height:0px";
+    list.append(spacer);
+    let h = 0;
+    while (over() <= threshold) spacer.style.height = `${++h}px`;
+    spacer.style.height = `${Math.max(0, h - 2)}px`; // just under: at most the threshold, with a px or two to spare
+  }, THRESHOLD_PX);
+  await readDrawnCamera(page); // the cue is worked out on a frame the room draws
+  const before = await panel(page).evaluate((p) => ({ more: p.dataset.more, over: p.scrollHeight - p.clientHeight }));
+  expect(before.over, "just under the threshold").toBeLessThanOrEqual(THRESHOLD_PX);
+  expect(before.over, "and not far under it").toBeGreaterThan(THRESHOLD_PX - 4);
+  expect(before.more, "the cue is off before the answer").not.toBe("true");
+  release();
+  await expect(line(page)).toHaveText("Last watched: Severance");
+  // worked out again by the panel itself: no scroll, no page change and no frame asked for since the answer
+  await expect(panel(page)).toHaveAttribute("data-more", "true");
+  const after = await panel(page).evaluate((p) => p.scrollHeight - p.clientHeight);
+  expect(after, "the line pushed the page past the threshold").toBeGreaterThan(THRESHOLD_PX);
 });
