@@ -1,12 +1,15 @@
 import layout from "../room-layout.json" with { type: "json" };
 import type { SavedCommit } from "../commits";
 import { CRT_GLASS, phosphorFrame, spares } from "../crts";
+import { drawFan, FAN_FRONT_M, FAN_H, FAN_W } from "./fan";
+import { inFront } from "./front";
 import { drawGitlog } from "./gitlog";
 import { drawIronWisp, WISP_H, WISP_W } from "./iron-wisp";
 import { drawLaptop, LAPTOP_H, LAPTOP_W } from "./laptop";
 import { drawOscilloscope, SCOPE_H, SCOPE_W } from "./oscilloscope";
 import { drawPuzzle } from "./puzzle";
 import { drawRackLights, RACK_H, RACK_W } from "./rack-lights";
+import { drawRadio, RADIO_FRONT_M, RADIO_H, RADIO_W } from "./radio";
 import { SCREEN_H, SCREEN_W, STILL_T } from "./still";
 import { drawTraffic } from "./traffic";
 
@@ -113,8 +116,8 @@ export const ambientSurfaces = (commits: SavedCommit[]): Entry[] => [
   layoutSurface("oscilloscope", { w: SCOPE_W, h: SCOPE_H }, drawOscilloscope), // #381
   layoutSurface("rack-lights", { w: RACK_W, h: RACK_H }, drawRackLights), // #381
   layoutSurface("iron-wisp", { w: WISP_W, h: WISP_H }, drawIronWisp), // #381
-  placeholder("fan"), // #382
-  placeholder("radio"), // #382
+  { id: "fan", size: { w: FAN_W, h: FAN_H }, plane: inFront(layoutPlane("fan"), FAN_FRONT_M), draw: drawFan }, // #382
+  { id: "radio", size: { w: RADIO_W, h: RADIO_H }, plane: inFront(layoutPlane("radio"), RADIO_FRONT_M), draw: drawRadio }, // #382
   placeholder("desk-phone"), // #383
   placeholder("clock"), // #383
   layoutSurface("laptop", { w: LAPTOP_W, h: LAPTOP_H }, drawLaptop, 0.002), // #384: 2 mm in front of the baked screen

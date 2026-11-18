@@ -173,8 +173,13 @@ export const ui = {
   } as Record<string, string>,
   /** #387: what the line under the meter says while the pointer rests on a click target in the room, by its id in src/room-layout.json: where the click goes. */
   propHover: { rack: "Home lab", "desk-phone-target": "Contact" } as Record<string, string>,
-  /** #384 and #385: the whiteboard's words (the board's drawing, drawn at runtime on the blank board baked in #380). Marked, empty: #385 fills in only this group. */
-  whiteboard: {} as Record<string, string>,
+  /** #385: the whiteboard's words: the lab's topology, hostnames only, drawn at runtime on the blank board baked in #380 (src/Whiteboard.tsx).
+   *  Drawn in the room, so, like the ambient screens, they must not hold an address or read as a live status. */
+  whiteboard: {
+    internet: "internet", tunnel: "Cloudflare Tunnel", tailnet: "tailnet",
+    joseph: "joseph", hermit: "hermit (k3s)", git: "Git server", dns: "DNS",
+    jotaro: "jotaro", echoes: "echoes (CI)",
+  } as Record<string, string>,
 };
 /** The placeholders each template must keep. */
 const PLACEHOLDERS: Record<string, string[]> = {
@@ -438,14 +443,14 @@ export function validateContent(c: Content): string[] {
   // Every shipped key must be present, and a key added to the given content is checked too.
   // A word is a string; a group (the marked, empty ones later tickets fill) is an object of words, walked the same way.
   const isGroup = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
-  // The ambient screens are drawn on a TV, so their words must not read as live data (the commit lines aren't here).
+  // The ambient screens are drawn on a TV and the whiteboard's in the room, so their words must not read as live data (the commit lines aren't here).
   const walkWords = (path: string, given: unknown, shipped: unknown) => {
     if (isGroup(shipped)) {
       if (!isGroup(given)) return void problems.push(`${path}: missing`);
       for (const k of new Set([...Object.keys(shipped), ...Object.keys(given)])) walkWords(`${path}.${k}`, given[k], shipped[k]);
       return;
     }
-    if (path.startsWith("ui.ambient.")) tvText(path, given); else text(path, given);
+    if (path.startsWith("ui.ambient.") || path.startsWith("ui.whiteboard.")) tvText(path, given); else text(path, given);
     const key = path.split(".").pop()!;
     if (typeof given === "string") for (const ph of PLACEHOLDERS[key] ?? []) if (!given.includes(`{${ph}}`)) problems.push(`${path}: must contain {${ph}}`);
   };

@@ -9,8 +9,8 @@ import {
 } from "./surfaces";
 
 const LATER = ["oscilloscope", "rack-lights", "iron-wisp", "fan", "radio", "desk-phone", "clock", "laptop"];
-/** The later surfaces some ticket has filled (#381's three, #384's laptop), in list order. */
-const FILLED_LATER = ["oscilloscope", "rack-lights", "iron-wisp", "laptop"];
+/** The later surfaces some ticket has filled (#381's three, #382's two, #384's laptop), in list order. */
+const FILLED_LATER = ["oscilloscope", "rack-lights", "iron-wisp", "fan", "radio", "laptop"];
 const plane = { position: [0, 1, 0] as [number, number, number], yaw: 0, tilt: 0, width: 0.1, height: 0.1 };
 
 /** A filled surface that records the times it is drawn at. */
