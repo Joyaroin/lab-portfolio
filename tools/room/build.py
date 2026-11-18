@@ -198,7 +198,7 @@ M = {
     "pcb": varied("pcb", (0.04, 0.22, 0.10), (0.02, 0.12, 0.05), scale=50, bump=0.2),
     "copper": material("copper", (0.45, 0.22, 0.10)),
     "screen": material("screen", (0.0, 0.02, 0.01), emit=(0.2, 1.0, 0.4), strength=0.55),
-    "scope": material("scope", (0.0, 0.02, 0.02), emit=(0.2, 0.9, 1.0), strength=1.2),
+    "scope": material("scope", (0.01, 0.015, 0.02)),                   # dark glass, as the desk phone's display: #381 draws the waveform on a plane 12 mm in front, and any edge of this that shows reads as bezel, not a cyan strip
     "nixie": material("nixie", (0.0, 0.0, 0.0), emit=(1.0, 0.45, 0.1), strength=6.0),
     "tube": material("tube", (0.012, 0.01, 0.009), emit=(1.0, 0.38, 0.06), strength=0.015),
     "led_g": material("led_g", (0, 0, 0), emit=(0.2, 1.0, 0.3), strength=12.0),
@@ -683,7 +683,7 @@ cyl("grey", (0, H - 0.04, 0), 0.15, 0.06, verts=24)
 
 # ---------------------------------------------------------------- #335's new props (#380): the opened laptop, the desk phone, the wall clock, the racket and the tube of balls
 # Each stands where its LAYOUT["props"] entry puts its lit face. None of them draws from `random`, so the TVs' note colours and keyboard tilts are
-# where they were. Surfaces drawn at runtime are dark or blank here: the phone's display, the laptop's screen (a flat green, lit like a TV's), the clock's hands (set at a made-up 10:09).
+# where they were. Surfaces drawn at runtime are dark or blank here: the phone's display, the laptop's screen (a flat green, lit like a TV's), the clock's hands (none are baked).
 GREEN_LIGHT = None  # set by the laptop: its screen lights the desk like a TV's does
 
 def laptop_open():
@@ -730,7 +730,7 @@ def desk_phone():
           + [at(o, ax, (0.05, 0.06, 0.1)), at(o, ax, (0.0, 0.05, -0.09))])
 
 def wall_clock():
-    """A round wall clock on the right wall, a cream face and black hands, set to a made-up 10:09."""
+    """A round wall clock on the right wall: a black case, a cream face and twelve printed ticks. No hands: a surface draws them, in front of the ticks (#383)."""
     e = PROP["clock"]
     assert e["yaw"] == -90, "the clock hangs on the right wall"
     cy, along, R = e["centre"][1], e["centre"][2], e["size"][0] / 2                  # the entry is the face: centre, and its radius is half its width
@@ -745,15 +745,6 @@ def wall_clock():
         a = math.radians(h * 30)
         d = (math.sin(a), math.cos(a))
         obox("black", o, ax, (d[0] * 0.098 * k, d[1] * 0.098 * k, 0.0375), ((0.006 if h % 3 == 0 else 0.003) * k, (0.016 if h % 3 == 0 else 0.008) * k, 0.002), bevel=0)
-    def hand(deg, length, width, mat):
-        a = math.radians(deg)
-        u = tuple(ax[1][i] * math.cos(a) + ax[0][i] * math.sin(a) for i in range(3))
-        f = ax[2]
-        r = (u[1] * f[2] - u[2] * f[1], u[2] * f[0] - u[0] * f[2], u[0] * f[1] - u[1] * f[0])  # up x forward = right
-        obox(mat, at(o, ax, (0, 0, 0.040)), (r, u, f), (0, (length / 2 - 0.012) * k, 0), (width * k, length * k, 0.002), bevel=0)
-    hand(54, 0.095, 0.005, "black")                         # minute: 9
-    hand(304.5, 0.062, 0.007, "black")                      # hour: just past ten
-    hand(150, 0.10, 0.002, "red")                           # second
     probe("extent: clock", [at(o, ax, (dx * (R + 0.015), dy * (R + 0.015), 0.03)) for dx, dy in ((-1, 0), (1, 0), (0, 1), (0, -1))])
     probe("clock face", [at(o, ax, (dx * R, dy * R, 0.046)) for dx, dy in ((-1, 0), (1, 0), (0, 1), (0, -1), (0, 0))])
 

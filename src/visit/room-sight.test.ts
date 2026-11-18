@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { props, type Prop } from "../crts";
 import { overviewPose, reach } from "../pins";
 import { corners, faceNormal, type V3 } from "../../tests/lib/prop-face";
-import { firstHit, primitiveVertexCounts } from "../../tests/lib/room-mesh";
+import { firstHit, primitiveVertexCounts, triangleVertices } from "../../tests/lib/room-mesh";
 
 // #380: line of sight, on the baked room. From the overview camera, at rest and at each of `reach`'s five poses (the mouse parallax's far corners),
 // a ray to each of a listed prop's points must arrive without meeting another prop first. The triangles are the committed src/assets/room.glb's
@@ -56,6 +56,16 @@ function hidden(list: Prop[]): string[] {
   return out;
 }
 
+/** #380: a surface drawn at runtime must be able to hide what is baked under it, so nothing baked inside the clock's disc may stand in front of the entry's plane by more
+ *  than the printed ticks' depth (2.5 mm, and 1 mm over). The clock's hands are the surface's: baked, they stood 3 to 5 mm in front of it. The clock hangs on the right wall, its face toward -x. */
+const CLOCK_TICKS = 0.0035;
+function inFrontOfClock(vertices: V3[]): string[] {
+  const clock = props.find((p) => p.id === "clock")!, r = clock.size[0] / 2;
+  return vertices
+    .filter((v) => Math.hypot(v[1] - clock.centre[1], v[2] - clock.centre[2]) <= r && clock.centre[0] - v[0] > CLOCK_TICKS)
+    .map((v) => `(${v.map((c) => c.toFixed(4)).join(", ")}) is ${((clock.centre[0] - v[0]) * 1000).toFixed(1)} mm in front of the clock's plane`);
+}
+
 describe("the room's line of sight", () => {
   it("looks from the five poses of the mouse parallax's reach", () => {
     expect(cameras().length).toBe(5);
@@ -81,5 +91,13 @@ describe("the room's line of sight", () => {
     const counts = primitiveVertexCounts();
     expect(counts.length).toBeGreaterThan(0);
     for (const c of counts) expect(c).toBeLessThanOrEqual(65535);
+  });
+  it("bakes nothing in the clock's disc more than 3.5 mm in front of the clock's plane, so a surface can draw the hands (#380)", () => {
+    expect([...new Set(inFrontOfClock(triangleVertices()))]).toEqual([]);
+  });
+  it("notices a baked hand: a vertex 5 mm in front of the clock's plane, inside its disc (the break check)", () => {
+    const clock = props.find((p) => p.id === "clock")!;
+    expect(inFrontOfClock([[clock.centre[0] - 0.005, clock.centre[1] + 0.03, clock.centre[2]]]).length).toBe(1);
+    expect(inFrontOfClock([[clock.centre[0] - 0.005, clock.centre[1] + 0.2, clock.centre[2]]]).length).toBe(0);
   });
 });
