@@ -10,7 +10,7 @@ import {
 
 const LATER = ["oscilloscope", "rack-lights", "iron-wisp", "fan", "radio", "desk-phone", "clock", "laptop"];
 /** The later surfaces some ticket has filled (#381's three), in list order. */
-const FILLED_LATER = ["oscilloscope", "rack-lights", "iron-wisp"];
+const FILLED_LATER = ["oscilloscope", "rack-lights", "iron-wisp", "desk-phone", "clock"];
 const plane = { position: [0, 1, 0] as [number, number, number], yaw: 0, tilt: 0, width: 0.1, height: 0.1 };
 
 /** A filled surface that records the times it is drawn at. */
@@ -128,7 +128,7 @@ describe("the stop", () => {
   });
   it("draws the real screens' still frame without error", () => {
     const { driver, uploads } = drive(ambientSurfaces([{ sha7: "abc1234", subject: "a commit" }]));
-    driver.tick(1000);
+    driver.tick(STILL_T + 21_000); // 21 s on: the phone is lit and the clock's hands have moved (at 1000 both would be on their still frame, and skip the upload)
     driver.still();
     expect(Object.values(uploads)).toEqual(Array(3 + FILLED_LATER.length).fill(2));
   });

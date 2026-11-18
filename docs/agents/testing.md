@@ -7,7 +7,7 @@ Checked against the code on 2026-11-17, and `make facts` run (the ambient surfac
 |---|---|---|
 | Unit | `npm test` | Builder and CI |
 | Light browser | `make browser-light PW_ARGS=<spec>` for the specs it touched. `make browser-light` alone only for a change to shared code, through `heavy` | Builder (the specs it touched), and the release's `browser-light` job after staging. PR CI doesn't run it |
-| Timing | `@timing` | The release's `browser` job, before staging. In the session only to measure or break-check, through `heavy`, 1 worker. Exact durations are unit tests that pass the time in or fake the clock (`src/frames.test.ts`, `src/tear.test.ts`, `src/nixie.test.ts`, `src/meter-power.test.ts`, `src/shift/shift.test.ts`, `src/ambient/redraw.test.ts`, `src/ambient/phase.test.ts`); browser timing specs check that a play happened, its order, and the safe side of a limit |
+| Timing | `@timing` | The release's `browser` job, before staging. In the session only to measure or break-check, through `heavy`, 1 worker. Exact durations are unit tests that pass the time in or fake the clock (`src/frames.test.ts`, `src/tear.test.ts`, `src/nixie.test.ts`, `src/meter-power.test.ts`, `src/shift/shift.test.ts`, `src/ambient/redraw.test.ts`, `src/ambient/phase.test.ts`, `src/ambient/desk-phone.test.ts`, `src/ambient/clock.test.ts`); browser timing specs check that a play happened, its order, and the safe side of a limit |
 | Heavy rendering | `@render` | The release's `browser` job, before staging |
 
 ## Commands
