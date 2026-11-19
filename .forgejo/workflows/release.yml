@@ -29,7 +29,7 @@ jobs:
   gate:
     runs-on: docker
     steps:
-      - uses: actions/checkout@v4
+      - uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
       # The runner gate (#361): see the comment at the top of this file.
@@ -116,7 +116,7 @@ jobs:
         run: |
           date +%s > "${{ runner.temp }}/start"
           echo "start=$(cat "${{ runner.temp }}/start")" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@v4
+      - uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         id: checkout
         with:
           persist-credentials: false
@@ -195,7 +195,7 @@ jobs:
       group: staging
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ github.sha }}
       # The runner gate (#361): see the comment at the top of this file.
@@ -311,7 +311,7 @@ jobs:
       - name: Record start time
         id: start
         run: date +%s > "${{ runner.temp }}/start"
-      - uses: actions/checkout@v4
+      - uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         id: checkout
         with:
           persist-credentials: false

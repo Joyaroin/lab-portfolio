@@ -17,6 +17,12 @@ moves. Production follows the `production` branch, which only the
 `promote` workflow moves. Adham runs it.
 Everything in `deploy/` is what Argo CD runs. Don't edit `image.tag` by hand: the workflows own it.
 
+## Dependency updates
+Renovate, as the `renovate` user, opens one PR on Monday mornings with every non-major update; `renovate.json` extends
+adham/ci's shared preset. A major update waits on the repo's Dependency Dashboard issue until Adham ticks it. Actions are
+pinned by commit and images by digest: don't change a pin by hand, Renovate moves them. Its PRs touch files `merge-pr`
+protects (`.forgejo/`, Dockerfiles, `package.json`, `package-lock.json`), so they need Adham like any other.
+
 ## Agent skills
 - Issue tracker: `docs/agents/issue-tracker.md`
 - Triage labels: `docs/agents/triage-labels.md`
