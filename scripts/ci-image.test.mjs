@@ -1,10 +1,10 @@
-// The CI image (ci/Dockerfile) that release.yml's browser jobs run in. Its tag is the Dockerfile's hash, so a changed
-// Dockerfile gets a new tag: a run on a branch can't replace the image main's release uses, and the runner, which keeps
-// an image it has pulled, never runs a stale copy under the same tag. The Playwright version in it follows package-lock.json,
-// so a Playwright bump brings a new image with the browser and system packages it needs.
+// The CI image (ci/Dockerfile) that release.yml's browser jobs run in. adham/ci's build-ci-image workflow builds it,
+// only when the registry lacks its tag: ci- and a hash of the files in ci/, so a branch with a changed Dockerfile
+// gets a tag of its own and the runner, which keeps an image it has pulled, never runs a stale copy under the same
+// tag. The workflow outputs the image name, so no tag is written into release.yml. The Playwright version in the
+// image follows package-lock.json, and its base is pinned by digest.
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { createHash } from "node:crypto";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const dockerfile = read("ci/Dockerfile");
@@ -12,21 +12,30 @@ const yml = read(".forgejo/workflows/release.yml");
 // The workflows are read as text: the repo has no YAML parser. A job is the block from its key to the next two-space key.
 const jobIn = (name) => yml.slice(yml.indexOf(`\n  ${name}:\n`) + 1).split(/\n  (?=[a-z-]+:\n)/)[0];
 const IMAGE = "git.tailf69bc5.ts.net/projects/lab-ci";
+const FROM_OUTPUT = "${{ needs.ci-image.outputs.image }}";
 
 describe("the CI image", () => {
-  const tag = `ci-${createHash("sha256").update(dockerfile).digest("hex").slice(0, 12)}`;
-  it("is named in release.yml by the Dockerfile's hash, by the job that builds it and by both browser jobs", () => {
-    const named = [...yml.matchAll(/projects\/lab-ci:([\w.-]+)/g)].map((m) => m[1]);
-    expect(named, `ci/Dockerfile changed: its tag is now ${tag}`).toEqual([tag, tag, tag]);
-    expect(jobIn("ci-image")).toContain(`IMAGE: ${IMAGE}:${tag}`);
-    for (const job of ["browser", "browser-light"]) expect(jobIn(job), job).toContain(`      image: ${IMAGE}:${tag}`);
+  it("is built by adham/ci's build-ci-image at a pinned release, from ci/, as projects/lab-ci", () => {
+    const job = jobIn("ci-image");
+    expect(job).toMatch(/^    uses: adham\/ci\/\.forgejo\/workflows\/build-ci-image\.yml@v\d+\.\d+\.\d+$/m);
+    expect(job).toContain(`      image: ${IMAGE}\n`);
+    expect(job).toContain("      context: ci\n");
+    expect(job).toContain("      registry-token: ${{ secrets.REGISTRY_TOKEN }}");
+  });
+  it("is named in both browser jobs by the ci-image job's output, with no tag written into release.yml", () => {
+    for (const job of ["browser", "browser-light"]) expect(jobIn(job), job).toContain(`      image: ${FROM_OUTPUT}\n`);
+    expect(yml).not.toMatch(/lab-ci:ci-/);
   });
   it("holds the Playwright version package-lock.json installs", () => {
     const locked = JSON.parse(read("package-lock.json")).packages["node_modules/@playwright/test"].version;
     expect(dockerfile).toMatch(new RegExp(`^ARG PLAYWRIGHT_VERSION=${locked.replaceAll(".", "\\.")}$`, "m"));
   });
-  it("is built before the release specs run: browser needs the ci-image job, which needs the gate", () => {
+  it("starts from a base pinned by digest", () => {
+    expect(dockerfile).toMatch(/^FROM [^\s@]+@sha256:[0-9a-f]{64}$/m);
+  });
+  it("is built before the specs run: browser and browser-light need the ci-image job, which needs the gate", () => {
     expect(jobIn("ci-image")).toMatch(/^    needs: gate$/m);
     expect(jobIn("browser")).toMatch(/^    needs: ci-image$/m);
+    expect(jobIn("browser-light")).toMatch(/^    needs: \[staging, ci-image\]$/m);
   });
 });

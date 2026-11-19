@@ -7,11 +7,12 @@
 # 3 jobs at a time (adham/core-infra#5), but a release job must run alone (#361): the gate, browser, staging and browser-light jobs start with the runner gate
 # (scripts/runner-gate.mjs, right after checkout, since the script is in the repo), which waits until no job is running that started before it and isn't
 # in this run. Jobs that started later are ignored, and ci.yml's jobs wait for a release job that started before them, so the two can't deadlock. The image job runs in
-# the kaniko container, which has no node and no checkout, so it can't run the gate: the gate job runs it first, and image and ci-image (also kaniko) need that job; browser needs ci-image.
+# the kaniko container, which has no node and no checkout, so it can't run the gate: the gate job runs it first, and image and ci-image (adham/ci's build-ci-image, whose build runs in kaniko too) need that job; browser needs ci-image.
 # Within a run, image and browser still run at the same time, since a run's own jobs don't block each other. Time spent waiting in the gate counts toward
 # the release clock, and the gate's log line says how long it waited.
 # The browser and browser-light jobs run in the CI image (ci/Dockerfile), so they install no browser, Mesa or Xvfb. The ci-image job builds
-# it, in the release run so it runs alone like the rest, and only when the registry doesn't have its tag yet: the Dockerfile's hash.
+# it, in the release run so it runs alone like the rest, and only when the registry doesn't have its tag yet: a hash of ci/. Both jobs take the
+# image name from the ci-image job's output, so no tag is written here.
 # Nothing here pushes to main, so a deploy adds no commit there. The staging job pushes only when the run's commit is main's tip, so a run
 # started on another branch can't move staging. Run it again by hand to try again after a flaky failure: Forgejo can't re-run one job.
 # The release clock runs from the run's start to the end of the staging push. When staging moved, the browser job retried
@@ -68,43 +69,20 @@ jobs:
           /kaniko/executor \
             --context "git://$host/$REPO.git#refs/heads/main#$SHA" \
             --destination "$host/$REPO:$SHA"
-  # Builds the CI image (ci/Dockerfile) when the registry doesn't have its tag, and does nothing else: a release whose Dockerfile
-  # hasn't changed only asks the registry. The tag is ci- and the Dockerfile's hash (scripts/ci-image.test.mjs), so a branch with
-  # a changed Dockerfile pushes a tag of its own and can't replace main's. Like image, it runs in the kaniko container, so the gate
-  # job gates it. busybox's wget doesn't check TLS certificates; it reaches git over Tailscale, which encrypts the traffic itself.
+  # Builds the CI image (ci/Dockerfile) when the registry doesn't have its tag, and does nothing else: a release whose ci/ hasn't
+  # changed only asks the registry. adham/ci's build-ci-image does it: the tag is ci- and a hash of the files in ci/, so a branch with
+  # a changed Dockerfile pushes a tag of its own and can't replace main's, and the image output names it for the browser jobs. Its
+  # build job runs in the kaniko container, so the gate job gates this one. The job's own token can't read the org's packages: the
+  # org secret can (adham/ci phase 3).
   ci-image:
     needs: gate
-    runs-on: docker
-    container:
-      image: ghcr.io/osscontainertools/kaniko:v1.29.0-debug
-    steps:
-      - name: Build and push the CI image if it's missing
-        env:
-          IMAGE: git.tailf69bc5.ts.net/projects/lab-ci:ci-a469f13516fd
-          GIT_USERNAME: forgejo
-          GIT_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}
-          # The job's own token can't read or push packages. This org secret can.
-          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
-        run: |
-          host=git.tailf69bc5.ts.net
-          name=${IMAGE#"$host"/}
-          auth=$(printf 'adham:%s' "$REGISTRY_TOKEN" | base64 | tr -d '\n')
-          token=$(wget -qO- --header "Authorization: Basic $auth" "https://$host/v2/token?service=container_registry&scope=repository:${name%:*}:pull" | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
-          if wget -q --spider --header "Authorization: Bearer $token" \
-            --header "Accept: application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json" \
-            "https://$host/v2/${name%:*}/manifests/${IMAGE##*:}"; then
-            echo "$IMAGE is in the registry already: nothing to build."
-            exit 0
-          fi
-          echo "$IMAGE isn't in the registry: building it."
-          mkdir -p /kaniko/.docker
-          printf '{"auths":{"%s":{"auth":"%s"}}}' "$host" "$auth" > /kaniko/.docker/config.json
-          /kaniko/executor \
-            --context "git://$host/$REPO.git#refs/heads/main#$SHA" \
-            --context-sub-path ci \
-            --destination "$IMAGE"
+    uses: adham/ci/.forgejo/workflows/build-ci-image.yml@v1.1.0
+    with:
+      image: git.tailf69bc5.ts.net/projects/lab-ci
+      context: ci
+      registry-user: adham
+    secrets:
+      registry-token: ${{ secrets.REGISTRY_TOKEN }}
   # The release specs only: @timing and @render.
   browser:
     needs: ci-image
@@ -112,7 +90,7 @@ jobs:
     # Chromium, Mesa's llvmpipe and Xvfb come installed: ci/Dockerfile, built by the ci-image job. The registry is private,
     # so the runner pulls with the org token that pushes images.
     container:
-      image: git.tailf69bc5.ts.net/projects/lab-ci:ci-a469f13516fd
+      image: ${{ needs.ci-image.outputs.image }}
       credentials:
         username: adham
         password: ${{ secrets.REGISTRY_TOKEN }}
@@ -308,11 +286,12 @@ jobs:
   # wait for them. A red run is a comment on "CI failures on main", and the report names flaky tests.
   browser-light:
     runs-on: docker
-    needs: staging
+    # ci-image only for its output, the image name: it finished before staging could start.
+    needs: [staging, ci-image]
     # Chromium, Mesa's llvmpipe and Xvfb come installed: ci/Dockerfile, built by the ci-image job. The registry is private,
     # so the runner pulls with the org token that pushes images.
     container:
-      image: git.tailf69bc5.ts.net/projects/lab-ci:ci-a469f13516fd
+      image: ${{ needs.ci-image.outputs.image }}
       credentials:
         username: adham
         password: ${{ secrets.REGISTRY_TOKEN }}
