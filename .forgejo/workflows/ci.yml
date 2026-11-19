@@ -1,7 +1,8 @@
 # Runs on every branch except staging and production, including main after each merge. A PR needs every job green before it merges.
 # No browser specs run here (#352): release.yml runs the release specs (@timing, @render) before staging moves and the light specs after it,
 # and a builder runs the light specs it touched in its own session. The runner takes 3 jobs at a time (adham/core-infra#5), but a release job must run alone
-# (#361), so every job here starts with the runner gate (scripts/runner-gate.mjs, right after checkout, since the script is in the repo): it waits while a
+# (#361), so every job here starts with the runner gate (scripts/runner-gate.mjs, right after checkout, since the script is in the repo; ci-image, a
+# reusable workflow with no steps of its own, needs the gate job instead): it waits while a
 # release.yml job that started before it is running (a release job that starts later waits for this job instead, so the two can't deadlock). Waiting
 # holds a runner slot and uses no CPU; it gives up and fails the job after 60 minutes.
 # On main there is no open PR, so the steps that post to a PR log "nothing to post" and pass, except the failure reports: those are added to the standing "CI failures on main" issue.
@@ -193,11 +194,49 @@ jobs:
           SHA: ${{ github.sha }}
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/post-ci-failure.mjs
+  # Runs the runner gate for ci-image, whose build job runs in the kaniko container (no node), so it can't run the gate itself:
+  # the same arrangement as release.yml's gate job.
+  gate:
+    runs-on: docker
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      # The runner gate (#361): see the comment at the top of this file.
+      - name: Runner gate
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SERVER_URL: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_NUMBER: ${{ github.run_number }}
+          JOB: gate
+        run: node scripts/runner-gate.mjs ci
+  # The CI image (ci/Dockerfile) the screenshots job runs in: adham/ci's build-ci-image, the same call as release.yml's ci-image job.
+  # It only asks the registry, unless this branch changed ci/: then it builds a tag of its own, which can't replace main's.
+  # The job's own token can't read the org's packages, so the org secret pulls (adham/ci phase 3).
+  ci-image:
+    needs: gate
+    uses: adham/ci/.forgejo/workflows/build-ci-image.yml@v1.1.0
+    with:
+      image: git.tailf69bc5.ts.net/projects/lab-ci
+      context: ci
+      registry-user: adham
+    secrets:
+      registry-token: ${{ secrets.REGISTRY_TOKEN }}
   # Takes every station at desktop and phone size and puts them on the branch's open PR,
   # replacing the last push's comment. With no open PR it passes and attaches nothing. A shot that
   # can't be taken, or can't be attached, fails the job.
   screenshots:
+    needs: ci-image
     runs-on: docker
+    # Chromium, Mesa's llvmpipe and Xvfb come installed: the same CI image as release.yml's browser jobs, so the screenshots
+    # draw with the same Chromium and Mesa as the release specs. It is pulled even when there's no open PR: after the first
+    # pull it's on the runner's disk.
+    container:
+      image: ${{ needs.ci-image.outputs.image }}
+      credentials:
+        username: adham
+        password: ${{ secrets.REGISTRY_TOKEN }}
     # Two quick pushes would race on the PR's screenshot comment and images: the newer run wins.
     concurrency:
       group: screenshots-${{ github.ref }}
@@ -233,13 +272,6 @@ jobs:
           BRANCH: ${{ github.ref_name }}
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/post-screenshots.mjs find
-      # CI only: Mesa's llvmpipe and the virtual display it draws through.
-      - name: Install Mesa and Xvfb
-        id: drivers
-        if: steps.pr.outputs.pr != ''
-        run: |
-          set -o pipefail
-          { apt-get update && apt-get install -y --no-install-recommends libgl1-mesa-dri libegl-mesa0 libgbm1 xvfb xauth; } 2>&1 | tee "${{ runner.temp }}/out.log" || { c=$?; echo "$c" > "${{ runner.temp }}/exit"; exit "$c"; }
       - name: Take the screenshots
         id: run
         if: steps.pr.outputs.pr != ''
@@ -247,7 +279,7 @@ jobs:
           SHOTS_DIR: ${{ runner.temp }}/shots
         run: |
           set -o pipefail
-          { npm ci && npx playwright install --with-deps chromium && xvfb-run -a -s "-screen 0 1920x1080x24" npx playwright test -c playwright.screenshots.config.ts --reporter=list; } 2>&1 | tee "${{ runner.temp }}/out.log" || { c=$?; echo "$c" > "${{ runner.temp }}/exit"; exit "$c"; }
+          { npm ci && npx playwright install chromium && xvfb-run -a -s "-screen 0 1920x1080x24" npx playwright test -c playwright.screenshots.config.ts --reporter=list; } 2>&1 | tee "${{ runner.temp }}/out.log" || { c=$?; echo "$c" > "${{ runner.temp }}/exit"; exit "$c"; }
       - name: Attach them to the PR
         id: post
         if: steps.pr.outputs.pr != ''
@@ -267,7 +299,7 @@ jobs:
         continue-on-error: true
         env:
           JOB: screenshots
-          STEPS: start=${{ steps.start.outcome }} checkout=${{ steps.checkout.outcome }} pr=${{ steps.pr.outcome }} drivers=${{ steps.drivers.outcome }} run=${{ steps.run.outcome }} post=${{ steps.post.outcome }}
+          STEPS: start=${{ steps.start.outcome }} checkout=${{ steps.checkout.outcome }} pr=${{ steps.pr.outcome }} run=${{ steps.run.outcome }} post=${{ steps.post.outcome }}
           RUN_STEP: run
           CMD: npx playwright test -c playwright.screenshots.config.ts
           OUT_FILE: ${{ runner.temp }}/out.log

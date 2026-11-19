@@ -253,7 +253,8 @@ const jobIn = (yml, name) => yml.slice(yml.indexOf(`\n  ${name}:\n`) + 1).split(
 const jobNames = (yml) => [...yml.slice(yml.indexOf("\njobs:\n")).matchAll(/^  ([a-z-]+):\n/gm)].map((m) => m[1]);
 const stepsIn = (yml, name) => jobIn(yml, name).split(/\n      - /).slice(1);
 // The release's image and ci-image jobs run in the kaniko debug container: no node, no checkout, so no scripts. The gate job runs the gate for them, and they need that job.
-const UNGATED = ["release.yml image", "release.yml ci-image"];
+// ci.yml's ci-image is the same build-ci-image call, so ci.yml has a gate job for it too.
+const UNGATED = ["release.yml image", "release.yml ci-image", "ci.yml ci-image"];
 const GATED = { "ci.yml": "ci", "release.yml": "release" };
 
 describe.each(Object.entries(GATED))("%s has the gate in every job", (file, mode) => {
@@ -271,6 +272,18 @@ describe.each(Object.entries(GATED))("%s has the gate in every job", (file, mode
     expect(gateSteps[0]).toContain("RUN_NUMBER: ${{ github.run_number }}");
     expect(gateSteps[0]).toContain(`JOB: ${name}`);
     expect(gateSteps[0]).not.toMatch(/continue-on-error/);
+  });
+});
+
+describe("ci.yml's gate job", () => {
+  const yml = readFileSync(new URL("../.forgejo/workflows/ci.yml", import.meta.url), "utf8");
+  it("comes before ci-image, which needs it, and screenshots needs ci-image (the CI image it runs in)", () => {
+    expect(jobNames(yml).indexOf("gate")).toBeLessThan(jobNames(yml).indexOf("ci-image"));
+    expect(jobIn(yml, "ci-image")).toMatch(/^    needs: gate$/m);
+    expect(jobIn(yml, "screenshots")).toMatch(/^    needs: ci-image$/m);
+  });
+  it("ci-image has no gate step of its own: its build job's container has no node", () => {
+    expect(jobIn(yml, "ci-image")).not.toContain("runner-gate");
   });
 });
 
