@@ -37,7 +37,7 @@ CI runs on every branch except `staging` and `production`, including `main` afte
 - `frontend`, `backend`, `integration`: the make targets of the same name
 - `frontend` also runs `scripts/slow-tests.mjs` after `make frontend` (#416): `make frontend` runs `npm test` with vitest's JSON reporter as well, writing it into the gitignored `test-results` directory (the path is in the `Makefile` recipe), and the script prints a `::warning::` line (file, test name, duration) for each unit test over 1000 ms, slowest first, so it shows in the job's annotations. A unit sweep once ran near vitest's 5000 ms default and timed out on the busy runner while it still passed (#403); this warns before that. The step has `if: always()` and `continue-on-error: true`, and the script exits 0 on a missing report, so it never changes the job result. `scripts/slow-tests.test.mjs` (in `npm test`) feeds it fixture reports with a slow and a fast test, and reads `ci.yml` and the Makefile to check the step's place and the report path
 - `screenshots`: the overview plus every station, at desktop and phone size, posted to the PR
-- `secret-scan`: gitleaks over the full history
+- `secret-scan`: gitleaks over the full history, through adham/ci's secret-scan action (pinned by version and SHA-256)
 - `facts`: `make facts`
 - Every job starts with the runner gate, right after checkout: `node scripts/runner-gate.mjs ci` waits while a `release.yml` job that started before it is running (see "The runner gate" below)
 
