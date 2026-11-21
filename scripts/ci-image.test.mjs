@@ -20,10 +20,11 @@ const FROM_OUTPUT = "${{ needs.ci-image.outputs.image }}";
 describe("the CI image", () => {
   it("is built by adham/ci's build-ci-image at a pinned release, from ci/, as projects/lab-ci", () => {
     const job = jobIn("ci-image");
-    expect(job).toMatch(/^    uses: adham\/ci\/\.forgejo\/reusable\/build-ci-image\.yml@v\d+\.\d+\.\d+$/m);
+    expect(job).toMatch(/^    uses: adham\/ci\/\.forgejo\/workflows\/build-ci-image\.yml@v\d+\.\d+\.\d+$/m);
     expect(job).toContain(`      image: ${IMAGE}\n`);
     expect(job).toContain("      context: ci\n");
-    expect(job).toContain("      registry-token: ${{ secrets.REGISTRY_TOKEN }}");
+    // build-ci-image reads the REGISTRY_TOKEN secret, which only `secrets: inherit` passes (adham/ci ADR 0007).
+    expect(job).toMatch(/^    secrets: inherit$/m);
   });
   it("is named in both browser jobs by the ci-image job's output, with no tag written into release.yml", () => {
     for (const job of ["browser", "browser-light"]) expect(jobIn(job), job).toContain(`      image: ${FROM_OUTPUT}\n`);
@@ -49,7 +50,8 @@ describe("the CI image in ci.yml", () => {
     expect(job).toMatch(/^    needs: gate$/m);
     expect(job).toContain(`      image: ${IMAGE}\n`);
     expect(job).toContain("      context: ci\n");
-    expect(job).toContain("      registry-token: ${{ secrets.REGISTRY_TOKEN }}");
+    // build-ci-image reads the REGISTRY_TOKEN secret, which only `secrets: inherit` passes (adham/ci ADR 0007).
+    expect(job).toMatch(/^    secrets: inherit$/m);
     const versions = [...`${ci}\n${yml}`.matchAll(/build-ci-image\.yml@(v\d+\.\d+\.\d+)/g)].map((m) => m[1]);
     expect(versions).toHaveLength(2);
     expect(new Set(versions).size).toBe(1);

@@ -216,13 +216,13 @@ jobs:
   # The job's own token can't read the org's packages, so the org secret pulls (adham/ci phase 3).
   ci-image:
     needs: gate
-    uses: adham/ci/.forgejo/reusable/build-ci-image.yml@v2.0.0
+    uses: adham/ci/.forgejo/workflows/build-ci-image.yml@v3.0.0
     with:
       image: git.tailf69bc5.ts.net/projects/lab-ci
       context: ci
       registry-user: adham
-    secrets:
-      registry-token: ${{ secrets.REGISTRY_TOKEN }}
+    # It reads REGISTRY_TOKEN, which only `secrets: inherit` passes (adham/ci ADR 0007).
+    secrets: inherit
   # Takes every station at desktop and phone size and puts them on the branch's open PR,
   # replacing the last push's comment. With no open PR it passes and attaches nothing. A shot that
   # can't be taken, or can't be attached, fails the job.
@@ -336,7 +336,7 @@ jobs:
       # checksum failure inside it shows as this step failing; a finding also writes the redacted report.
       - name: Scan the full history
         id: scan
-        uses: https://git.tailf69bc5.ts.net/adham/ci/actions/secret-scan@v2.0.0
+        uses: https://git.tailf69bc5.ts.net/adham/ci/actions/secret-scan@v3.0.0
       # Forgejo has no job-log API, so put the failure on the PR. Best effort: it never changes
       # the job result, and a failed post is only logged. No log tail: only the redacted report.
       - name: Post the failure on the PR
