@@ -20,7 +20,7 @@ const FROM_OUTPUT = "${{ needs.ci-image.outputs.image }}";
 describe("the CI image", () => {
   it("is built by adham/ci's build-ci-image at a pinned release, from ci/, as projects/lab-ci", () => {
     const job = jobIn("ci-image");
-    expect(job).toMatch(/^    uses: adham\/ci\/\.forgejo\/workflows\/build-ci-image\.yml@v\d+\.\d+\.\d+$/m);
+    expect(job).toMatch(/^    uses: adham\/ci\/\.forgejo\/reusable\/build-ci-image\.yml@v\d+\.\d+\.\d+$/m);
     expect(job).toContain(`      image: ${IMAGE}\n`);
     expect(job).toContain("      context: ci\n");
     expect(job).toContain("      registry-token: ${{ secrets.REGISTRY_TOKEN }}");

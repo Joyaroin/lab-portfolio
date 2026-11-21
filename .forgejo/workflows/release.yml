@@ -76,7 +76,7 @@ jobs:
   # org secret can (adham/ci phase 3).
   ci-image:
     needs: gate
-    uses: adham/ci/.forgejo/workflows/build-ci-image.yml@v1.1.0
+    uses: adham/ci/.forgejo/reusable/build-ci-image.yml@v2.0.0
     with:
       image: git.tailf69bc5.ts.net/projects/lab-ci
       context: ci
