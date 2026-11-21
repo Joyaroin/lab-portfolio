@@ -5,7 +5,7 @@
 # scripts/ci-image.test.mjs checks that PLAYWRIGHT_VERSION matches @playwright/test in package-lock.json, and that the base is pinned.
 FROM node:22.23.5-bookworm@sha256:e13726ca604184d7a91fcacab1fc09eefd642dc28e79ac34e85540dd93b78cfb
 
-ARG PLAYWRIGHT_VERSION=1.64.1
+ARG PLAYWRIGHT_VERSION=1.65.1
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
     LAB_CI_IMAGE=1
 

@@ -48,7 +48,7 @@ jobs:
     outputs:
       start: ${{ steps.start.outputs.start }}
     container:
-      image: ghcr.io/osscontainertools/kaniko:v1.29.0-debug
+      image: ghcr.io/osscontainertools/kaniko:v1.29.1-debug@sha256:ebc38a988e5aa1aaea99240e931aeeeff9d8e6bb5a0bd0e00eaf79973bf0a773
     steps:
       - name: Record start time
         id: start
@@ -76,7 +76,7 @@ jobs:
   # org secret can (adham/ci phase 3).
   ci-image:
     needs: gate
-    uses: adham/ci/.forgejo/workflows/build-ci-image.yml@v3.0.0
+    uses: adham/ci/.forgejo/workflows/build-ci-image.yml@v3.0.1
     with:
       image: git.tailf69bc5.ts.net/projects/lab-ci
       context: ci
