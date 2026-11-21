@@ -19,9 +19,11 @@ Everything in `deploy/` is what Argo CD runs. Don't edit `image.tag` by hand: th
 
 ## Dependency updates
 Renovate, as the `renovate` user, opens one PR on Monday mornings with every non-major update; `renovate.json` extends
-adham/ci's shared preset. A major update waits on the repo's Dependency Dashboard issue until Adham ticks it. Actions are
-pinned by commit and images by digest: don't change a pin by hand, Renovate moves them. Its PRs touch files `merge-pr`
-protects (`.forgejo/`, Dockerfiles, `package.json`, `package-lock.json`), so they need Adham like any other.
+adham/ci's shared preset. It merges that PR itself once its CI is green, protected files included (Adham's decision on
+2026-11-20), so those merges skip `merge-pr`. A major update waits on the repo's Dependency Dashboard issue until Adham ticks
+it, and is never merged automatically. Actions are pinned by commit and images by digest: don't change a pin by hand,
+Renovate moves them. Don't push to a Renovate branch: Renovate stops managing a PR anyone else has pushed to (`merge-ready`
+skips them for that reason).
 
 ## Agent skills
 - Issue tracker: `docs/agents/issue-tracker.md`

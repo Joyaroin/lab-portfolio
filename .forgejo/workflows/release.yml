@@ -76,13 +76,13 @@ jobs:
   # org secret can (adham/ci phase 3).
   ci-image:
     needs: gate
-    uses: adham/ci/.forgejo/workflows/build-ci-image.yml@v1.1.0
+    uses: adham/ci/.forgejo/workflows/build-ci-image.yml@v3.0.0
     with:
       image: git.tailf69bc5.ts.net/projects/lab-ci
       context: ci
       registry-user: adham
-    secrets:
-      registry-token: ${{ secrets.REGISTRY_TOKEN }}
+    # It reads REGISTRY_TOKEN, which only `secrets: inherit` passes (adham/ci ADR 0007).
+    secrets: inherit
   # The release specs only: @timing and @render.
   browser:
     needs: ci-image
