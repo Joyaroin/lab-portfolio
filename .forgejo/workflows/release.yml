@@ -1,6 +1,7 @@
 # A release is started by hand on main (#355): Forgejo's "Run workflow" on main, or POST /repos/projects/lab/actions/workflows/release.yml/dispatches
 # with {"ref": "main"}. A merge to main doesn't start one. A release builds the image and runs the release specs (@timing and @render: make browser-release), then deploys
-# to staging: the staging job writes the tag into deploy/values-staging.yaml on the staging branch, the way promote does for production.
+# to staging: the staging job writes the tag, the digest kaniko pushed and the release version (2026.11.20.1, a comment) into
+# deploy/values-staging.yaml on the staging branch, and tags the commit with the version, the way promote does for production.
 # Staging moves only when both pass, so it never gets a commit whose release specs failed. Once staging has moved, the
 # browser-light job runs the light specs on main (make browser-light); staging doesn't wait for it, and a red run is
 # reported on "CI failures on main". PR CI (ci.yml) runs no browser specs (#352), so this is the only place they run. The runner takes
@@ -28,6 +29,9 @@ jobs:
   # gates again: a CI job can start in the seconds between this job ending and browser starting.
   gate:
     runs-on: docker
+    # version: this release's name (2026.11.20.1), for the image's labels, staging's values file and the git tag.
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: https://data.forgejo.org/actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -41,12 +45,26 @@ jobs:
           RUN_NUMBER: ${{ github.run_number }}
           JOB: gate
         run: node scripts/runner-gate.mjs release
+      # Today in Toronto and a counter, one past the day's last release tag (scripts/deploy-image.mjs).
+      - name: Work out the release version
+        id: version
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SERVER_URL: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          v=$(node scripts/deploy-image.mjs version)
+          [ -n "$v" ] || { echo "No release version came out." >&2; exit 1; }
+          echo "version=$v" >> "$GITHUB_OUTPUT"
   image:
     needs: gate
     runs-on: docker
     # Start time (epoch seconds), for the release clock when the runs API can't be read.
+    # digest: what kaniko pushed, so staging and production run exactly this image whatever happens to the tag later.
     outputs:
       start: ${{ steps.start.outputs.start }}
+      digest: ${{ steps.build.outputs.digest }}
+      version: ${{ steps.build.outputs.version }}
     container:
       image: ghcr.io/osscontainertools/kaniko:v1.29.1-debug@sha256:ebc38a988e5aa1aaea99240e931aeeeff9d8e6bb5a0bd0e00eaf79973bf0a773
     steps:
@@ -54,11 +72,13 @@ jobs:
         id: start
         run: echo "start=$(date +%s)" >> "$GITHUB_OUTPUT"
       - name: Build and push
+        id: build
         env:
           GIT_USERNAME: forgejo
           GIT_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           SHA: ${{ github.sha }}
+          VERSION: ${{ needs.gate.outputs.version }}
           # The job's own token can't push packages. This org secret can.
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
         run: |
@@ -68,7 +88,16 @@ jobs:
           printf '{"auths":{"%s":{"auth":"%s"}}}' "$host" "$auth" > /kaniko/.docker/config.json
           /kaniko/executor \
             --context "git://$host/$REPO.git#refs/heads/main#$SHA" \
-            --destination "$host/$REPO:$SHA"
+            --destination "$host/$REPO:$SHA" \
+            --digest-file /kaniko/digest \
+            --label "org.opencontainers.image.revision=$SHA" \
+            --label "org.opencontainers.image.source=https://$host/$REPO" \
+            --label "org.opencontainers.image.version=$VERSION" \
+            --label "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          # No digest means nothing for staging to run by, so the release stops here.
+          [ -s /kaniko/digest ] || { echo "kaniko wrote no digest." >&2; exit 1; }
+          echo "digest=$(cat /kaniko/digest)" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
   # Builds the CI image (ci/Dockerfile) when the registry doesn't have its tag, and does nothing else: a release whose ci/ hasn't
   # changed only asks the registry. adham/ci's build-ci-image does it: the tag is ci- and a hash of the files in ci/, so a branch with
   # a changed Dockerfile pushes a tag of its own and can't replace main's, and the image output names it for the browser jobs. Its
@@ -211,6 +240,8 @@ jobs:
         id: move
         env:
           SHA: ${{ github.sha }}
+          DIGEST: ${{ needs.image.outputs.digest }}
+          VERSION: ${{ needs.image.outputs.version }}
         run: |
           # An older run must not overwrite a newer one. Each attempt reads where staging is, checks
           # this commit is still main's tip, then pushes only if staging hasn't moved since the read.
@@ -235,11 +266,14 @@ jobs:
               exit 0
             fi
             git reset --hard "$SHA"
-            sed -i -E "s/^(\s*tag:).*/\1 \"$SHA\"/" deploy/values-staging.yaml
-            git commit -am "Deploy $SHA to staging"
+            # The tag, the digest kaniko pushed and the version (scripts/deploy-image.mjs). It refuses a missing digest.
+            node scripts/deploy-image.mjs write deploy/values-staging.yaml "$SHA" "$DIGEST" "$VERSION"
+            git commit -am "Deploy $SHA ($VERSION) to staging"
             if git push --force-with-lease="refs/heads/staging:$seen" origin HEAD:refs/heads/staging; then
               echo "moved=true" >> "$GITHUB_OUTPUT"
               echo "ended=$(date +%s)" >> "$GITHUB_OUTPUT"
+              # The version names this commit from now on, so promote can take it. Best effort: staging has moved either way.
+              { git tag "$VERSION" "$SHA" && git push origin "refs/tags/$VERSION"; } || echo "::warning::Couldn't push the tag $VERSION; promote still takes the commit sha."
               exit 0
             fi
             echo "Push attempt $attempt was refused." >&2

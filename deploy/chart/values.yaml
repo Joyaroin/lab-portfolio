@@ -3,6 +3,8 @@ port: 8080
 image:
   registry: git.tailf69bc5.ts.net/projects
   tag: ""
+  # The workflows write it next to the tag, and the pod runs <tag>@<digest>, so a tag pushed again changes nothing.
+  digest: ""
 nodeName: ""
 resources:
   requests:

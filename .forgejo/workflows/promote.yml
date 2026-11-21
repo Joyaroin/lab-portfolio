@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Commit sha to deploy (7 to 40 hex characters). Leave empty for what's on staging.
+        description: A release version (2026.11.20.1) or a commit sha (7 to 40 hex characters). Leave empty for what's on staging.
         required: false
 jobs:
   production:
@@ -16,31 +16,24 @@ jobs:
         with:
           fetch-depth: 0
           ref: main
+      # Production runs the image by its digest, with the release version as a comment (scripts/deploy-image.mjs).
       - name: Move the production branch
         env:
           INPUT_VERSION: ${{ inputs.version }}
+          IMAGE: git.tailf69bc5.ts.net/projects/lab
+          REG_USER: adham
+          # Read only here: it asks the registry for the image's digest.
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
         run: |
-          version="$INPUT_VERSION"
-          if [ -z "$version" ]; then
-            if ! git rev-parse --verify --quiet refs/remotes/origin/staging >/dev/null; then
-              echo "There is no staging branch yet, so there is no staging version. Give a version, or run the release workflow by hand on main so it creates it." >&2
-              exit 1
-            fi
-            version=$(git show origin/staging:deploy/values-staging.yaml | sed -nE 's/^\s*tag: *"?([^"]*)"?.*/\1/p')
-          fi
-          # Whichever way version was set, accept only 7 to 40 lowercase hex characters before any
-          # git or sed command sees it.
-          case "$version" in
-            ""|*[!0-9a-f]*) echo "Version is not a commit sha (7 to 40 hex characters)." >&2; exit 1 ;;
-          esac
-          if [ "${#version}" -lt 7 ] || [ "${#version}" -gt 40 ]; then
-            echo "Version is not a commit sha (7 to 40 hex characters)." >&2
-            exit 1
-          fi
-          version=$(git rev-parse --verify "$version^{commit}")
-          git checkout --detach "$version"
-          sed -i -E "s/^(\s*tag:).*/\1 \"$version\"/" deploy/values-production.yaml
+          # Copied aside first: the commit being deployed may predate the script.
+          cp scripts/deploy-image.mjs "$RUNNER_TEMP/deploy-image.mjs"
+          # It refuses anything but empty, a commit sha or a release version before git or the registry sees it, and fails
+          # if the image is gone from the registry.
+          out=$(node "$RUNNER_TEMP/deploy-image.mjs" resolve "$INPUT_VERSION")
+          read -r sha digest version <<< "$out"
+          git checkout --detach "$sha"
+          node "$RUNNER_TEMP/deploy-image.mjs" write deploy/values-production.yaml "$sha" "$digest" "$version"
           git config user.name forgejo-ci
           git config user.email ci@forgejo.local
-          git commit -am "Deploy $version to production"
+          git commit -am "Deploy $sha${version:+ ($version)} to production"
           git push --force origin HEAD:refs/heads/production

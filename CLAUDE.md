@@ -15,7 +15,10 @@ A release job runs alone on the CI runner: every job starts with a gate (`script
 Staging follows the `staging` branch, which only `release.yml`
 moves. Production follows the `production` branch, which only the
 `promote` workflow moves. Adham runs it.
-Everything in `deploy/` is what Argo CD runs. Don't edit `image.tag` by hand: the workflows own it.
+Everything in `deploy/` is what Argo CD runs. Don't edit `image.tag` or `image.digest` by hand: the workflows own them.
+Staging and production run the app image by its digest (`lab:<sha>@<digest>`), with the release version as a comment
+next to the tag (`2026.11.20.1`: the Toronto date and a counter). The release tags the commit with that version, and
+`promote` takes a version, a commit sha, or nothing for what's on staging (`scripts/deploy-image.mjs`).
 
 ## Dependency updates
 Renovate, as the `renovate` user, opens one PR on Monday mornings with every non-major update; `renovate.json` extends
